@@ -10,7 +10,7 @@ import { useSettingsStore } from '../lib/store/settings';
 import { useConnection } from '../lib/store/connection';
 import { CMD, Segment } from '../types/index';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { Cpu, Trash2, Hexagon, Zap as ZapIcon } from 'lucide-react';
+import { Zap, Trash2, Hexagon, Cpu } from 'lucide-react';
 
 export const MUSIC_TRACKS = [
   { id: 0, title: "CYBERPUNK AMBIENT", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" },
@@ -35,7 +35,8 @@ const CoreEmblem = () => (
       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
       className="bg-card-light dark:bg-card-dark border-2 border-primary/50 p-6 rounded-full shadow-[0_0_40px_rgba(218,165,32,0.2)] z-10 transition-colors"
     >
-      <Cpu size={48} className="text-primary" />
+      {/* Restored Zap Icon based on user request */}
+      <Zap size={48} className="text-primary" fill="currentColor" />
     </MotionDiv>
   </div>
 );
@@ -84,6 +85,16 @@ export default function DashboardPage() {
     return groups;
   }, [segments]);
 
+  const groupEntries = Object.entries(groupedSegments);
+  const totalGroups = groupEntries.length;
+
+  // Logic to calculate layout span (same as Segment logic)
+  const getGroupSpan = (index: number) => {
+    if (totalGroups === 1) return "col-span-1 md:col-span-2";
+    if (totalGroups % 2 !== 0 && index === totalGroups - 1) return "col-span-1 md:col-span-2";
+    return "col-span-1";
+  };
+
   return (
     <MotionConfig reducedMotion={settings.animations ? "never" : "always"}>
       <div className="min-h-screen bg-background-light dark:bg-background-dark transition-colors duration-500 flex flex-col overflow-x-hidden">
@@ -103,32 +114,33 @@ export default function DashboardPage() {
                   </p>
                 </div>
                 <button className="bg-card-light dark:bg-card-dark text-primary border-2 border-primary/40 px-10 py-4 rounded-chip font-black uppercase tracking-[0.3em] text-[10px] hover:bg-primary hover:text-black transition-all duration-300 shadow-xl">
-                  <span className="flex items-center gap-2"><ZapIcon size={14} /> Initialize Deployment</span>
+                  <span className="flex items-center gap-2"><Zap size={14} /> Initialize Deployment</span>
                 </button>
               </MotionDiv>
             </MotionDiv>
           ) : (
-            <div className="grid grid-cols-1 gap-12">
-              {Object.entries(groupedSegments).map(([groupName, groupNodes]) => (
-                <SegmentGroup 
-                  key={groupName}
-                  name={groupName}
-                  segments={groupNodes}
-                  onReorder={(newNodes) => {
-                    const otherGroupsSegments = segments.filter(s => (s.group || "basic") !== groupName);
-                    setSegments([...otherGroupsSegments, ...newNodes]);
-                  }}
-                  onRemove={removeSegment}
-                  onToggle={(id) => {
-                    toggleSegment(id);
-                    const seg = segments.find(s => s.num_of_node === id);
-                    if (seg) sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
-                  }}
-                  onPWMChange={setPWM}
-                  onToggleBit={() => {}}
-                  onDragStart={() => setIsDragging(true)}
-                  onDragEnd={() => setIsDragging(false)}
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {groupEntries.map(([groupName, groupNodes], index) => (
+                <div key={groupName} className={`${getGroupSpan(index)}`}>
+                  <SegmentGroup 
+                    name={groupName}
+                    segments={groupNodes}
+                    onReorder={(newNodes) => {
+                      const otherGroupsSegments = segments.filter(s => (s.group || "basic") !== groupName);
+                      setSegments([...otherGroupsSegments, ...newNodes]);
+                    }}
+                    onRemove={removeSegment}
+                    onToggle={(id) => {
+                      toggleSegment(id);
+                      const seg = segments.find(s => s.num_of_node === id);
+                      if (seg) sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
+                    }}
+                    onPWMChange={setPWM}
+                    onToggleBit={() => {}}
+                    onDragStart={() => setIsDragging(true)}
+                    onDragEnd={() => setIsDragging(false)}
+                  />
+                </div>
               ))}
             </div>
           )}

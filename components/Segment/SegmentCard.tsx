@@ -48,8 +48,8 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children,
         </div>
       </div>
       
-      {/* Core Logic Interface */}
-      <div className="p-8 pt-12 relative z-10 flex flex-col gap-6 h-full">
+      {/* Core Logic Interface - Reduced padding from p-8 to p-6 for better fit */}
+      <div className="p-6 pt-12 relative z-10 flex flex-col gap-6 h-full">
         {children}
       </div>
 

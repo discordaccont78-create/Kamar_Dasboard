@@ -37,13 +37,6 @@ export const SegmentGroup: React.FC<Props> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const getColSpan = (index: number) => {
-    const total = segments.length;
-    if (total === 1) return "col-span-1 md:col-span-2";
-    if (total % 2 !== 0 && index === total - 1) return "col-span-1 md:col-span-2";
-    return "col-span-1";
-  };
-
   const handleDrag = (event: any, info: any, currentIndex: number) => {
     if (!containerRef.current) return;
     const dragX = info.point.x;
@@ -73,12 +66,13 @@ export const SegmentGroup: React.FC<Props> = ({
   };
 
   return (
-    <div className="group-container mb-16 p-6 border-2 border-primary/10 dark:border-primary/5 bg-white/40 dark:bg-white/5 rounded-bevel shadow-sm transition-all duration-300 segment-group overflow-visible">
+    <div className="group-container mb-10 p-5 border-2 border-primary/10 dark:border-primary/5 bg-white/40 dark:bg-white/5 rounded-bevel shadow-sm transition-all duration-300 segment-group overflow-visible h-full">
       <GroupHeader name={name} count={segments.length} />
       
+      {/* Changed to single column grid (grid-cols-1) to ensure segments stack vertically */}
       <div 
         ref={containerRef}
-        className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-12 auto-rows-auto relative"
+        className="mt-6 grid grid-cols-1 gap-6 auto-rows-auto relative"
       >
         <AnimatePresence mode="popLayout">
           {segments.map((seg, index) => (
@@ -99,15 +93,15 @@ export const SegmentGroup: React.FC<Props> = ({
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              className={`segment_area ${getColSpan(index)}`}
+              className="segment_area col-span-1"
             >
               <SegmentCard 
                 gpio={seg.gpio || 0} 
-                label={seg.name} // Display Segment Name here
+                label={seg.name}
                 dragHandle={
                   <GripVertical 
                     className="text-black/30 group-hover:text-primary transition-colors cursor-grab active:cursor-grabbing" 
-                    size={22} 
+                    size={20} 
                   />
                 }
               >
