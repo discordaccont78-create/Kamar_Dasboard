@@ -14,53 +14,39 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children,
   return (
     <motion.div 
       layout
-      className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-white/5 rounded-bevel p-6 flex flex-col gap-6 bevel-shadow relative overflow-hidden group transition-all duration-300 hover:border-primary/50"
+      whileHover={{ y: -4 }}
+      className="bg-white dark:bg-[#121212] border-2 border-gray-200 dark:border-[#262626] rounded-bevel p-0 flex flex-col relative group bevel-shadow overflow-visible transition-all duration-300 hover:border-primary hover:shadow-[0_20px_40px_-15px_rgba(218,165,32,0.3)]"
     >
-      {/* Visual Hardware Accent */}
-      <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-3xl pointer-events-none -mr-12 -mt-12" />
-      
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-           <div className="p-2 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-primary transition-colors cursor-grab active:cursor-grabbing">
-            {dragHandle}
-           </div>
-           <div className="flex flex-col">
-              <h4 className="text-black dark:text-white font-black text-sm uppercase tracking-tight group-hover:text-primary transition-colors">
-                {label}
-              </h4>
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                Port Channel: GP-{gpio}
-              </p>
-           </div>
+      {/* Legend-style Header with hardware-inspired styling */}
+      <div className="absolute -top-4 left-6 px-4 bg-primary dark:bg-primary py-1.5 rounded-chip border-2 border-black/10 dark:border-white/20 shadow-md z-20 flex items-center gap-3">
+        <div className="drag-handle cursor-grab active:cursor-grabbing">
+          {dragHandle}
         </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="bg-black text-primary px-3 py-1 rounded-chip text-[9px] font-black border border-primary/20 shadow-md">
-            HARDWARE-IO
-          </div>
-          {onRemove && (
-            <button 
-              onClick={onRemove}
-              className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"
-              title="Decommission Module"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
-          )}
+        <div className="flex flex-col">
+          <span className="text-black font-black text-[10px] tracking-tight uppercase leading-none">
+            group-name: {label}
+          </span>
+          <span className="text-black/60 font-black text-[8px] uppercase tracking-widest mt-0.5">
+            pin-number: GP-{gpio}
+          </span>
         </div>
       </div>
       
-      <div className="relative z-10 space-y-4">
+      {/* Content Area */}
+      <div className="p-8 pt-12 relative z-10 flex flex-col gap-6 h-full">
         {children}
       </div>
 
-      {/* Industrial Screws Detail */}
-      <div className="absolute bottom-2 right-2 flex gap-1 opacity-20">
-        <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-        <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+      {/* Hardware Screw Details for industrial aesthetics */}
+      <div className="absolute bottom-2 left-2 flex gap-1 opacity-20 pointer-events-none group-hover:opacity-100 transition-opacity">
+        <div className="w-1.5 h-1.5 rounded-full border border-black dark:border-white" />
       </div>
+      <div className="absolute bottom-2 right-2 flex gap-1 opacity-20 pointer-events-none group-hover:opacity-100 transition-opacity">
+        <div className="w-1.5 h-1.5 rounded-full border border-black dark:border-white" />
+      </div>
+      
+      {/* Bottom accent line */}
+      <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
     </motion.div>
   );
 };

@@ -61,7 +61,8 @@ export interface AppSettings {
   bgMusic: boolean;
   volume: number;
   theme: 'dark' | 'light';
-  useSsl: boolean; // New: Explicit SSL control
+  useSsl: boolean;
+  currentTrackIndex: number; // Added for track navigation
 }
 
 export interface LogEntry {

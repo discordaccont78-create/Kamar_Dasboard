@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MotionConfig } from 'framer-motion';
+import { MotionConfig, AnimatePresence, motion } from 'framer-motion';
 import { Header } from '../components/Header/Header';
 import { SideMenu } from '../components/UI/SideMenu';
 import { SegmentGroup } from '../components/Group/SegmentGroup';
@@ -8,16 +8,31 @@ import { Console } from '../components/UI/Console';
 import { ToastContainer } from '../components/UI/Toast';
 import { useSegments } from '../lib/store/segments';
 import { useSettingsStore } from '../lib/store/settings';
+import { useConnection } from '../lib/store/connection';
 import { CMD, Segment } from '../types/index';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { Bot, Cpu, Zap, Network, LayoutGrid } from 'lucide-react';
+// Fix: Added missing Zap icon import from lucide-react to resolve the reference error on line 184
+import { Bot, Cpu, Terminal, Trash2, Zap } from 'lucide-react';
+
+export const MUSIC_TRACKS = [
+  { id: 0, title: "CYBERPUNK AMBIENT", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" },
+  { id: 1, title: "DATA STREAM LO-FI", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
+  { id: 2, title: "SYNTHETIC NEURONS", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
+  { id: 3, title: "HARDWARE ECHO", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" }
+];
+
+const CACHE_NAME = 'iot-dashboard-audio-v1';
 
 export default function DashboardPage() {
   const { segments, setSegments, updateSegment, removeSegment, toggleSegment, setPWM } = useSegments();
-  const { settings } = useSettingsStore();
+  const { settings, updateSettings } = useSettingsStore();
+  const { addToast } = useConnection();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isConsoleOpen, setIsConsoleOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
   const { sendCommand } = useWebSocket();
 
   useEffect(() => {
@@ -25,26 +40,62 @@ export default function DashboardPage() {
     document.documentElement.classList.toggle('no-animations', !settings.animations);
   }, [settings.theme, settings.animations]);
 
-  // Audio Engine Management
+  // Audio Caching and Playback Engine
   useEffect(() => {
-    if (settings.bgMusic) {
-      if (!audioRef.current) {
-        audioRef.current = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3');
-        audioRef.current.loop = true;
+    const handlePlayback = async () => {
+      if (!settings.bgMusic) {
+        audioRef.current?.pause();
+        return;
       }
-      audioRef.current.volume = settings.volume / 100;
-      audioRef.current.play().catch(() => {
-        console.info("Ambient stream blocked - interaction needed");
-      });
-    } else {
-      audioRef.current?.pause();
-    }
-  }, [settings.bgMusic, settings.volume]);
 
-  // Grouping logic for logical buckets
+      const track = MUSIC_TRACKS[settings.currentTrackIndex];
+      
+      try {
+        if (!audioRef.current) {
+          audioRef.current = new Audio();
+          audioRef.current.loop = true;
+        }
+
+        const cache = await caches.open(CACHE_NAME);
+        let response = await cache.match(track.url);
+
+        if (!response) {
+          addToast(`Caching Audio Asset...`, "info");
+          response = await fetch(track.url);
+          await cache.put(track.url, response.clone());
+        }
+
+        const blob = await response.blob();
+        
+        if (objectUrlRef.current) {
+          URL.revokeObjectURL(objectUrlRef.current);
+        }
+        
+        const blobUrl = URL.createObjectURL(blob);
+        objectUrlRef.current = blobUrl;
+
+        audioRef.current.src = blobUrl;
+        audioRef.current.volume = settings.volume / 100;
+        await audioRef.current.play();
+        
+      } catch (error) {
+        console.error("[AudioEngine] Playback Failed:", error);
+      }
+    };
+
+    handlePlayback();
+
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+      }
+    };
+  }, [settings.bgMusic, settings.currentTrackIndex, settings.volume, addToast]);
+
+  // Grouping logic: Segments are grouped by their 'group' property
   const groupedSegments = useMemo(() => {
     return segments.reduce((acc, seg) => {
-      const groupName = "Active Modules"; 
+      const groupName = seg.group || "Main Group"; 
       if (!acc[groupName]) acc[groupName] = [];
       acc[groupName].push(seg);
       return acc;
@@ -77,68 +128,105 @@ export default function DashboardPage() {
 
   return (
     <MotionConfig reducedMotion={settings.animations ? "never" : "always"}>
-      <div className="min-h-screen bg-background-light dark:bg-background-dark transition-colors duration-500 pb-32">
+      <div className="min-h-screen bg-background-light dark:bg-background-dark transition-colors duration-500 flex flex-col">
         <Header onOpenMenu={() => setIsMenuOpen(true)} />
         
-        <main className="max-w-7xl mx-auto px-6 pt-12">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-16 items-start">
-            {segments.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-40 gap-10 border-4 border-dashed border-gray-300 dark:border-white/5 rounded-[60px] opacity-30 group hover:opacity-100 transition-all cursor-pointer" onClick={() => setIsMenuOpen(true)}>
-                <div className="bg-gray-100 dark:bg-white/5 p-12 rounded-full relative">
-                  <Bot size={80} className="text-gray-400" />
-                  <div className="absolute inset-0 border-4 border-primary/20 rounded-full animate-ping" />
-                </div>
-                <div className="text-center space-y-4">
-                  <h2 className="text-3xl font-black uppercase text-black dark:text-white tracking-tighter">System Idle</h2>
-                  <p className="text-[10px] text-gray-500 uppercase font-black tracking-[0.5em] max-w-xs mx-auto leading-relaxed">
-                    No active IO modules detected. Deployment required.
-                  </p>
-                </div>
-                <button className="px-10 py-4 bg-black text-primary font-black uppercase text-[11px] tracking-widest rounded-2xl border border-primary/20 hover:scale-105 transition-transform">
-                  Configure Node OS
-                </button>
+        <main className="max-w-7xl mx-auto px-6 pt-12 flex-1 pb-40 w-full">
+          {segments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-40 gap-10 border-4 border-dashed border-gray-300 dark:border-white/5 rounded-[60px] opacity-30 group hover:opacity-100 transition-all cursor-pointer" onClick={() => setIsMenuOpen(true)}>
+              <div className="bg-gray-100 dark:bg-white/5 p-12 rounded-full relative">
+                <Bot size={80} className="text-gray-400" />
+                <div className="absolute inset-0 border-4 border-primary/20 rounded-full animate-ping" />
               </div>
-            ) : (
-              Object.entries(groupedSegments).map(([groupName, groupNodes]) => (
-                <SegmentGroup 
+              <div className="text-center space-y-4">
+                <h2 className="text-3xl font-black uppercase text-black dark:text-white tracking-tighter">System Idle</h2>
+                <p className="text-[10px] text-gray-500 uppercase font-black tracking-[0.5em] max-w-xs mx-auto leading-relaxed">
+                  No active IO modules detected. Deployment required.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-12">
+              {Object.entries(groupedSegments).map(([groupName, groupNodes], groupIndex) => (
+                <motion.div 
                   key={groupName}
-                  name={groupName}
-                  segments={groupNodes}
-                  onReorder={setSegments}
-                  onRemove={removeSegment}
-                  onToggle={handleToggle}
-                  onPWMChange={handlePWMChange}
-                  onToggleBit={handleToggleBit}
-                />
-              ))
-            )}
-          </div>
-          
-          {/* Real-time Telemetry Monitor */}
-          <div className="mt-20">
-            <Console />
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: groupIndex * 0.1 }}
+                >
+                  <SegmentGroup 
+                    name={groupName}
+                    segments={groupNodes}
+                    onReorder={(newGroupSegments) => {
+                        // Advanced reordering logic would go here if multi-group was strictly indexed
+                        // For now, simpler reorder of the global segment list is used
+                        const otherSegments = segments.filter(s => s.group !== groupName);
+                        setSegments([...otherSegments, ...newGroupSegments]);
+                    }}
+                    onRemove={removeSegment}
+                    onToggle={handleToggle}
+                    onPWMChange={handlePWMChange}
+                    onToggleBit={handleToggleBit}
+                    onDragStart={() => setIsDragging(true)}
+                    onDragEnd={() => setIsDragging(false)}
+                  />
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </main>
+
+        <footer className="fixed bottom-0 left-0 w-full bg-black border-t-4 border-primary/30 py-4 px-8 z-50 flex items-center justify-between">
+          <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-2 font-black text-[10px] uppercase tracking-widest text-primary/80">
+              <Cpu size={14} /> ESP32-PRO
+            </div>
+            <div className="hidden sm:flex items-center gap-2 font-black text-[10px] uppercase tracking-widest text-primary/60">
+              <Zap size={14} className="text-primary animate-pulse" /> SYNC: ACTIVE
+            </div>
           </div>
 
-          {/* System Metadata Footer */}
-          <div className="mt-24 pt-10 border-t border-gray-200 dark:border-white/5 flex flex-wrap gap-10 justify-center opacity-30">
-            <div className="flex items-center gap-3 font-black text-[9px] uppercase tracking-widest">
-              <Cpu size={14} className="text-primary" /> ESP32-S3 CORE
-            </div>
-            <div className="flex items-center gap-3 font-black text-[9px] uppercase tracking-widest">
-              <Network size={14} className="text-primary" /> BINARY-V3 STREAM
-            </div>
-            <div className="flex items-center gap-3 font-black text-[9px] uppercase tracking-widest">
-              <LayoutGrid size={14} className="text-primary" /> DYNAMIC-ALIASING
-            </div>
+          <AnimatePresence>
+            {isDragging && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="absolute left-1/2 -translate-x-1/2 -top-16 bg-red-600 text-white px-8 py-4 rounded-chip border-4 border-white shadow-2xl flex items-center gap-4 animate-pulse"
+              >
+                <Trash2 size={24} />
+                <span className="font-black text-[11px] uppercase tracking-widest">Drop to Delete</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsConsoleOpen(!isConsoleOpen)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-chip border-2 font-black text-[10px] uppercase tracking-widest transition-all ${
+                isConsoleOpen ? 'bg-primary text-black border-primary' : 'bg-white/5 text-primary border-primary/30'
+              }`}
+            >
+              <Terminal size={14} /> Log Panel
+            </button>
           </div>
-        </main>
+        </footer>
+
+        <AnimatePresence>
+          {isConsoleOpen && (
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              className="fixed bottom-[68px] left-0 w-full z-40"
+            >
+              <Console onClose={() => setIsConsoleOpen(false)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
         <ToastContainer />
-        
-        {/* Dynamic Background elements */}
-        <div className="fixed top-0 right-0 w-1/3 h-1/3 bg-primary/5 blur-[150px] pointer-events-none z-[-1]" />
-        <div className="fixed bottom-0 left-0 w-1/4 h-1/4 bg-primary/5 blur-[120px] pointer-events-none z-[-1]" />
       </div>
     </MotionConfig>
   );

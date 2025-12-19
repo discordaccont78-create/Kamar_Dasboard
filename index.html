@@ -28,8 +28,8 @@
               },
             },
             borderRadius: {
-              'bevel': '24px 24px 6px 6px',
-              'chip': '10px 10px 3px 3px',
+              'bevel': '16px 16px 3px 3px',
+              'chip': '6px 6px 2px 2px',
             },
             fontFamily: {
               mono: ['JetBrains Mono', 'monospace'],
@@ -52,11 +52,9 @@
       .dark body {
         background-color: #0a0a0a;
         color: #f8f9fa;
-        /* Subtle industrial pattern for dark mode */
         background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
       }
 
-      /* Premium Slider track */
       input[type=range] {
         -webkit-appearance: none;
         background: transparent;
@@ -88,7 +86,6 @@
         transform: scale(1.1);
       }
 
-      /* Custom scrollbar */
       ::-webkit-scrollbar { width: 8px; }
       ::-webkit-scrollbar-track { background: #0a0a0a; }
       ::-webkit-scrollbar-thumb { background: #daa520; border-radius: 10px; }
@@ -97,8 +94,7 @@
         box-shadow: 
           0 10px 25px -5px rgba(0, 0, 0, 0.1),
           0 8px 10px -6px rgba(0, 0, 0, 0.1),
-          inset 0 1px 1px rgba(255, 255, 255, 0.05),
-          inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+          inset 0 1px 1px rgba(255, 255, 255, 0.05);
       }
       .dark .bevel-shadow {
         box-shadow: 
@@ -106,13 +102,24 @@
           inset 0 1px 1px rgba(255, 255, 255, 0.05);
       }
 
-      /* Animation disabling class */
       .no-animations *, 
       .no-animations *::before, 
       .no-animations *::after {
         animation: none !important;
         transition: none !important;
       }
+
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      /* Layout Helper Classes */
+      .menu-container { display: flex; flex-direction: column; }
+      .menu-sub-container { display: block; }
     </style>
 <script type="importmap">
 {

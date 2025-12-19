@@ -1,36 +1,49 @@
 
 import React from 'react';
 import { useConnection } from '../../lib/store/connection';
-import { Terminal, Trash2 } from 'lucide-react';
+import { Terminal, Trash2, X } from 'lucide-react';
 
-export const Console: React.FC = () => {
+interface ConsoleProps {
+  onClose?: () => void;
+}
+
+export const Console: React.FC<ConsoleProps> = ({ onClose }) => {
   const { logs, clearLogs } = useConnection();
 
   return (
-    <div className="mt-8 border-2 border-gray-300 dark:border-[#555] bevel-border bg-white dark:bg-black/40 overflow-hidden shadow-2xl transition-colors duration-300">
-      <div className="bg-gray-100 dark:bg-[#111] p-3 flex justify-between items-center border-b border-gray-200 dark:border-[#333]">
-        <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
-          <Terminal size={14} />
+    <div className="border-t-4 border-primary bg-black/95 backdrop-blur-md overflow-hidden shadow-2xl transition-colors duration-300">
+      <div className="bg-white/5 p-4 flex justify-between items-center border-b border-white/10">
+        <div className="flex items-center gap-3 text-primary font-black text-[11px] uppercase tracking-[0.3em]">
+          <Terminal size={16} />
           Protocol Engine Logs
         </div>
-        <button 
-          onClick={clearLogs}
-          className="text-gray-400 hover:text-primary transition-colors"
-          title="Clear logs"
-        >
-          <Trash2 size={14} />
-        </button>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={clearLogs}
+            className="text-white/40 hover:text-primary transition-colors flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"
+          >
+            <Trash2 size={14} /> Clear
+          </button>
+          {onClose && (
+            <button 
+              onClick={onClose}
+              className="text-white/40 hover:text-white transition-colors p-1"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
       </div>
-      <div className="h-48 overflow-y-auto p-3 font-mono text-[10px] space-y-1">
-        {logs.length === 0 && <div className="text-gray-400 italic">Listening for binary traffic...</div>}
+      <div className="h-64 overflow-y-auto p-4 font-mono text-[11px] space-y-2 no-scrollbar">
+        {logs.length === 0 && <div className="text-white/20 italic font-black uppercase tracking-[0.2em] py-8 text-center">No binary traffic detected on interface</div>}
         {logs.map(log => (
-          <div key={log.id} className="flex gap-2">
-            <span className="text-gray-400">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-            <span className={log.direction === 'in' ? 'text-blue-500' : 'text-green-500'}>
-              {log.direction === 'in' ? '◀' : '▶'}
+          <div key={log.id} className="flex gap-4 border-b border-white/5 pb-2 last:border-0 hover:bg-white/5 transition-colors">
+            <span className="text-white/30 font-black">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
+            <span className={`font-black ${log.direction === 'in' ? 'text-blue-400' : 'text-primary'}`}>
+              {log.direction === 'in' ? 'RECV' : 'SEND'}
             </span>
-            <span className="text-gray-500 dark:text-gray-400 select-all font-bold">{log.raw}</span>
-            <span className="text-gray-800 dark:text-white">{log.msg}</span>
+            <span className="text-white/50 select-all font-black bg-white/5 px-2 rounded tracking-widest">{log.raw}</span>
+            <span className="text-white/80 flex-1">{log.msg}</span>
           </div>
         ))}
       </div>

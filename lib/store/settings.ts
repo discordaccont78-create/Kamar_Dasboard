@@ -1,7 +1,6 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-// Fixed: Explicit path to types index
 import { AppSettings } from '../../types/index';
 
 interface SettingsStore {
@@ -19,7 +18,8 @@ export const useSettingsStore = create<SettingsStore>()(
         bgMusic: false,
         volume: 30,
         theme: 'dark',
-        useSsl: typeof window !== 'undefined' ? window.location.protocol.includes('https') : false
+        useSsl: typeof window !== 'undefined' ? window.location.protocol.includes('https') : false,
+        currentTrackIndex: 0
       },
       updateSettings: (updates) => set((state) => ({
         settings: { ...state.settings, ...updates }
