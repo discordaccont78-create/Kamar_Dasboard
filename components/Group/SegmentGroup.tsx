@@ -37,7 +37,6 @@ export const SegmentGroup: React.FC<Props> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-Responsive Column Calculation
   const getColSpan = (index: number) => {
     const total = segments.length;
     if (total === 1) return "col-span-1 md:col-span-2";
@@ -45,31 +44,20 @@ export const SegmentGroup: React.FC<Props> = ({
     return "col-span-1";
   };
 
-  // Immediate 2D-Aware Swap Logic (Grid Optimized)
   const handleDrag = (event: any, info: any, currentIndex: number) => {
     if (!containerRef.current) return;
-
-    // Use global page point for collision detection
     const dragX = info.point.x;
     const dragY = info.point.y;
-
-    const items = Array.from(containerRef.current.querySelectorAll('.segment_area'));
+    const items = Array.from(containerRef.current.querySelectorAll('.segment_area')) as HTMLElement[];
     let closestIndex = currentIndex;
     let minDistance = Infinity;
 
-    // Find closest segment center to swap immediately
     items.forEach((item, index) => {
       if (index === currentIndex) return;
       const rect = item.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
-      
-      const distance = Math.sqrt(
-        Math.pow(dragX - centerX, 2) + 
-        Math.pow(dragY - centerY, 2)
-      );
-
-      // Trigger swap if within range of target's bounding area
+      const distance = Math.sqrt(Math.pow(dragX - centerX, 2) + Math.pow(dragY - centerY, 2));
       if (distance < minDistance && distance < rect.width / 1.4) {
         minDistance = distance;
         closestIndex = index;
@@ -103,7 +91,6 @@ export const SegmentGroup: React.FC<Props> = ({
               onDrag={(e: any, info: any) => handleDrag(e, info, index)}
               onDragEnd={(event: any, info: any) => {
                 onDragEnd?.();
-                // Trash Zone: Bottom Footer Activation (~110px)
                 const thresholdY = window.innerHeight - 110;
                 if (info.point.y > thresholdY) {
                   onRemove(seg.num_of_node);
@@ -116,7 +103,7 @@ export const SegmentGroup: React.FC<Props> = ({
             >
               <SegmentCard 
                 gpio={seg.gpio || 0} 
-                label={seg.group}
+                label={seg.name} // Display Segment Name here
                 dragHandle={
                   <GripVertical 
                     className="text-black/30 group-hover:text-primary transition-colors cursor-grab active:cursor-grabbing" 

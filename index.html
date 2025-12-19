@@ -15,16 +15,16 @@
               primary: '#daa520',      // Gold
               secondary: '#b8860b',    // Dark Gold
               background: {
-                light: '#f8f9fa',
-                dark: '#0a0a0a',
+                light: '#f4f7f9',      // Softer White
+                dark: '#121212',       // Softer Black
               },
               card: {
-                light: '#ffffff',
-                dark: '#141414',
+                light: '#fdfdfd',      // Off-White Card
+                dark: '#1e1e1e',       // Dark Grey Card
               },
               border: {
                 light: '#e2e8f0',
-                dark: '#262626',
+                dark: '#2d2d2d',
               },
             },
             borderRadius: {
@@ -43,15 +43,15 @@
       
       body {
         font-family: 'JetBrains Mono', monospace;
-        background-color: #f8f9fa;
-        color: #1a1a1a;
+        background-color: #f4f7f9;
+        color: #1a1c1e;
         margin: 0;
         overflow-x: hidden;
       }
 
       .dark body {
-        background-color: #0a0a0a;
-        color: #f8f9fa;
+        background-color: #121212;
+        color: #e0e0e0;
         background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
       }
 
@@ -68,7 +68,7 @@
         border-radius: 5px;
       }
       .dark input[type=range]::-webkit-slider-runnable-track {
-        background: #222;
+        background: #2d2d2d;
       }
       input[type=range]::-webkit-slider-thumb {
         height: 32px;
@@ -79,27 +79,30 @@
         -webkit-appearance: none;
         margin-top: -11px;
         box-shadow: 0 4px 15px rgba(218, 165, 32, 0.5);
-        border: 2px solid white;
+        border: 2px solid #f4f7f9;
         transition: transform 0.1s ease;
+      }
+      .dark input[type=range]::-webkit-slider-thumb {
+        border-color: #1e1e1e;
       }
       input[type=range]::-webkit-slider-thumb:hover {
         transform: scale(1.1);
       }
 
       ::-webkit-scrollbar { width: 8px; }
-      ::-webkit-scrollbar-track { background: #0a0a0a; }
+      ::-webkit-scrollbar-track { background: #121212; }
       ::-webkit-scrollbar-thumb { background: #daa520; border-radius: 10px; }
       
       .bevel-shadow {
         box-shadow: 
-          0 10px 25px -5px rgba(0, 0, 0, 0.1),
-          0 8px 10px -6px rgba(0, 0, 0, 0.1),
-          inset 0 1px 1px rgba(255, 255, 255, 0.05);
+          0 10px 25px -5px rgba(0, 0, 0, 0.05),
+          0 8px 10px -6px rgba(0, 0, 0, 0.05),
+          inset 0 1px 1px rgba(255, 255, 255, 0.5);
       }
       .dark .bevel-shadow {
         box-shadow: 
-          0 20px 40px -10px rgba(0, 0, 0, 0.7),
-          inset 0 1px 1px rgba(255, 255, 255, 0.05);
+          0 20px 40px -10px rgba(0, 0, 0, 0.5),
+          inset 0 1px 1px rgba(255, 255, 255, 0.02);
       }
 
       .no-animations *, 
@@ -116,10 +119,6 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
       }
-
-      /* Layout Helper Classes */
-      .menu-container { display: flex; flex-direction: column; }
-      .menu-sub-container { display: block; }
     </style>
 <script type="importmap">
 {

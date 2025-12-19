@@ -30,7 +30,8 @@ export type ButtonAction = 0 | 1 | 2 | 3; // None, ON, OFF, Toggle
 
 export interface Segment {
   num_of_node: string;
-  group: string; // Used as the user-defined name/alias
+  name: string; // New field for identifying the device (e.g. "Bedside Lamp")
+  group: string; // Used for grouping (e.g. "Room 1")
   groupType: GroupType;
   segType: SegmentType;
   gpio?: number;
@@ -42,8 +43,8 @@ export interface Segment {
   
   // Weather
   dhtPin?: number;
-  temperature?: number; // Internal state for UI
-  humidity?: number;    // Internal state for UI
+  temperature?: number; 
+  humidity?: number;    
   
   // Input
   inputCondition?: ButtonTrigger;
@@ -51,7 +52,7 @@ export interface Segment {
   usePullup?: boolean;
   inputAction?: ButtonAction;
   inputActionGpio?: number;
-  inputActive?: boolean; // Internal state for UI
+  inputActive?: boolean; 
 }
 
 export interface AppSettings {
