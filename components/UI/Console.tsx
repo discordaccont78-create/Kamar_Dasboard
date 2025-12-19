@@ -1,7 +1,10 @@
 
 import React from 'react';
 import { useConnection } from '../../lib/store/connection';
-import { Terminal, Trash2, X } from 'lucide-react';
+import { Terminal, Trash2, X, Activity } from 'lucide-react';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { cn } from '../../lib/utils';
 
 interface ConsoleProps {
   onClose?: () => void;
@@ -11,42 +14,51 @@ export const Console: React.FC<ConsoleProps> = ({ onClose }) => {
   const { logs, clearLogs } = useConnection();
 
   return (
-    <div className="border-t-4 border-primary bg-black/95 backdrop-blur-md overflow-hidden shadow-2xl transition-colors duration-300">
-      <div className="bg-white/5 p-4 flex justify-between items-center border-b border-white/10">
-        <div className="flex items-center gap-3 text-primary font-black text-[11px] uppercase tracking-[0.3em]">
-          <Terminal size={16} />
-          Protocol Engine Logs
+    <Card className="border-t-4 border-t-primary rounded-xl overflow-hidden shadow-2xl bg-card dark:bg-[#0c0c0e] border-x-border border-b-border">
+      <div className="bg-muted/30 p-3 flex justify-between items-center border-b border-border">
+        <div className="flex items-center gap-3 text-primary font-black text-[10px] uppercase tracking-[0.2em]">
+          <Terminal size={14} />
+          Protocol Engine
         </div>
-        <div className="flex items-center gap-4">
-          <button 
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm"
             onClick={clearLogs}
-            className="text-white/40 hover:text-primary transition-colors flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"
+            className="h-6 px-2 text-[9px] uppercase font-black tracking-widest text-muted-foreground hover:text-destructive"
           >
-            <Trash2 size={14} /> Clear
-          </button>
+            <Trash2 size={12} className="mr-1" /> Clear
+          </Button>
           {onClose && (
-            <button 
+            <Button 
+              variant="ghost"
+              size="icon"
               onClick={onClose}
-              className="text-white/40 hover:text-white transition-colors p-1"
+              className="h-6 w-6 rounded-full"
             >
-              <X size={18} />
-            </button>
+              <X size={14} />
+            </Button>
           )}
         </div>
       </div>
-      <div className="h-64 overflow-y-auto p-4 font-mono text-[11px] space-y-2 no-scrollbar">
-        {logs.length === 0 && <div className="text-white/20 italic font-black uppercase tracking-[0.2em] py-8 text-center">No binary traffic detected on interface</div>}
+      <div className="h-64 overflow-y-auto p-4 font-mono text-[10px] space-y-2 no-scrollbar bg-black/5 dark:bg-black/20">
+        {logs.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 gap-2">
+                <Activity size={24} className="opacity-20" />
+                <span className="italic font-bold uppercase tracking-widest text-[9px]">Awaiting Protocol Packets</span>
+            </div>
+        )}
         {logs.map(log => (
-          <div key={log.id} className="flex gap-4 border-b border-white/5 pb-2 last:border-0 hover:bg-white/5 transition-colors">
-            <span className="text-white/30 font-black">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-            <span className={`font-black ${log.direction === 'in' ? 'text-blue-400' : 'text-primary'}`}>
-              {log.direction === 'in' ? 'RECV' : 'SEND'}
+          <div key={log.id} className="flex gap-3 border-b border-border/40 pb-1.5 last:border-0 hover:bg-muted/20 transition-colors p-1 rounded-sm">
+            <span className="text-muted-foreground font-bold opacity-50">[{new Date(log.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' })}]</span>
+            <span className={cn("font-black min-w-[30px]", log.direction === 'in' ? 'text-blue-500' : 'text-primary')}>
+              {log.direction === 'in' ? 'RX' : 'TX'}
             </span>
-            <span className="text-white/50 select-all font-black bg-white/5 px-2 rounded tracking-widest">{log.raw}</span>
-            <span className="text-white/80 flex-1">{log.msg}</span>
+            <span className="text-muted-foreground/80 select-all font-bold bg-muted/30 px-1.5 rounded tracking-wider">{log.raw}</span>
+            <span className="text-foreground/80 flex-1 truncate font-medium">{log.msg}</span>
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 };

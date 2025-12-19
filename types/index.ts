@@ -29,29 +29,29 @@ export type ButtonTrigger = 0 | 1 | 2 | 3; // Hold, Toggle, High, Low
 export type ButtonAction = 0 | 1 | 2 | 3; // None, ON, OFF, Toggle
 
 export interface Segment {
-  num_of_node: string;
-  name: string; // New field for identifying the device (e.g. "Bedside Lamp")
-  group: string; // Used for grouping (e.g. "Room 1")
-  groupType: GroupType;
-  segType: SegmentType;
-  gpio?: number;
+  readonly num_of_node: string; // ID is immutable
+  name: string;
+  group: string;
+  readonly groupType: GroupType;
+  readonly segType: SegmentType;
+  readonly gpio?: number; // Hardware pin mapping shouldn't change at runtime usually
   is_led_on: 'on' | 'off';
   val_of_slide: number;
   
   // Shift Register
-  regBitIndex?: number;
+  readonly regBitIndex?: number;
   
   // Weather
-  dhtPin?: number;
+  readonly dhtPin?: number;
   temperature?: number; 
   humidity?: number;    
   
   // Input
-  inputCondition?: ButtonTrigger;
-  inputValue?: number;
-  usePullup?: boolean;
-  inputAction?: ButtonAction;
-  inputActionGpio?: number;
+  readonly inputCondition?: ButtonTrigger;
+  readonly inputValue?: number;
+  readonly usePullup?: boolean;
+  readonly inputAction?: ButtonAction;
+  readonly inputActionGpio?: number;
   inputActive?: boolean; 
 }
 
@@ -61,22 +61,22 @@ export interface AppSettings {
   bgMusic: boolean;
   volume: number;
   theme: 'dark' | 'light';
-  useSsl: boolean;
+  readonly useSsl: boolean; // Derived from window location
   currentTrackIndex: number; 
 }
 
 export interface LogEntry {
-  id: string;
-  timestamp: number;
-  direction: 'in' | 'out';
-  raw: string;
-  msg: string;
+  readonly id: string;
+  readonly timestamp: number;
+  readonly direction: 'in' | 'out';
+  readonly raw: string;
+  readonly msg: string;
 }
 
 export interface ToastEntry {
-  id: string;
-  message: string;
-  type: 'success' | 'error' | 'info';
+  readonly id: string;
+  readonly message: string;
+  readonly type: 'success' | 'error' | 'info';
 }
 
 export interface ConnectionConfig {
@@ -85,7 +85,7 @@ export interface ConnectionConfig {
 }
 
 export interface BinaryMessage {
-  cmd: number;
-  seg: number;
-  val: number;
+  readonly cmd: number;
+  readonly seg: number;
+  readonly val: number;
 }

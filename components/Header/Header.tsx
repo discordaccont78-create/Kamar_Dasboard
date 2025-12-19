@@ -3,6 +3,7 @@ import React from 'react';
 import { Moon, Sun, Settings, Zap, Terminal } from 'lucide-react';
 import { ConnectionStatus } from './ConnectionStatus';
 import { useSettingsStore } from '../../lib/store/settings';
+import { Button } from '../ui/button';
 
 interface HeaderProps {
   onOpenMenu: () => void;
@@ -15,41 +16,43 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     updateSettings({ theme: settings.theme === 'light' ? 'dark' : 'light' });
   };
 
-  // Now following the theme instead of being inverted
   return (
-    <header className="bg-card-light dark:bg-card-dark text-[#1A1C1E] dark:text-[#E0E0E0] px-8 py-6 rounded-b-[40px] border-b-4 border-primary shadow-2xl sticky top-0 z-50 transition-all duration-500">
+    <header className="bg-card/80 backdrop-blur-md text-foreground px-8 py-6 rounded-b-[32px] border-b border-border shadow-sm sticky top-0 z-50 transition-all duration-500">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="bg-primary p-2.5 rounded-2xl shadow-[0_0_20px_rgba(218,165,32,0.4)]">
-            <Zap size={24} fill="currentColor" stroke="currentColor" className="text-white dark:text-[#1A1C1E]" />
+          <div className="bg-primary p-2.5 rounded-xl shadow-lg shadow-primary/20">
+            <Zap size={24} fill="currentColor" stroke="currentColor" className="text-primary-foreground" />
           </div>
           <div className="flex flex-col">
             <h1 className="text-2xl font-black uppercase tracking-tighter leading-none text-primary">
               Kamyar Pro IoT
             </h1>
-            <div className="flex items-center gap-2 mt-1 text-[9px] font-black uppercase tracking-[0.3em] opacity-40">
+            <div className="flex items-center gap-2 mt-1 text-[9px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
               <Terminal size={10} /> 
               V3.1 Node Controller
             </div>
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
-          <button
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="icon"
             onClick={toggleTheme}
-            className="p-3 rounded-2xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-black/10 dark:border-white/10"
             title="Switch Environment"
+            className="rounded-xl h-12 w-12"
           >
-            {settings.theme === 'light' ? <Moon size={20} className="text-[#1A1C1E]" /> : <Sun size={20} className="text-primary" />}
-          </button>
+            {settings.theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+          </Button>
           
-          <button 
+          <Button 
             onClick={onOpenMenu}
-            className="p-3 rounded-2xl bg-primary text-[#1A1C1E] transition-all hover:scale-110 active:scale-95 shadow-lg border border-black/10"
+            size="icon"
+            className="rounded-xl h-12 w-12 shadow-lg"
             title="System Configuration"
           >
             <Settings size={20} />
-          </button>
+          </Button>
           
           <div className="hidden sm:block">
             <ConnectionStatus />

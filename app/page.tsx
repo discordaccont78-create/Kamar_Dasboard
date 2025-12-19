@@ -17,11 +17,12 @@ export const MUSIC_TRACKS = [
   { id: 1, title: "DATA STREAM LO-FI", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
   { id: 2, title: "SYNTHETIC NEURONS", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
   { id: 3, title: "HARDWARE ECHO", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" }
-];
+] as const;
 
+// Workaround for Framer Motion types in this specific ESM environment
 const MotionDiv = motion.div as any;
 
-const CoreEmblem = () => (
+const CoreEmblem: React.FC = () => (
   <div className="relative flex items-center justify-center">
     <MotionDiv
       animate={{ rotate: 360 }}
@@ -35,18 +36,16 @@ const CoreEmblem = () => (
       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
       className="bg-card-light dark:bg-card-dark border-2 border-primary/50 p-6 rounded-full shadow-[0_0_40px_rgba(218,165,32,0.2)] z-10 transition-colors"
     >
-      {/* Restored Zap Icon based on user request */}
       <Zap size={48} className="text-primary" fill="currentColor" />
     </MotionDiv>
   </div>
 );
 
-export default function DashboardPage() {
+export default function DashboardPage(): React.JSX.Element {
   const { segments, setSegments, removeSegment, toggleSegment, setPWM } = useSegments();
   const { settings } = useSettingsStore();
-  const { addToast } = useConnection();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { sendCommand } = useWebSocket();
@@ -67,12 +66,16 @@ export default function DashboardPage() {
       }
       const track = MUSIC_TRACKS[settings.currentTrackIndex];
       try {
-        audioRef.current.src = track.url;
+        if (audioRef.current.src !== track.url) {
+            audioRef.current.src = track.url;
+        }
         audioRef.current.volume = settings.volume / 100;
         await audioRef.current.play();
-      } catch (e) {}
+      } catch (e: unknown) {
+        console.warn("Audio playback failed (likely user interaction required):", e);
+      }
     };
-    handlePlayback();
+    void handlePlayback();
   }, [settings.bgMusic, settings.currentTrackIndex, settings.volume]);
 
   const groupedSegments = useMemo(() => {
@@ -88,8 +91,7 @@ export default function DashboardPage() {
   const groupEntries = Object.entries(groupedSegments);
   const totalGroups = groupEntries.length;
 
-  // Logic to calculate layout span (same as Segment logic)
-  const getGroupSpan = (index: number) => {
+  const getGroupSpan = (index: number): string => {
     if (totalGroups === 1) return "col-span-1 md:col-span-2";
     if (totalGroups % 2 !== 0 && index === totalGroups - 1) return "col-span-1 md:col-span-2";
     return "col-span-1";

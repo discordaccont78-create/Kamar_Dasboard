@@ -1,7 +1,8 @@
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { Segment } from '../../types/index';
+import { redis } from '../db/redis';
 
 interface SegmentsStore {
   segments: Segment[];
@@ -10,9 +11,22 @@ interface SegmentsStore {
   updateSegment: (id: string, data: Partial<Segment>) => void;
   toggleSegment: (id: string) => void;
   setPWM: (id: string, value: number) => void;
-  // Kept for Drag & Drop support
   setSegments: (segments: Segment[]) => void;
 }
+
+// Define storage adapter for Zustand
+const redisStorage = {
+  getItem: async (name: string): Promise<string | null> => {
+    const value = await redis.get(name);
+    return value ? JSON.stringify(value) : null;
+  },
+  setItem: async (name: string, value: string): Promise<void> => {
+    await redis.set(name, JSON.parse(value));
+  },
+  removeItem: async (name: string): Promise<void> => {
+    await redis.del(name);
+  },
+};
 
 export const useSegments = create<SegmentsStore>()(
   persist(
@@ -49,6 +63,9 @@ export const useSegments = create<SegmentsStore>()(
 
       setSegments: (segments) => set({ segments }),
     }),
-    { name: 'segments-storage' }
+    { 
+      name: 'segments-redis-store',
+      storage: createJSONStorage(() => redisStorage) 
+    }
   )
 );

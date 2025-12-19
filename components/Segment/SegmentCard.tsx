@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Card, CardContent } from '../ui/card';
+import { cn } from '../../lib/utils';
 
 interface SegmentCardProps {
   gpio: number;
@@ -10,11 +12,11 @@ interface SegmentCardProps {
   dragHandle?: React.ReactNode;
 }
 
-const MotionDiv = motion.div as any;
+const MotionCard = motion(Card) as any;
 
 export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children, onRemove, dragHandle }) => {
   return (
-    <MotionDiv 
+    <MotionCard 
       layout
       whileDrag={{ 
         opacity: 0.6, 
@@ -31,7 +33,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children,
         damping: 30,
         layout: { duration: 0.25 }
       }}
-      className="bg-[#fdfdfd] dark:bg-[#1e1e1e] border-2 border-gray-200 dark:border-[#2d2d2d] rounded-bevel p-0 flex flex-col relative group bevel-shadow overflow-visible cursor-grab active:cursor-grabbing h-full select-none"
+      className="border-2 border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark rounded-bevel p-0 flex flex-col relative group bevel-shadow overflow-visible cursor-grab active:cursor-grabbing h-full select-none"
     >
       {/* Industrial Hardware Label - Updated to show Segment Name instead of group */}
       <div className="absolute -top-4 left-6 px-4 bg-primary dark:bg-primary py-1.5 rounded-chip border-2 border-black/10 dark:border-white/20 shadow-md z-20 flex items-center gap-3">
@@ -49,9 +51,9 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children,
       </div>
       
       {/* Core Logic Interface - Reduced padding from p-8 to p-6 for better fit */}
-      <div className="p-6 pt-12 relative z-10 flex flex-col gap-6 h-full">
+      <CardContent className="p-6 pt-12 relative z-10 flex flex-col gap-6 h-full">
         {children}
-      </div>
+      </CardContent>
 
       {/* Decorative Hardware Detailing */}
       <div className="absolute bottom-2 left-2 flex gap-1 opacity-20 pointer-events-none group-hover:opacity-100 transition-opacity">
@@ -60,6 +62,6 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children,
       <div className="absolute bottom-2 right-2 flex gap-1 opacity-20 pointer-events-none group-hover:opacity-100 transition-opacity">
         <div className="w-1.5 h-1.5 rounded-full border border-black dark:border-white" />
       </div>
-    </MotionDiv>
+    </MotionCard>
   );
 };

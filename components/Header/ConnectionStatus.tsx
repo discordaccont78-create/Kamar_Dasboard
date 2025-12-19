@@ -2,17 +2,19 @@
 import React from 'react';
 import { Wifi, WifiOff } from 'lucide-react';
 import { useConnection } from '../../lib/store/connection';
+import { cn } from '../../lib/utils';
 
 export const ConnectionStatus: React.FC = () => {
   const { isConnected } = useConnection();
 
   return (
     <div 
-      className={`flex items-center justify-center w-12 h-12 rounded-2xl border-2 transition-all shadow-lg ${
+      className={cn(
+        "flex items-center justify-center w-12 h-12 rounded-xl border-2 transition-all shadow-md",
         isConnected 
-          ? 'bg-black dark:bg-white text-primary border-primary/50' 
-          : 'bg-black dark:bg-white text-red-500 border-red-500/50'
-      }`}
+          ? 'bg-background text-primary border-primary/50' 
+          : 'bg-background text-destructive border-destructive/50'
+      )}
       title={isConnected ? 'System Synced' : 'System Offline'}
     >
       {isConnected ? (

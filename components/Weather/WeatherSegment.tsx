@@ -6,15 +6,12 @@ import { SensorChart } from '../Analytics/SensorChart';
 import { Segment } from '../../types/index';
 import { Button } from '../ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useDeviceState } from '../../hooks/useDevice';
 
 interface Props {
   segment: Segment;
 }
 
-export const WeatherSegment: React.FC<Props> = ({ segment: initialSegment }) => {
-  const { data: segment } = useDeviceState(initialSegment.num_of_node);
-  const safeSegment = segment || initialSegment;
+export const WeatherSegment: React.FC<Props> = ({ segment }) => {
   const [viewMode, setViewMode] = useState<'gauge' | 'chart'>('gauge');
 
   return (
@@ -52,8 +49,8 @@ export const WeatherSegment: React.FC<Props> = ({ segment: initialSegment }) => 
                 exit={{ opacity: 0, y: -10 }}
                 className="grid grid-cols-2 gap-4"
             >
-                <WeatherGauge value={safeSegment.temperature || 0} min={-10} max={50} unit="°C" label="Temp" color="#daa520" />
-                <WeatherGauge value={safeSegment.humidity || 0} min={0} max={100} unit="%" label="Humid" color="#3b82f6" />
+                <WeatherGauge value={segment.temperature || 0} min={-10} max={50} unit="°C" label="Temp" color="#daa520" />
+                <WeatherGauge value={segment.humidity || 0} min={0} max={100} unit="%" label="Humid" color="#3b82f6" />
             </motion.div>
         ) : (
             <motion.div
@@ -62,7 +59,7 @@ export const WeatherSegment: React.FC<Props> = ({ segment: initialSegment }) => 
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
             >
-                <SensorChart segmentId={safeSegment.num_of_node} />
+                <SensorChart segmentId={segment.num_of_node} />
             </motion.div>
         )}
       </AnimatePresence>

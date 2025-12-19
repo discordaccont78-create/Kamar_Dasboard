@@ -9,6 +9,7 @@ import { WeatherSegment } from '../Segment/WeatherSegment';
 import { InputSegment } from '../Segment/InputSegment';
 import { Segment } from '../../types/index';
 import { GroupHeader } from './GroupHeader';
+import { cn } from '../../lib/utils';
 
 interface Props {
   name: string;
@@ -66,13 +67,12 @@ export const SegmentGroup: React.FC<Props> = ({
   };
 
   return (
-    <div className="group-container mb-10 p-5 border-2 border-primary/10 dark:border-primary/5 bg-white/40 dark:bg-white/5 rounded-bevel shadow-sm transition-all duration-300 segment-group overflow-visible h-full">
+    <div className="mb-8">
       <GroupHeader name={name} count={segments.length} />
       
-      {/* Changed to single column grid (grid-cols-1) to ensure segments stack vertically */}
       <div 
         ref={containerRef}
-        className="mt-6 grid grid-cols-1 gap-6 auto-rows-auto relative"
+        className="grid grid-cols-1 gap-6 relative min-h-[100px]"
       >
         <AnimatePresence mode="popLayout">
           {segments.map((seg, index) => (
@@ -90,17 +90,17 @@ export const SegmentGroup: React.FC<Props> = ({
                   onRemove(seg.num_of_node);
                 }
               }}
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className="segment_area col-span-1"
+              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+              className="segment_area z-0 hover:z-10"
             >
               <SegmentCard 
                 gpio={seg.gpio || 0} 
                 label={seg.name}
                 dragHandle={
                   <GripVertical 
-                    className="text-black/30 group-hover:text-primary transition-colors cursor-grab active:cursor-grabbing" 
+                    className="text-muted-foreground/50 hover:text-primary transition-colors cursor-grab active:cursor-grabbing" 
                     size={20} 
                   />
                 }
