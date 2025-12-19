@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface SliderProps {
   value: number;
@@ -10,32 +10,53 @@ interface SliderProps {
 }
 
 export const Slider: React.FC<SliderProps> = ({ value, min = 0, max = 255, onChange, label }) => {
-  const percentage = ((value - min) / (max - min)) * 100;
-  
+  const [localValue, setLocalValue] = useState(value);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = parseInt(e.target.value);
+    setLocalValue(newValue);
+  };
+
+  const handleCommit = () => {
+    onChange(localValue);
+  };
+
+  const percentage = ((localValue - min) / (max - min)) * 100;
+
   return (
-    <div className="flex flex-col gap-3 w-full">
+    <div className="flex flex-col gap-4 w-full">
       <div className="flex justify-between items-center px-1">
-        {label && <label className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{label}</label>}
-        <div className="px-3 py-1 bg-black border border-[#daa520]/40 rounded-lg text-[10px] text-[#daa520] font-black shadow-inner">
-          {value}
+        {label && (
+          <label className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest">
+            {label}
+          </label>
+        )}
+        <div className="bg-black text-primary border border-primary/30 px-3 py-0.5 rounded-chip text-[11px] font-black shadow-lg">
+          {localValue}
         </div>
       </div>
-      <div className="flex items-center group">
+      <div className="relative h-8 flex items-center">
+        {/* Track Fill */}
+        <div className="absolute w-full h-2.5 bg-gray-200 dark:bg-white/5 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-secondary to-primary transition-all duration-200"
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
         <input
           type="range"
           min={min}
           max={max}
-          value={value}
-          onChange={(e) => onChange(parseInt(e.target.value))}
-          className="flex-1 appearance-none bg-black/40 h-3 rounded-full cursor-pointer outline-none transition-all shadow-inner border border-white/5"
-          style={{
-            background: `linear-gradient(to right, #daa520 0%, #daa520 ${percentage}%, #222 ${percentage}%, #222 100%)`
-          }}
+          value={localValue}
+          onChange={handleChange}
+          onMouseUp={handleCommit}
+          onTouchEnd={handleCommit}
+          className="relative z-10 w-full appearance-none bg-transparent cursor-pointer"
         />
-      </div>
-      <div className="flex justify-between text-[9px] font-bold text-gray-700 uppercase px-1">
-        <span>MIN</span>
-        <span>MAX</span>
       </div>
     </div>
   );

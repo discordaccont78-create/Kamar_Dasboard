@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro IoT Dashboard</title>
+    <title>Kamyar IoT Pro Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -12,64 +12,106 @@
         theme: {
           extend: {
             colors: {
-              primary: '#daa520',
-              secondary: '#b8860b',
-            }
+              primary: '#daa520',      // Gold
+              secondary: '#b8860b',    // Dark Gold
+              background: {
+                light: '#f8f9fa',
+                dark: '#0a0a0a',
+              },
+              card: {
+                light: '#ffffff',
+                dark: '#141414',
+              },
+              border: {
+                light: '#e2e8f0',
+                dark: '#262626',
+              },
+            },
+            borderRadius: {
+              'bevel': '24px 24px 6px 6px',
+              'chip': '10px 10px 3px 3px',
+            },
+            fontFamily: {
+              mono: ['JetBrains Mono', 'monospace'],
+            },
           }
         }
       }
     </script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
       
       body {
-        font-family: 'JetBrains Mono', 'Courier New', monospace;
+        font-family: 'JetBrains Mono', monospace;
+        background-color: #f8f9fa;
+        color: #1a1a1a;
         margin: 0;
-        padding: 0;
         overflow-x: hidden;
       }
 
-      /* Custom slider track styling for premium look */
-      input[type=range]::-webkit-slider-runnable-track {
-        height: 10px;
-        border-radius: 5px;
-        background: #333;
+      .dark body {
+        background-color: #0a0a0a;
+        color: #f8f9fa;
+        /* Subtle industrial pattern for dark mode */
+        background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
       }
-      
-      input[type=range]::-webkit-slider-thumb {
+
+      /* Premium Slider track */
+      input[type=range] {
         -webkit-appearance: none;
-        height: 24px;
-        width: 12px;
-        border-radius: 3px;
+        background: transparent;
+      }
+      input[type=range]:focus { outline: none; }
+      input[type=range]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 10px;
+        cursor: pointer;
+        background: #e2e8f0;
+        border-radius: 5px;
+      }
+      .dark input[type=range]::-webkit-slider-runnable-track {
+        background: #222;
+      }
+      input[type=range]::-webkit-slider-thumb {
+        height: 32px;
+        width: 16px;
+        border-radius: 4px;
         background: #daa520;
         cursor: pointer;
-        margin-top: -7px;
-        border: 1px solid #fff;
-        box-shadow: 0 0 10px rgba(218, 165, 32, 0.5);
+        -webkit-appearance: none;
+        margin-top: -11px;
+        box-shadow: 0 4px 15px rgba(218, 165, 32, 0.5);
+        border: 2px solid white;
+        transition: transform 0.1s ease;
+      }
+      input[type=range]::-webkit-slider-thumb:hover {
+        transform: scale(1.1);
       }
 
-      /* Bevelled border style from user request */
-      .bevel-border {
-        border-radius: 16px 16px 3px 3px;
-      }
+      /* Custom scrollbar */
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: #0a0a0a; }
+      ::-webkit-scrollbar-thumb { background: #daa520; border-radius: 10px; }
       
-      .chip-border {
-        border-radius: 6px 6px 2px 2px;
+      .bevel-shadow {
+        box-shadow: 
+          0 10px 25px -5px rgba(0, 0, 0, 0.1),
+          0 8px 10px -6px rgba(0, 0, 0, 0.1),
+          inset 0 1px 1px rgba(255, 255, 255, 0.05),
+          inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+      }
+      .dark .bevel-shadow {
+        box-shadow: 
+          0 20px 40px -10px rgba(0, 0, 0, 0.7),
+          inset 0 1px 1px rgba(255, 255, 255, 0.05);
       }
 
-      /* Custom scrollbar for gold theme */
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #1a1a1a;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #daa520;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #b8860b;
+      /* Animation disabling class */
+      .no-animations *, 
+      .no-animations *::before, 
+      .no-animations *::after {
+        animation: none !important;
+        transition: none !important;
       }
     </style>
 <script type="importmap">
@@ -78,19 +120,20 @@
     "react": "https://esm.sh/react@18.3.1",
     "react/": "https://esm.sh/react@18.3.1/",
     "react-dom": "https://esm.sh/react-dom@18.3.1",
-    "react-dom/": "https://esm.sh/react-dom@18.3.1/",
     "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
     "framer-motion": "https://esm.sh/framer-motion@11.11.17?external=react,react-dom",
     "zustand": "https://esm.sh/zustand@5.0.1?external=react",
-    "zustand/": "https://esm.sh/zustand@5.0.1/",
     "zustand/middleware": "https://esm.sh/zustand@5.0.1/middleware?external=react",
     "lucide-react": "https://esm.sh/lucide-react@0.460.0?external=react",
-    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "zustand/": "https://esm.sh/zustand@^5.0.9/"
   }
 }
 </script>
 </head>
-<body class="bg-[#f5f5f5] dark:bg-[#1a1a1a] text-[#1a1a1a] dark:text-white transition-colors duration-300">
+<body class="transition-colors duration-500">
     <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>
