@@ -37,7 +37,7 @@ export const SegmentGroup: React.FC<Props> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // محاسبه عرض خودکار (نکته ۵)
+  // Auto-Responsive Column Calculation
   const getColSpan = (index: number) => {
     const total = segments.length;
     if (total === 1) return "col-span-1 md:col-span-2";
@@ -45,10 +45,11 @@ export const SegmentGroup: React.FC<Props> = ({
     return "col-span-1";
   };
 
-  // جابجایی آنی در گرید ۲ ستونه (راه حل مشکل ۱ و ۲)
-  const handleDragUpdate = (info: any, currentIndex: number) => {
+  // Immediate 2D-Aware Swap Logic (Grid Optimized)
+  const handleDrag = (event: any, info: any, currentIndex: number) => {
     if (!containerRef.current) return;
 
+    // Use global page point for collision detection
     const dragX = info.point.x;
     const dragY = info.point.y;
 
@@ -56,7 +57,7 @@ export const SegmentGroup: React.FC<Props> = ({
     let closestIndex = currentIndex;
     let minDistance = Infinity;
 
-    // محاسبه نزدیک‌ترین مرکز سگمنت (Distance-based Collision)
+    // Find closest segment center to swap immediately
     items.forEach((item, index) => {
       if (index === currentIndex) return;
       const rect = item.getBoundingClientRect();
@@ -68,8 +69,8 @@ export const SegmentGroup: React.FC<Props> = ({
         Math.pow(dragY - centerY, 2)
       );
 
-      // اگر فاصله کمتر از حد آستانه بود، جابجایی انجام شود
-      if (distance < minDistance && distance < rect.width / 1.5) {
+      // Trigger swap if within range of target's bounding area
+      if (distance < minDistance && distance < rect.width / 1.4) {
         minDistance = distance;
         closestIndex = index;
       }
@@ -99,12 +100,12 @@ export const SegmentGroup: React.FC<Props> = ({
               drag
               dragSnapToOrigin
               onDragStart={onDragStart}
-              onDrag={(e: any, info: any) => handleDragUpdate(info, index)}
+              onDrag={(e: any, info: any) => handleDrag(e, info, index)}
               onDragEnd={(event: any, info: any) => {
                 onDragEnd?.();
-                // جابجایی به فوتر = حذف (نکته ۷)
-                const trashThresholdY = window.innerHeight - 110;
-                if (info.point.y > trashThresholdY) {
+                // Trash Zone: Bottom Footer Activation (~110px)
+                const thresholdY = window.innerHeight - 110;
+                if (info.point.y > thresholdY) {
                   onRemove(seg.num_of_node);
                 }
               }}
