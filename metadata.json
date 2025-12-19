@@ -1,0 +1,5 @@
+{
+  "name": "ESP32 Pro IoT Node Dashboard",
+  "description": "Premium Next.js 16.1 inspired dashboard for hardware monitoring and control.",
+  "requestFramePermissions": []
+}

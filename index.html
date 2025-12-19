@@ -1,0 +1,96 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro IoT Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#daa520',
+              secondary: '#b8860b',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+      
+      body {
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+      }
+
+      /* Custom slider track styling for premium look */
+      input[type=range]::-webkit-slider-runnable-track {
+        height: 10px;
+        border-radius: 5px;
+        background: #333;
+      }
+      
+      input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 24px;
+        width: 12px;
+        border-radius: 3px;
+        background: #daa520;
+        cursor: pointer;
+        margin-top: -7px;
+        border: 1px solid #fff;
+        box-shadow: 0 0 10px rgba(218, 165, 32, 0.5);
+      }
+
+      /* Bevelled border style from user request */
+      .bevel-border {
+        border-radius: 16px 16px 3px 3px;
+      }
+      
+      .chip-border {
+        border-radius: 6px 6px 2px 2px;
+      }
+
+      /* Custom scrollbar for gold theme */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1a1a1a;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #daa520;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #b8860b;
+      }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react/": "https://esm.sh/react@18.3.1/",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/": "https://esm.sh/react-dom@18.3.1/",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "framer-motion": "https://esm.sh/framer-motion@11.11.17?external=react,react-dom",
+    "zustand": "https://esm.sh/zustand@5.0.1?external=react",
+    "zustand/": "https://esm.sh/zustand@5.0.1/",
+    "zustand/middleware": "https://esm.sh/zustand@5.0.1/middleware?external=react",
+    "lucide-react": "https://esm.sh/lucide-react@0.460.0?external=react",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+  }
+}
+</script>
+</head>
+<body class="bg-[#f5f5f5] dark:bg-[#1a1a1a] text-[#1a1a1a] dark:text-white transition-colors duration-300">
+    <div id="root"></div>
+</body>
+</html>

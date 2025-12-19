@@ -1,0 +1,30 @@
+
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+// Fixed: Explicit path to types index
+import { AppSettings } from '../../types/index';
+
+interface SettingsStore {
+  settings: AppSettings;
+  updateSettings: (updates: Partial<AppSettings>) => void;
+}
+
+export const useSettingsStore = create<SettingsStore>()(
+  persist(
+    (set) => ({
+      settings: {
+        title: "Kamyar Pro IoT",
+        domain: "iot-device",
+        animations: true,
+        bgMusic: false,
+        volume: 30,
+        theme: 'dark',
+        useSsl: typeof window !== 'undefined' ? window.location.protocol.includes('https') : false
+      },
+      updateSettings: (updates) => set((state) => ({
+        settings: { ...state.settings, ...updates }
+      })),
+    }),
+    { name: 'settings-storage' }
+  )
+);
