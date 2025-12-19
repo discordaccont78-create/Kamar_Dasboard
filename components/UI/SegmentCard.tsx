@@ -10,9 +10,12 @@ interface SegmentCardProps {
   dragHandle?: React.ReactNode;
 }
 
+// Fix: Using any for motion.div to resolve intrinsic property type errors in the current environment
+const MotionDiv = motion.div as any;
+
 export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children, onRemove, dragHandle }) => {
   return (
-    <motion.div 
+    <MotionDiv 
       layout
       className="bg-white dark:bg-[#121212] border-2 border-gray-200 dark:border-[#262626] rounded-bevel p-0 flex flex-col relative group bevel-shadow overflow-visible"
     >
@@ -43,6 +46,6 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children,
       <div className="absolute bottom-2 right-2 flex gap-1 opacity-20 pointer-events-none">
         <div className="w-1.5 h-1.5 rounded-full border border-black dark:border-white" />
       </div>
-    </motion.div>
+    </MotionDiv>
   );
 };

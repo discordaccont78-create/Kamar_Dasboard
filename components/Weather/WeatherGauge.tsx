@@ -11,6 +11,9 @@ interface WeatherGaugeProps {
   color?: string;
 }
 
+// Fix: Casting motion.circle to any to resolve intrinsic property type errors (initial, animate)
+const MotionCircle = motion.circle as any;
+
 export const WeatherGauge: React.FC<WeatherGaugeProps> = ({ value, min, max, unit, label, color = "#daa520" }) => {
   const [displayValue, setDisplayValue] = useState(min);
 
@@ -44,7 +47,7 @@ export const WeatherGauge: React.FC<WeatherGaugeProps> = ({ value, min, max, uni
             strokeDasharray={`${circumference * gaugeAngle} ${circumference}`}
             className="text-gray-100 dark:text-[#1a1a1a]"
           />
-          <motion.circle
+          <MotionCircle
             cx="100"
             cy="100"
             r={radius}

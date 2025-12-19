@@ -12,7 +12,6 @@ export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set) => ({
       settings: {
-        title: "Kamyar Pro IoT",
         domain: "iot-device",
         animations: true,
         bgMusic: false,

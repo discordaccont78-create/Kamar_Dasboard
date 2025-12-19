@@ -55,14 +55,13 @@ export interface Segment {
 }
 
 export interface AppSettings {
-  title: string;
   domain: string;
   animations: boolean;
   bgMusic: boolean;
   volume: number;
   theme: 'dark' | 'light';
   useSsl: boolean;
-  currentTrackIndex: number; // Added for track navigation
+  currentTrackIndex: number; 
 }
 
 export interface LogEntry {

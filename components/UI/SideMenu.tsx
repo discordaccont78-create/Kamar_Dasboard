@@ -7,8 +7,7 @@ import { SegmentType, GroupType } from '../../types/index';
 import { MUSIC_TRACKS } from '../../app/page';
 import { 
   Sun, Moon, Plus, Settings as SettingsIcon, Volume2, 
-  Music, VolumeX, Network, Terminal,
-  ChevronRight, LayoutGrid, Radio, Sparkles,
+  Terminal, ChevronRight, LayoutGrid, Radio, Sparkles,
   SkipForward, SkipBack, Play, Pause
 } from 'lucide-react';
 
@@ -16,6 +15,8 @@ interface SideMenuProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const MotionDiv = motion.div as any;
 
 export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   const { settings, updateSettings } = useSettingsStore();
@@ -58,21 +59,20 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div 
+          <MotionDiv 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
           />
-          <motion.div 
+          <MotionDiv 
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="fixed right-0 top-0 h-screen w-full sm:w-[450px] bg-background-light dark:bg-[#0d0d0d] border-l-4 border-primary z-[70] shadow-2xl flex flex-col overflow-hidden"
           >
-            {/* header-container */}
             <div className="bg-black p-8 flex justify-between items-center border-b-4 border-primary/30 shadow-2xl">
               <div className="flex flex-col">
                 <h2 className="text-primary font-black text-2xl uppercase tracking-tighter flex items-center gap-2">
@@ -88,10 +88,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </button>
             </div>
 
-            {/* main-container */}
             <div className="container flex-1 overflow-y-auto p-6 space-y-8 pb-32 no-scrollbar">
-              
-              {/* environment-sub-container */}
               <div className="sub-container bg-white dark:bg-white/5 p-5 rounded-bevel border-2 border-gray-100 dark:border-white/10 shadow-sm">
                 <div className="flex items-center gap-2 text-primary mb-4">
                   <LayoutGrid size={16} />
@@ -117,13 +114,11 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              {/* add-segment-sub-container */}
               <div className="sub-container bg-white dark:bg-white/5 p-6 rounded-bevel border-2 border-gray-100 dark:border-white/10 space-y-6 shadow-sm">
                 <div className="flex items-center gap-2 text-primary">
                   <Plus size={16} />
                   <h3 className="font-black text-[11px] uppercase tracking-[0.3em]">Add New Segment</h3>
                 </div>
-                
                 <div className="sub-sub-container space-y-5">
                   <div className="field-group">
                     <label className="text-[9px] text-gray-500 font-black uppercase tracking-widest block mb-1.5 ml-1">group-name</label>
@@ -135,7 +130,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                       className="w-full bg-gray-50 dark:bg-black border-2 border-gray-200 dark:border-white/10 p-3 rounded-chip text-xs font-bold focus:border-primary outline-none transition-all dark:text-white"
                     />
                   </div>
-                  
                   <div className="input-row grid grid-cols-2 gap-4">
                     <div className="field-group">
                       <label className="text-[9px] text-gray-500 font-black uppercase tracking-widest block mb-1.5 ml-1">pin-number</label>
@@ -160,7 +154,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                       </select>
                     </div>
                   </div>
-
                   <div className="field-group">
                     <label className="text-[9px] text-gray-500 font-black uppercase tracking-widest block mb-1.5 ml-1">type-of-segment</label>
                     <select 
@@ -173,7 +166,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                       <option value="PWM">PWM Slider Only</option>
                     </select>
                   </div>
-
                   <button 
                     onClick={handleAdd}
                     className="w-full bg-black text-primary font-black py-4 rounded-chip text-xs hover:bg-primary hover:text-black transition-all uppercase tracking-[0.2em] shadow-xl border-2 border-primary/30 flex items-center justify-center gap-2 mt-2"
@@ -183,15 +175,12 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              {/* audio-engine-sub-container */}
               <div className="sub-container bg-black p-6 rounded-bevel border-2 border-primary/30 space-y-6 shadow-xl">
                 <div className="flex items-center gap-2 text-primary">
                   <Volume2 size={16} />
                   <h3 className="font-black text-[11px] uppercase tracking-[0.3em]">Audio Engine</h3>
                 </div>
-                
                 <div className="sub-sub-container space-y-6">
-                   {/* Player Control Interface */}
                    <div className="player-wrapper bg-white/5 p-5 rounded-chip border border-white/5 flex flex-col gap-5">
                       <div className="track-info flex flex-col items-center text-center">
                         <span className="text-[8px] text-gray-500 uppercase font-black tracking-[0.5em] mb-1">Now Streaming</span>
@@ -199,72 +188,28 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                           {MUSIC_TRACKS[settings.currentTrackIndex].title}
                         </span>
                       </div>
-
                       <div className="controls-row flex items-center justify-center gap-6">
-                        <button 
-                          onClick={handlePrevTrack}
-                          className="p-3 rounded-full bg-white/5 text-gray-400 hover:text-primary hover:bg-white/10 transition-all active:scale-90"
-                        >
-                          <SkipBack size={18} />
-                        </button>
-
+                        <button onClick={handlePrevTrack} className="p-3 rounded-full bg-white/5 text-gray-400 hover:text-primary transition-all active:scale-90"><SkipBack size={18} /></button>
                         <button 
                           onClick={() => updateSettings({ bgMusic: !settings.bgMusic })}
-                          className={`p-5 rounded-full transition-all active:scale-95 shadow-2xl ${
-                            settings.bgMusic ? 'bg-primary text-black' : 'bg-white/10 text-primary'
-                          }`}
+                          className={`p-5 rounded-full transition-all active:scale-95 shadow-2xl ${settings.bgMusic ? 'bg-primary text-black' : 'bg-white/10 text-primary'}`}
                         >
                           {settings.bgMusic ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="translate-x-0.5" />}
                         </button>
-
-                        <button 
-                          onClick={handleNextTrack}
-                          className="p-3 rounded-full bg-white/5 text-gray-400 hover:text-primary hover:bg-white/10 transition-all active:scale-90"
-                        >
-                          <SkipForward size={18} />
-                        </button>
+                        <button onClick={handleNextTrack} className="p-3 rounded-full bg-white/5 text-gray-400 hover:text-primary transition-all active:scale-90"><SkipForward size={18} /></button>
                       </div>
                    </div>
-
-                   {/* Volume Sub-Sub-Container */}
                    <div className="volume-control space-y-3 px-1">
                      <div className="flex justify-between items-center">
-                       <div className="flex items-center gap-2">
-                         <Volume2 size={12} className="text-gray-500" />
-                         <span className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Master Gain</span>
-                       </div>
+                       <span className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Master Gain</span>
                        <span className="text-[11px] font-black text-primary">{settings.volume}%</span>
                      </div>
-                     <input 
-                      type="range"
-                      min="0" max="100"
-                      value={settings.volume}
-                      onChange={e => updateSettings({ volume: parseInt(e.target.value) })}
-                      className="w-full"
-                     />
+                     <input type="range" min="0" max="100" value={settings.volume} onChange={e => updateSettings({ volume: parseInt(e.target.value) })} className="w-full" />
                    </div>
                 </div>
               </div>
-
-              {/* graphics-sub-container */}
-              <div className="sub-container bg-white dark:bg-white/5 p-5 rounded-bevel border-2 border-gray-100 dark:border-white/10 flex items-center justify-between shadow-sm">
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-black dark:text-white font-black uppercase tracking-widest">Motion Engine</span>
-                  <span className="text-[8px] text-gray-500 uppercase font-black">Enable System Animations</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    className="sr-only peer"
-                    checked={settings.animations}
-                    onChange={e => updateSettings({ animations: e.target.checked })}
-                  />
-                  <div className="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                </label>
-              </div>
-
             </div>
-          </motion.div>
+          </MotionDiv>
         </>
       )}
     </AnimatePresence>

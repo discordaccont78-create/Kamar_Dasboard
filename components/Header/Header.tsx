@@ -24,7 +24,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
           </div>
           <div className="flex flex-col">
             <h1 className="text-2xl font-black uppercase tracking-tighter leading-none text-primary">
-              {settings.title}
+              Kamyar Pro IoT
             </h1>
             <div className="flex items-center gap-2 mt-1 text-[9px] font-black uppercase tracking-[0.3em] text-white/40">
               <Terminal size={10} /> 

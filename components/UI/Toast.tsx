@@ -4,6 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useConnection } from '../../lib/store/connection';
 import { CheckCircle, AlertCircle, X, Info } from 'lucide-react';
 
+// Fix: Casting motion.div to any to resolve property type errors (initial, animate, exit)
+const MotionDiv = motion.div as any;
+
 export const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useConnection();
 
@@ -11,7 +14,7 @@ export const ToastContainer: React.FC = () => {
     <div className="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
       <AnimatePresence>
         {toasts.map((toast) => (
-          <motion.div
+          <MotionDiv
             key={toast.id}
             initial={{ opacity: 0, x: 100, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
@@ -38,7 +41,7 @@ export const ToastContainer: React.FC = () => {
             >
               <X size={18} />
             </button>
-          </motion.div>
+          </MotionDiv>
         ))}
       </AnimatePresence>
     </div>

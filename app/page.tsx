@@ -4,15 +4,13 @@ import { MotionConfig, AnimatePresence, motion } from 'framer-motion';
 import { Header } from '../components/Header/Header';
 import { SideMenu } from '../components/UI/SideMenu';
 import { SegmentGroup } from '../components/Group/SegmentGroup';
-import { Console } from '../components/UI/Console';
 import { ToastContainer } from '../components/UI/Toast';
 import { useSegments } from '../lib/store/segments';
 import { useSettingsStore } from '../lib/store/settings';
 import { useConnection } from '../lib/store/connection';
 import { CMD, Segment } from '../types/index';
 import { useWebSocket } from '../hooks/useWebSocket';
-// Fix: Added missing Zap icon import from lucide-react to resolve the reference error on line 184
-import { Bot, Cpu, Terminal, Trash2, Zap } from 'lucide-react';
+import { Bot, Cpu, Zap, Trash2 } from 'lucide-react';
 
 export const MUSIC_TRACKS = [
   { id: 0, title: "CYBERPUNK AMBIENT", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" },
@@ -23,12 +21,13 @@ export const MUSIC_TRACKS = [
 
 const CACHE_NAME = 'iot-dashboard-audio-v1';
 
+const MotionDiv = motion.div as any;
+
 export default function DashboardPage() {
-  const { segments, setSegments, updateSegment, removeSegment, toggleSegment, setPWM } = useSegments();
-  const { settings, updateSettings } = useSettingsStore();
+  const { segments, setSegments, removeSegment, toggleSegment, setPWM } = useSegments();
+  const { settings } = useSettingsStore();
   const { addToast } = useConnection();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -40,66 +39,48 @@ export default function DashboardPage() {
     document.documentElement.classList.toggle('no-animations', !settings.animations);
   }, [settings.theme, settings.animations]);
 
-  // Audio Caching and Playback Engine
   useEffect(() => {
     const handlePlayback = async () => {
       if (!settings.bgMusic) {
         audioRef.current?.pause();
         return;
       }
-
       const track = MUSIC_TRACKS[settings.currentTrackIndex];
-      
       try {
         if (!audioRef.current) {
           audioRef.current = new Audio();
           audioRef.current.loop = true;
         }
-
         const cache = await caches.open(CACHE_NAME);
         let response = await cache.match(track.url);
-
         if (!response) {
           addToast(`Caching Audio Asset...`, "info");
           response = await fetch(track.url);
           await cache.put(track.url, response.clone());
         }
-
         const blob = await response.blob();
-        
-        if (objectUrlRef.current) {
-          URL.revokeObjectURL(objectUrlRef.current);
-        }
-        
+        if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
         const blobUrl = URL.createObjectURL(blob);
         objectUrlRef.current = blobUrl;
-
         audioRef.current.src = blobUrl;
         audioRef.current.volume = settings.volume / 100;
         await audioRef.current.play();
-        
       } catch (error) {
         console.error("[AudioEngine] Playback Failed:", error);
       }
     };
-
     handlePlayback();
-
-    return () => {
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-      }
-    };
+    return () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current); };
   }, [settings.bgMusic, settings.currentTrackIndex, settings.volume, addToast]);
 
-  // Grouping logic: Segments are grouped by their 'group' property
   const groupedSegments = useMemo(() => {
-    return segments.reduce((acc, seg) => {
+    const groups: Record<string, Segment[]> = {};
+    segments.forEach((seg) => {
       const groupName = seg.group || "Main Group"; 
-      if (!acc[groupName]) acc[groupName] = [];
-      acc[groupName].push(seg);
-      return acc;
-    }, {} as Record<string, Segment[]>);
+      if (!groups[groupName]) groups[groupName] = [];
+      groups[groupName].push(seg);
+    });
+    return groups;
   }, [segments]);
 
   const handleToggle = (id: string) => {
@@ -122,13 +103,21 @@ export default function DashboardPage() {
     if (!seg) return;
     const bitState = (seg.val_of_slide >> bit) & 1;
     const newVal = bitState ? (seg.val_of_slide & ~(1 << bit)) : (seg.val_of_slide | (1 << bit));
-    updateSegment(id, { val_of_slide: newVal });
+    useSegments.getState().updateSegment(id, { val_of_slide: newVal });
     sendCommand(CMD.SR_PIN, seg.gpio || 0, bit | ((bitState ? 0 : 1) << 8));
+  };
+
+  const handleReorderInGroup = (groupName: string, newGroupSegments: Segment[]) => {
+    // بازسازی کل لیست سگمنت‌ها با حفظ ترتیب گروه‌های دیگر
+    const otherGroupsSegments = segments.filter(s => s.group !== groupName);
+    // برای حفظ ثبات بصری، سگمنت‌های گروه فعلی را در جای قبلی خود جایگزین می‌کنیم
+    const updatedSegments = [...otherGroupsSegments, ...newGroupSegments];
+    setSegments(updatedSegments);
   };
 
   return (
     <MotionConfig reducedMotion={settings.animations ? "never" : "always"}>
-      <div className="min-h-screen bg-background-light dark:bg-background-dark transition-colors duration-500 flex flex-col">
+      <div className="min-h-screen bg-background-light dark:bg-background-dark transition-colors duration-500 flex flex-col overflow-x-hidden">
         <Header onOpenMenu={() => setIsMenuOpen(true)} />
         
         <main className="max-w-7xl mx-auto px-6 pt-12 flex-1 pb-40 w-full">
@@ -148,7 +137,7 @@ export default function DashboardPage() {
           ) : (
             <div className="grid grid-cols-1 gap-12">
               {Object.entries(groupedSegments).map(([groupName, groupNodes], groupIndex) => (
-                <motion.div 
+                <MotionDiv 
                   key={groupName}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -156,74 +145,52 @@ export default function DashboardPage() {
                 >
                   <SegmentGroup 
                     name={groupName}
-                    segments={groupNodes}
-                    onReorder={(newGroupSegments) => {
-                        // Advanced reordering logic would go here if multi-group was strictly indexed
-                        // For now, simpler reorder of the global segment list is used
-                        const otherSegments = segments.filter(s => s.group !== groupName);
-                        setSegments([...otherSegments, ...newGroupSegments]);
+                    segments={groupNodes as Segment[]}
+                    onReorder={(newNodes) => handleReorderInGroup(groupName, newNodes)}
+                    onRemove={(id) => {
+                      removeSegment(id);
+                      addToast("Module Terminated & Decoupled", "error");
                     }}
-                    onRemove={removeSegment}
                     onToggle={handleToggle}
                     onPWMChange={handlePWMChange}
                     onToggleBit={handleToggleBit}
                     onDragStart={() => setIsDragging(true)}
                     onDragEnd={() => setIsDragging(false)}
                   />
-                </motion.div>
+                </MotionDiv>
               ))}
             </div>
           )}
         </main>
 
-        <footer className="fixed bottom-0 left-0 w-full bg-black border-t-4 border-primary/30 py-4 px-8 z-50 flex items-center justify-between">
-          <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-2 font-black text-[10px] uppercase tracking-widest text-primary/80">
-              <Cpu size={14} /> ESP32-PRO
-            </div>
-            <div className="hidden sm:flex items-center gap-2 font-black text-[10px] uppercase tracking-widest text-primary/60">
-              <Zap size={14} className="text-primary animate-pulse" /> SYNC: ACTIVE
+        <footer className="fixed bottom-0 left-0 w-full bg-black border-t-4 border-primary/30 py-6 px-10 z-[100] flex items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.5)] h-24 overflow-hidden">
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-3 font-black text-[11px] uppercase tracking-[0.3em] text-primary/90">
+              <Cpu size={16} /> 
+              <span>Node: ESP32-PRO</span>
             </div>
           </div>
 
           <AnimatePresence>
             {isDragging && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="absolute left-1/2 -translate-x-1/2 -top-16 bg-red-600 text-white px-8 py-4 rounded-chip border-4 border-white shadow-2xl flex items-center gap-4 animate-pulse"
+              <MotionDiv 
+                initial={{ opacity: 0, y: 100 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 100 }}
+                className="absolute inset-0 flex items-center justify-center bg-red-600/95 backdrop-blur-md text-white font-black uppercase tracking-[0.4em] gap-4 z-50 pointer-events-none"
               >
-                <Trash2 size={24} />
-                <span className="font-black text-[11px] uppercase tracking-widest">Drop to Delete</span>
-              </motion.div>
+                <Trash2 size={28} className="animate-bounce" />
+                <span className="text-sm">🗑️ Drop to Delete Module</span>
+              </MotionDiv>
             )}
           </AnimatePresence>
 
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsConsoleOpen(!isConsoleOpen)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-chip border-2 font-black text-[10px] uppercase tracking-widest transition-all ${
-                isConsoleOpen ? 'bg-primary text-black border-primary' : 'bg-white/5 text-primary border-primary/30'
-              }`}
-            >
-              <Terminal size={14} /> Log Panel
-            </button>
+            <div className="text-[9px] font-black uppercase tracking-[0.4em] text-white/20">
+              SECURE LINK ESTABLISHED
+            </div>
           </div>
         </footer>
-
-        <AnimatePresence>
-          {isConsoleOpen && (
-            <motion.div 
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              className="fixed bottom-[68px] left-0 w-full z-40"
-            >
-              <Console onClose={() => setIsConsoleOpen(false)} />
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
         <ToastContainer />

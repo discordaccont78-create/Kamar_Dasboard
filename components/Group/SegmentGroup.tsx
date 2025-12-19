@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Reorder } from 'framer-motion';
+import React, { useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GripVertical } from 'lucide-react';
 import { SegmentCard } from '../Segment/SegmentCard';
 import { CustomSegment } from '../Segment/CustomSegment';
@@ -22,6 +22,8 @@ interface Props {
   onDragEnd?: () => void;
 }
 
+const MotionDiv = motion.div as any;
+
 export const SegmentGroup: React.FC<Props> = ({ 
   name,
   segments, 
@@ -33,9 +35,9 @@ export const SegmentGroup: React.FC<Props> = ({
   onDragStart,
   onDragEnd
 }) => {
-  // Logic to determine if a segment should span full width based on the provided rules:
-  // 1. Single segment -> 100%
-  // 2. Last segment in an odd-count list -> 100%
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // محاسبه عرض خودکار (نکته ۵)
   const getColSpan = (index: number) => {
     const total = segments.length;
     if (total === 1) return "col-span-1 md:col-span-2";
@@ -43,36 +45,83 @@ export const SegmentGroup: React.FC<Props> = ({
     return "col-span-1";
   };
 
+  // جابجایی آنی در گرید ۲ ستونه (راه حل مشکل ۱ و ۲)
+  const handleDragUpdate = (info: any, currentIndex: number) => {
+    if (!containerRef.current) return;
+
+    const dragX = info.point.x;
+    const dragY = info.point.y;
+
+    const items = Array.from(containerRef.current.querySelectorAll('.segment_area'));
+    let closestIndex = currentIndex;
+    let minDistance = Infinity;
+
+    // محاسبه نزدیک‌ترین مرکز سگمنت (Distance-based Collision)
+    items.forEach((item, index) => {
+      if (index === currentIndex) return;
+      const rect = item.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      
+      const distance = Math.sqrt(
+        Math.pow(dragX - centerX, 2) + 
+        Math.pow(dragY - centerY, 2)
+      );
+
+      // اگر فاصله کمتر از حد آستانه بود، جابجایی انجام شود
+      if (distance < minDistance && distance < rect.width / 1.5) {
+        minDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    if (closestIndex !== currentIndex) {
+      const newSegments = [...segments];
+      const [movedItem] = newSegments.splice(currentIndex, 1);
+      newSegments.splice(closestIndex, 0, movedItem);
+      onReorder(newSegments);
+    }
+  };
+
   return (
-    <div className="group-container mb-16 p-6 border-2 border-primary/20 bg-white/30 dark:bg-white/5 rounded-bevel shadow-sm transition-all duration-300">
+    <div className="group-container mb-16 p-6 border-2 border-primary/10 dark:border-primary/5 bg-white/40 dark:bg-white/5 rounded-bevel shadow-sm transition-all duration-300 segment-group overflow-visible">
       <GroupHeader name={name} count={segments.length} />
       
-      <div className="mt-8">
-        <Reorder.Group 
-          axis="y" 
-          values={segments} 
-          onReorder={onReorder} 
-          className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-12 auto-rows-auto"
-        >
+      <div 
+        ref={containerRef}
+        className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-12 auto-rows-auto relative"
+      >
+        <AnimatePresence mode="popLayout">
           {segments.map((seg, index) => (
-            <Reorder.Item 
+            <MotionDiv 
               key={seg.num_of_node} 
-              value={seg} 
-              className={`list-none ${getColSpan(index)}`}
+              layout
+              drag
+              dragSnapToOrigin
               onDragStart={onDragStart}
-              onDragEnd={(event, info) => {
+              onDrag={(e: any, info: any) => handleDragUpdate(info, index)}
+              onDragEnd={(event: any, info: any) => {
                 onDragEnd?.();
-                // Trash zone logic: check if dropped near the bottom footer area
-                const trashY = window.innerHeight - 100;
-                if (info.point.y > trashY) {
+                // جابجایی به فوتر = حذف (نکته ۷)
+                const trashThresholdY = window.innerHeight - 110;
+                if (info.point.y > trashThresholdY) {
                   onRemove(seg.num_of_node);
                 }
               }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className={`segment_area ${getColSpan(index)}`}
             >
               <SegmentCard 
                 gpio={seg.gpio || 0} 
                 label={seg.group}
-                dragHandle={<GripVertical className="text-black/50 hover:text-black transition-colors" size={16} />}
+                dragHandle={
+                  <GripVertical 
+                    className="text-black/30 group-hover:text-primary transition-colors cursor-grab active:cursor-grabbing" 
+                    size={22} 
+                  />
+                }
               >
                 {seg.groupType === 'custom' && (
                   <CustomSegment 
@@ -90,9 +139,9 @@ export const SegmentGroup: React.FC<Props> = ({
                 {seg.groupType === 'input' && <InputSegment segment={seg} />}
                 {seg.groupType === 'weather' && <WeatherSegment segment={seg} />}
               </SegmentCard>
-            </Reorder.Item>
+            </MotionDiv>
           ))}
-        </Reorder.Group>
+        </AnimatePresence>
       </div>
     </div>
   );

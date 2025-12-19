@@ -11,12 +11,15 @@ interface Props {
   onPWMChange: (val: number) => void;
 }
 
+// Fix: Casting motion.div to any to resolve property type errors (initial, animate)
+const MotionDiv = motion.div as any;
+
 export const CustomSegment: React.FC<Props> = ({ segment, onToggle, onPWMChange }) => {
   const isOn = segment.is_led_on === 'on';
   const [code, setCode] = useState("");
 
   return (
-    <motion.div
+    <MotionDiv
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className="flex flex-col gap-6"
@@ -87,6 +90,6 @@ export const CustomSegment: React.FC<Props> = ({ segment, onToggle, onPWMChange 
           <span className="bg-black/5 dark:bg-white/5 px-1.5 py-0.5 rounded">00</span>
         </div>
       </div>
-    </motion.div>
+    </MotionDiv>
   );
 };
