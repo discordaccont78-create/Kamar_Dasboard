@@ -90,9 +90,10 @@ export default function DashboardPage(): React.JSX.Element {
   const groupEntries = Object.entries(groupedSegments);
   const totalGroups = groupEntries.length;
 
+  // Updated logic: Use XL breakpoint for splitting columns to prevent squishing on laptops
   const getGroupSpan = (index: number): string => {
-    if (totalGroups === 1) return "col-span-1 md:col-span-2";
-    if (totalGroups % 2 !== 0 && index === totalGroups - 1) return "col-span-1 md:col-span-2";
+    if (totalGroups === 1) return "col-span-1 xl:col-span-2";
+    if (totalGroups % 2 !== 0 && index === totalGroups - 1) return "col-span-1 xl:col-span-2";
     return "col-span-1";
   };
 
@@ -121,7 +122,8 @@ export default function DashboardPage(): React.JSX.Element {
               </MotionDiv>
             </MotionDiv>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            // Updated Grid: Defaults to 1 col, splits to 2 cols only on XL screens (1280px+)
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               {groupEntries.map(([groupName, groupNodes], index) => (
                 <div key={groupName} className={`${getGroupSpan(index)}`}>
                   <SegmentGroup 

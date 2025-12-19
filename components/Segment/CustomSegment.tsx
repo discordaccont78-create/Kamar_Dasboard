@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Power, Send, Trash2, Clock } from 'lucide-react';
-import { Slider } from '../ui/slider';
+import { Slider } from '../UI/Slider';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';

@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GripVertical } from 'lucide-react';
@@ -67,12 +66,20 @@ export const SegmentGroup: React.FC<Props> = ({
   };
 
   return (
-    <div className="mb-8">
-      <GroupHeader name={name} count={segments.length} />
+    <div className="h-full relative border-2 border-dashed border-primary/20 dark:border-primary/10 rounded-[2rem] p-8 bg-secondary/5 transition-colors">
+      
+      {/* Group Boundary Label - Acts as a schematic label for the zone */}
+      <div className="absolute -top-3 left-8 px-3 bg-[#f4f7f9] dark:bg-[#09090b] text-primary text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-colors z-10">
+        <span>ZONE: {name}</span>
+      </div>
+
+      <div className="-mt-2 mb-6">
+         <GroupHeader name={name} count={segments.length} />
+      </div>
       
       <div 
         ref={containerRef}
-        className="grid grid-cols-1 gap-6 relative min-h-[100px]"
+        className="grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-6 relative min-h-[100px]"
       >
         <AnimatePresence mode="popLayout">
           {segments.map((seg, index) => (
