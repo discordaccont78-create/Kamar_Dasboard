@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Cloud, LineChart, Gauge } from 'lucide-react';
 import { WeatherGauge } from '../Weather/WeatherGauge';
@@ -10,6 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface Props {
   segment: Segment;
 }
+
+const MotionDiv = motion.div as any;
 
 export const WeatherSegment: React.FC<Props> = ({ segment }) => {
   const [viewMode, setViewMode] = useState<'gauge' | 'chart'>('gauge');
@@ -42,7 +43,7 @@ export const WeatherSegment: React.FC<Props> = ({ segment }) => {
 
       <AnimatePresence mode="wait">
         {viewMode === 'gauge' ? (
-            <motion.div 
+            <MotionDiv 
                 key="gauges"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -51,16 +52,16 @@ export const WeatherSegment: React.FC<Props> = ({ segment }) => {
             >
                 <WeatherGauge value={segment.temperature || 0} min={-10} max={50} unit="°C" label="Temp" color="#daa520" />
                 <WeatherGauge value={segment.humidity || 0} min={0} max={100} unit="%" label="Humid" color="#3b82f6" />
-            </motion.div>
+            </MotionDiv>
         ) : (
-            <motion.div
+            <MotionDiv
                 key="chart"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
             >
                 <SensorChart segmentId={segment.num_of_node} />
-            </motion.div>
+            </MotionDiv>
         )}
       </AnimatePresence>
     </div>

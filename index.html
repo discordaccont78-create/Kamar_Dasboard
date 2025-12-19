@@ -112,6 +112,22 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
       }
+      
+      /* Radix UI Dialog Animation */
+      @keyframes overlayShow {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes contentShow {
+        from { opacity: 0; transform: translateX(100%); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      .DialogOverlay {
+        animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .DialogContent {
+        animation: contentShow 300ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
     </style>
 <script type="importmap">
 {
@@ -124,7 +140,6 @@
     "zustand": "https://esm.sh/zustand@5.0.1?external=react",
     "zustand/middleware": "https://esm.sh/zustand@5.0.1/middleware?external=react",
     "lucide-react": "https://esm.sh/lucide-react@0.460.0?external=react",
-    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
     "clsx": "https://esm.sh/clsx@2.1.1",
     "tailwind-merge": "https://esm.sh/tailwind-merge@2.3.0",
     "class-variance-authority": "https://esm.sh/class-variance-authority@0.7.0",
@@ -132,13 +147,15 @@
     "@radix-ui/react-slider": "https://esm.sh/@radix-ui/react-slider@1.2.0?external=react,react-dom",
     "@radix-ui/react-switch": "https://esm.sh/@radix-ui/react-switch@1.1.0?external=react,react-dom",
     "@radix-ui/react-label": "https://esm.sh/@radix-ui/react-label@2.1.0?external=react,react-dom",
+    "@radix-ui/react-dialog": "https://esm.sh/@radix-ui/react-dialog@1.0.5?external=react,react-dom",
     "recharts": "https://esm.sh/recharts@2.12.3?external=react,react-dom",
     "@tanstack/react-query": "https://esm.sh/@tanstack/react-query@5.28.4?external=react,react-dom",
     "@tanstack/react-query-persist-client": "https://esm.sh/@tanstack/react-query-persist-client@5.28.4?external=react,react-dom,@tanstack/react-query",
     "idb-keyval": "https://esm.sh/idb-keyval@6.2.1",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "zustand/": "https://esm.sh/zustand@^5.0.9/",
-    "@tanstack/query-sync-storage-persister": "https://esm.sh/@tanstack/query-sync-storage-persister@^5.90.14"
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "markdown-to-jsx": "https://esm.sh/markdown-to-jsx@^9.4.2"
   }
 }
 </script>

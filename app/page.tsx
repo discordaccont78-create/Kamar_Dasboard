@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MotionConfig, AnimatePresence, motion } from 'framer-motion';
 import { Header } from '../components/Header/Header';
@@ -103,6 +102,7 @@ export default function DashboardPage(): React.JSX.Element {
         <Header onOpenMenu={() => setIsMenuOpen(true)} />
         
         <main className="max-w-7xl mx-auto px-6 pt-12 flex-1 pb-40 w-full relative">
+          
           {segments.length === 0 ? (
             <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-16 min-h-[60vh]">
               <MotionDiv onClick={() => setIsMenuOpen(true)} className="relative z-20 cursor-pointer flex flex-col items-center gap-8">
