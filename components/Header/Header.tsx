@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Moon, Sun, Settings, Zap, Terminal, Globe } from 'lucide-react';
 import { ConnectionStatus } from './ConnectionStatus';
@@ -37,7 +38,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
 
   return (
     <header className="sticky top-4 z-50 px-4 sm:px-6 transition-all duration-500">
-      <div className="bg-card/85 backdrop-blur-xl text-foreground px-8 py-4 rounded-2xl border border-white/20 dark:border-white/10 shadow-2xl mx-auto flex items-center justify-between relative max-w-7xl">
+      <div className="bg-card/85 backdrop-blur-xl backdrop-saturate-150 text-foreground px-8 py-4 rounded-2xl border border-white/20 dark:border-white/10 shadow-2xl mx-auto flex items-center justify-between relative max-w-7xl">
         
         {/* Left: Branding - Updated Style (Outline/Glass) */}
         <div className="flex items-center gap-4 z-10">

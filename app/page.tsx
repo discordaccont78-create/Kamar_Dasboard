@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MotionConfig, AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { Header } from '../components/Header/Header';
@@ -336,7 +337,7 @@ export default function DashboardPage(): React.JSX.Element {
         </main>
 
         <footer className="fixed bottom-4 left-0 w-full px-4 sm:px-6 z-[40] transition-colors duration-500">
-          <div className="bg-card/85 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-2xl py-4 px-10 flex items-center justify-between h-20 max-w-7xl mx-auto">
+          <div className="bg-card/85 backdrop-blur-xl backdrop-saturate-150 border border-white/20 dark:border-white/10 rounded-2xl shadow-2xl py-4 px-10 flex items-center justify-between h-20 max-w-7xl mx-auto">
             <div className="flex items-center gap-3 font-black text-[9px] uppercase tracking-[0.2em] text-primary">
               <Cpu size={14} /> 
               <span className="opacity-60">ESP32-NODE-PRO</span>
