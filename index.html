@@ -85,23 +85,26 @@
         color: #1a1c1e;
         margin: 0;
         overflow-x: hidden;
-        /* Professional custom cursor */
         cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23daa520' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3' fill='%23daa520'/%3E%3C/svg%3E") 12 12, auto;
       }
 
-      /* RTL / Farsi Font Support */
+      /* Performance Optimizations */
+      .segment_area, .group_area {
+        will-change: transform, opacity;
+        transform: translateZ(0);
+        backface-visibility: hidden;
+      }
+
       [dir="rtl"], [dir="rtl"] body {
         font-family: 'Vazirmatn', sans-serif !important;
       }
 
-      /* Specific adjustment for Clock in RTL - use Vazirmatn for numbers */
       [dir="rtl"] .clock-display {
         font-family: 'Vazirmatn', sans-serif !important;
         font-weight: 900;
         letter-spacing: 0;
       }
 
-      /* Preserve Monospace Font in RTL only when specifically requested */
       [dir="rtl"] .font-mono:not(.clock-display) {
         font-family: 'JetBrains Mono', monospace !important;
       }
@@ -111,16 +114,14 @@
       }
 
       .dark body {
-        background-color: #09090b; /* Zinc-950 */
+        background-color: #09090b; 
         color: #e0e0e0;
       }
 
-      /* Hover states for interactive elements to feel tactile */
       button, a, [role="button"] {
         cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%23daa520' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ccircle cx='12' cy='12' r='2' fill='%23daa520'/%3E%3C/svg%3E") 16 16, pointer !important;
       }
 
-      /* Shadcn-like focus rings */
       *:focus-visible {
         outline: 2px solid var(--primary);
         outline-offset: 2px;
@@ -142,25 +143,23 @@
         scrollbar-width: none;
       }
 
-      /* --- Graph Paper (Chaharkhooneh) Effect --- */
       .graph-paper {
-        background-color: #fdfdfd; /* Very subtle off-white for light mode */
+        background-color: #fdfdfd; 
         background-image: 
             linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px),
             linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px);
-        background-size: 24px 24px; /* Size of the squares */
+        background-size: 24px 24px; 
         background-position: center top;
         will-change: background-position;
       }
 
       .dark .graph-paper {
-        background-color: #09090b; /* Deep dark for dark mode */
+        background-color: #09090b; 
         background-image: 
             linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
             linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
       }
 
-      /* Background Move Animation */
       @keyframes bgScroll {
         from { background-position: 0 0; }
         to { background-position: 24px 24px; }
@@ -170,7 +169,6 @@
         animation: bgScroll 3s linear infinite;
       }
 
-      /* Text Shimmer/Internal Animation */
       @keyframes textShimmer {
         0% { background-position: 0% 50%; }
         100% { background-position: 200% 50%; }
@@ -204,7 +202,6 @@
         animation: textShimmer 3s linear infinite;
       }
       
-      /* Radix UI Dialog Animation */
       @keyframes overlayShow {
         from { opacity: 0; }
         to { opacity: 1; }

@@ -1,6 +1,6 @@
 
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { Segment } from '../../types/index';
 import { redis } from '../db/redis';
 
@@ -12,20 +12,31 @@ interface SegmentsStore {
   updateSegment: (id: string, data: Partial<Segment>) => void;
   toggleSegment: (id: string) => void;
   setPWM: (id: string, value: number) => void;
-  setSegmentTimer: (id: string, durationSeconds: number) => void; // New
-  clearSegmentTimer: (id: string) => void; // New
+  setSegmentTimer: (id: string, durationSeconds: number) => void;
+  clearSegmentTimer: (id: string) => void;
   setSegments: (segments: Segment[]) => void;
 }
 
-// Define storage adapter for Zustand
-const redisStorage = {
+// Custom Debounce Logic for Storage
+const debounce = (fn: Function, ms: number) => {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  return function (this: any, ...args: any[]) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn.apply(this, args), ms);
+  };
+};
+
+// Optimized Storage Adapter with Debouncing
+const debouncedRedisStorage: StateStorage = {
   getItem: async (name: string): Promise<string | null> => {
     const value = await redis.get(name);
     return value ? JSON.stringify(value) : null;
   },
-  setItem: async (name: string, value: string): Promise<void> => {
+  // Debounce writes to IDB to 1000ms. 
+  // State updates in memory (Zustand) are instant, but disk writes are throttled.
+  setItem: debounce(async (name: string, value: string): Promise<void> => {
     await redis.set(name, JSON.parse(value));
-  },
+  }, 1000),
   removeItem: async (name: string): Promise<void> => {
     await redis.del(name);
   },
@@ -90,7 +101,8 @@ export const useSegments = create<SegmentsStore>()(
     }),
     { 
       name: 'segments-redis-store',
-      storage: createJSONStorage(() => redisStorage) 
+      storage: createJSONStorage(() => debouncedRedisStorage),
+      skipHydration: false 
     }
   )
 );

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Power, Send, Trash2, Clock, Hourglass } from 'lucide-react';
 import * as SliderPrimitive from "@radix-ui/react-slider";
@@ -39,62 +39,69 @@ interface Props {
 
 const MotionDiv = motion.div as any;
 
-export const CustomSegment: React.FC<Props> = ({ segment: initialSegment }) => {
+const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => {
+  // Select specific data to prevent unnecessary re-renders from the hook
   const { data: deviceState } = useDeviceState(initialSegment.num_of_node);
   const { mutate: controlDevice } = useDeviceControl();
   const { clearSegmentTimer } = useSegments();
   
-  // MERGE LOGIC:
-  // 1. initialSegment: Contains Client-Side Data (Timer, Name, Group) from Zustand Store.
-  // 2. deviceState: Contains Live Hardware Data (LED Status, PWM) from React Query/WebSocket.
-  // We prioritize deviceState for HW values, but FORCE timerFinishAt from initialSegment.
-  const safeSegment = {
+  // Memoize safeSegment to ensure stable object reference
+  const safeSegment = useMemo(() => ({
     ...initialSegment,
     ...(deviceState || {}),
     timerFinishAt: initialSegment.timerFinishAt // Explicitly use prop from store
-  };
+  }), [initialSegment, deviceState]);
 
   const isOn = safeSegment.is_led_on === 'on';
   const [code, setCode] = useState("");
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
-  // Timer Logic
+  // Timer Logic - Optimized
   useEffect(() => {
     if (!safeSegment.timerFinishAt) {
-      setTimeLeft(null);
+      if (timeLeft !== null) setTimeLeft(null);
       return;
     }
 
-    const checkTimer = () => {
-      const remaining = Math.ceil((safeSegment.timerFinishAt! - Date.now()) / 1000);
+    // Calculate immediately to avoid 1s delay flicker
+    const now = Date.now();
+    const initialRemaining = safeSegment.timerFinishAt - now;
+    
+    if (initialRemaining <= 0) {
+        setTimeLeft(null);
+        return;
+    }
+    
+    setTimeLeft(initialRemaining);
+
+    const interval = setInterval(() => {
+      const currentNow = Date.now();
+      const remaining = safeSegment.timerFinishAt! - currentNow;
       
       if (remaining <= 0) {
-        setTimeLeft(0);
-        handleToggle(); // Toggle the device
-        clearSegmentTimer(safeSegment.num_of_node); // Remove timer from store
+        clearInterval(interval);
+        setTimeLeft(null);
+        handleToggle(); 
+        clearSegmentTimer(safeSegment.num_of_node);
       } else {
-        setTimeLeft(safeSegment.timerFinishAt! - Date.now());
+        setTimeLeft(remaining);
       }
-    };
+    }, 1000);
 
-    // Initial check
-    checkTimer();
-
-    const interval = setInterval(checkTimer, 1000);
     return () => clearInterval(interval);
-  }, [safeSegment.timerFinishAt, safeSegment.num_of_node]); // Removed dependencies that might cause loops
+  }, [safeSegment.timerFinishAt, safeSegment.num_of_node]); 
 
-  // Format Time Helper
-  const formatTime = (ms: number) => {
-    if (ms <= 0) return { h: '00', m: '00', s: '00' };
-    const totalSeconds = Math.ceil(ms / 1000);
+  // Format Time Helper - Memoized
+  const timeString = useMemo(() => {
+    if (!timeLeft || timeLeft <= 0) return null;
+    const totalSeconds = Math.ceil(timeLeft / 1000);
     const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
     const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
     const s = (totalSeconds % 60).toString().padStart(2, '0');
     return { h, m, s };
-  };
+  }, [timeLeft]);
 
-  const handleToggle = () => {
+  const handleToggle = useCallback(() => {
     const cmd = isOn ? CMD.LED_OFF : CMD.LED_ON;
     controlDevice({ 
         cmd, 
@@ -102,21 +109,20 @@ export const CustomSegment: React.FC<Props> = ({ segment: initialSegment }) => {
         value: 0, 
         nodeId: safeSegment.num_of_node 
     });
-  };
+  }, [isOn, safeSegment.gpio, safeSegment.num_of_node, controlDevice]);
 
-  const handlePWM = (val: number) => {
+  const handlePWM = useCallback((val: number) => {
      controlDevice({ 
         cmd: CMD.LED_PWM, 
         gpio: safeSegment.gpio || 0, 
         value: val, 
         nodeId: safeSegment.num_of_node 
      });
-  };
+  }, [safeSegment.gpio, safeSegment.num_of_node, controlDevice]);
 
   return (
     <MotionDiv
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={false} // Disable initial animation on re-renders
       className="flex flex-col gap-6"
     >
       {/* Power Control */}
@@ -189,14 +195,14 @@ export const CustomSegment: React.FC<Props> = ({ segment: initialSegment }) => {
            </span>
         </div>
         
-        {timeLeft !== null ? (
+        {timeString ? (
           // Active Timer Display
           <div className="flex gap-1 font-mono text-[10px] font-bold items-center">
-            <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[22px] text-center shadow-sm">{formatTime(timeLeft).h}</span>
+            <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[22px] text-center shadow-sm">{timeString.h}</span>
             <span className="text-primary animate-pulse">:</span>
-            <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[22px] text-center shadow-sm">{formatTime(timeLeft).m}</span>
+            <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[22px] text-center shadow-sm">{timeString.m}</span>
             <span className="text-primary animate-pulse">:</span>
-            <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[22px] text-center shadow-sm">{formatTime(timeLeft).s}</span>
+            <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[22px] text-center shadow-sm">{timeString.s}</span>
           </div>
         ) : (
           // Default Static Display
@@ -212,3 +218,6 @@ export const CustomSegment: React.FC<Props> = ({ segment: initialSegment }) => {
     </MotionDiv>
   );
 };
+
+// Export Memoized Component
+export const CustomSegment = React.memo(CustomSegmentInternal);

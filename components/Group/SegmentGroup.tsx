@@ -1,4 +1,5 @@
-import React, { useRef } from 'react';
+
+import React, { useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { GripVertical } from 'lucide-react';
 import { SegmentCard } from '../Segment/SegmentCard';
@@ -21,13 +22,13 @@ interface Props {
   onToggleBit: (id: string, bit: number) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
-  dragHandle?: React.ReactNode; // New Prop for Group Dragging
+  dragHandle?: React.ReactNode; 
 }
 
 const MotionDiv = motion.div as any;
 
-// Wrapper component to handle individual drag controls
-const DraggableSegmentItem = ({ 
+// Wrapper component to handle individual drag controls - Memoized
+const DraggableSegmentItem = React.memo(({ 
   segment, 
   index, 
   containerRef, 
@@ -98,7 +99,7 @@ const DraggableSegmentItem = ({
   return (
     <MotionDiv 
       key={segment.num_of_node}
-      layout
+      layout="position" // Optimize layout animation
       drag
       dragListener={false} // IMPORTANT: Disables dragging by clicking anywhere
       dragControls={controls} // Only drag via handle
@@ -156,9 +157,9 @@ const DraggableSegmentItem = ({
       </SegmentCard>
     </MotionDiv>
   );
-};
+});
 
-export const SegmentGroup: React.FC<Props> = ({ 
+export const SegmentGroup: React.FC<Props> = React.memo(({ 
   name,
   segments, 
   onReorder, 
@@ -183,23 +184,28 @@ export const SegmentGroup: React.FC<Props> = ({
     onReorder(newSegments);
   };
 
+  // Memoize style to prevent object creation on render
+  const containerStyle = useMemo(() => ({
+    borderColor: `${settings.primaryColor}40`, 
+    backgroundColor: `${settings.primaryColor}08`, 
+    backgroundImage: `linear-gradient(135deg, ${settings.primaryColor}05 0%, transparent 100%)`
+  }), [settings.primaryColor]);
+
+  const labelStyle = useMemo(() => ({
+    color: 'var(--primary)',
+    borderColor: `${settings.primaryColor}40`,
+    backgroundColor: `${settings.primaryColor}15`
+  }), [settings.primaryColor]);
+
   return (
     <div 
       className="h-full relative border-2 border-dashed rounded-[2rem] p-8 transition-all duration-500 backdrop-blur-[2px]"
-      style={{ 
-        borderColor: `${settings.primaryColor}40`, 
-        backgroundColor: `${settings.primaryColor}08`, 
-        backgroundImage: `linear-gradient(135deg, ${settings.primaryColor}05 0%, transparent 100%)`
-      }} 
+      style={containerStyle} 
     >
       {/* Group Boundary Label & Drag Handle */}
       <div 
         className="absolute -top-3 left-8 pl-1 pr-3 text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-colors z-10 border border-dashed rounded-full backdrop-blur-md"
-        style={{ 
-          color: 'var(--primary)',
-          borderColor: `${settings.primaryColor}40`,
-          backgroundColor: `${settings.primaryColor}15`
-        }}
+        style={labelStyle}
       >
         {dragHandle && (
            <div className="bg-primary/20 hover:bg-primary/40 rounded-full p-1 cursor-grab active:cursor-grabbing transition-colors -ml-1">
@@ -222,8 +228,6 @@ export const SegmentGroup: React.FC<Props> = ({
       >
         <AnimatePresence mode="popLayout">
           {segments.map((seg, index) => {
-            // Check if this is the last item and the total count is odd.
-            // If so, make it span 2 columns on large screens to fill the row.
             const isLastAndOdd = segments.length % 2 !== 0 && index === segments.length - 1;
             
             return (
@@ -248,4 +252,4 @@ export const SegmentGroup: React.FC<Props> = ({
       </div>
     </div>
   );
-};
+});

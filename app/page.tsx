@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { MotionConfig, AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { Header } from '../components/Header/Header';
 import { SideMenu } from '../components/UI/SideMenu';
@@ -18,29 +18,27 @@ import { MUSIC_TRACKS } from '../lib/constants';
 // Workaround for Framer Motion types in this specific ESM environment
 const MotionDiv = motion.div as any;
 
-const CoreEmblem: React.FC = () => (
+const CoreEmblem: React.FC = React.memo(() => (
   <div className="relative flex items-center justify-center">
     <MotionDiv
       animate={{ rotate: 360 }}
       transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
       className="absolute"
     >
-      {/* Updated Hexagon: Changed color to foreground for better visibility and increased stroke width */}
       <Hexagon size={180} strokeWidth={1.5} className="text-foreground/80 dark:text-foreground/60" />
     </MotionDiv>
     <MotionDiv
       animate={{ scale: [1, 1.05, 1], opacity: [0.8, 1, 0.8] }}
       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      // Updated Circle: Added transparency (bg-card/30) and backdrop-blur for glass effect seeing the grid behind
       className="bg-card/30 dark:bg-card/30 backdrop-blur-md border-2 border-primary p-6 rounded-full shadow-[0_0_40px_rgba(var(--primary),0.2)] z-10 transition-colors"
     >
       <Zap size={48} className="text-primary" fill="currentColor" />
     </MotionDiv>
   </div>
-);
+));
 
-// Draggable Wrapper for Groups
-const DraggableGroupItem = ({
+// Draggable Wrapper for Groups - Memoized
+const DraggableGroupItem = React.memo(({
   groupName,
   groupNodes,
   index,
@@ -49,7 +47,7 @@ const DraggableGroupItem = ({
   segments,
   setSegments,
   removeSegment,
-  removeGroup, // Added prop
+  removeGroup, 
   toggleSegment,
   sendCommand,
   setPWM,
@@ -66,7 +64,7 @@ const DraggableGroupItem = ({
   segments: Segment[],
   setSegments: (s: Segment[]) => void,
   removeSegment: (id: string) => void,
-  removeGroup: (name: string) => void, // Added type
+  removeGroup: (name: string) => void, 
   toggleSegment: (id: string) => void,
   sendCommand: any,
   setPWM: any,
@@ -80,19 +78,16 @@ const DraggableGroupItem = ({
   const handleDrag = (event: any, info: any) => {
     if (!containerRef.current) return;
     
-    // THROTTLE: 400ms cooldown to prevent crashes during rapid movement
     const now = Date.now();
     if (now - lastReorderTime.current < 400) return;
 
     const dragX = info.point.x;
     const dragY = info.point.y;
     
-    // Get all group items freshly from DOM
     const items = Array.from(containerRef.current.querySelectorAll('.group_area')) as HTMLElement[];
     
     let targetIndex = -1;
 
-    // Check overlap with other groups
     items.forEach((item, idx) => {
       if (idx === index) return; 
 
@@ -114,9 +109,22 @@ const DraggableGroupItem = ({
     }
   };
 
+  // Callback to handle toggling with WS command
+  const handleToggle = useCallback((id: string) => {
+    toggleSegment(id);
+    const seg = segments.find(s => s.num_of_node === id);
+    if (seg) sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
+  }, [toggleSegment, segments, sendCommand]);
+
+  // Callback for reordering inside the group
+  const handleInternalReorder = useCallback((newNodes: Segment[]) => {
+    const otherGroupsSegments = segments.filter(s => (s.group || "basic") !== groupName);
+    setSegments([...otherGroupsSegments, ...newNodes]);
+  }, [segments, groupName, setSegments]);
+
   return (
     <MotionDiv
-      layout
+      layout="position" // Optimized layout
       drag
       dragListener={false} // Only drag from handle
       dragControls={controls}
@@ -125,9 +133,7 @@ const DraggableGroupItem = ({
       onDragStart={onDragStart}
       onDrag={handleDrag}
       onDragEnd={(event: any, info: any) => {
-        onDragEnd(); // Reset isDragging state
-        
-        // Check if dropped in trash zone (bottom ~110px of screen)
+        onDragEnd(); 
         const thresholdY = window.innerHeight - 110;
         if (info.point.y > thresholdY) {
           removeGroup(groupName);
@@ -149,18 +155,9 @@ const DraggableGroupItem = ({
              <GripHorizontal size={20} />
           </div>
         }
-        onReorder={(newNodes) => {
-          // Identify other groups
-          const otherGroupsSegments = segments.filter(s => (s.group || "basic") !== groupName);
-          // Update store with new order for this group + others
-          setSegments([...otherGroupsSegments, ...newNodes]);
-        }}
+        onReorder={handleInternalReorder}
         onRemove={removeSegment}
-        onToggle={(id) => {
-          toggleSegment(id);
-          const seg = segments.find(s => s.num_of_node === id);
-          if (seg) sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
-        }}
+        onToggle={handleToggle}
         onPWMChange={setPWM}
         onToggleBit={() => {}}
         onDragStart={onDragStart}
@@ -168,7 +165,7 @@ const DraggableGroupItem = ({
       />
     </MotionDiv>
   );
-};
+});
 
 
 export default function DashboardPage(): React.JSX.Element {
@@ -178,41 +175,32 @@ export default function DashboardPage(): React.JSX.Element {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [deviceType, setDeviceType] = useState<string>("UNKNOWN");
   
-  // Ref for the Groups Grid Container
   const groupsContainerRef = useRef<HTMLDivElement>(null);
   const lastGroupReorderTime = useRef<number>(0);
   
-  // Local state to manage visual order of groups
   const [orderedGroupKeys, setOrderedGroupKeys] = useState<string[]>([]);
   
   const t = translations[settings.language];
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { sendCommand } = useWebSocket();
 
-  // Apply Primary Color Variable
   useEffect(() => {
     document.documentElement.style.setProperty('--primary', settings.primaryColor);
   }, [settings.primaryColor]);
   
-  // Apply RTL/LTR
   useEffect(() => {
     document.dir = settings.language === 'fa' ? 'rtl' : 'ltr';
   }, [settings.language]);
 
-  // Detect Device Type
   useEffect(() => {
-    const ua = navigator.userAgent;
-    if (/Mobi|Android/i.test(ua)) {
-      setDeviceType("MOBILE");
-    } else {
-      setDeviceType("DESKTOP");
-    }
+    setDeviceType(/Mobi|Android/i.test(navigator.userAgent) ? "MOBILE" : "DESKTOP");
   }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', settings.theme === 'dark');
   }, [settings.theme]);
 
+  // Audio Player Logic
   useEffect(() => {
     const handlePlayback = async () => {
       if (!settings.bgMusic) {
@@ -231,13 +219,12 @@ export default function DashboardPage(): React.JSX.Element {
         audioRef.current.volume = settings.volume / 100;
         await audioRef.current.play();
       } catch (e: unknown) {
-        console.warn("Audio playback failed (likely user interaction required):", e);
+        console.warn("Audio playback failed:", e);
       }
     };
     void handlePlayback();
   }, [settings.bgMusic, settings.currentTrackIndex, settings.volume]);
 
-  // Derive grouped segments
   const groupedSegments = useMemo(() => {
     const groups: Record<string, Segment[]> = {};
     segments.forEach((seg) => {
@@ -248,27 +235,25 @@ export default function DashboardPage(): React.JSX.Element {
     return groups;
   }, [segments]);
 
-  // Sync orderedGroupKeys with actual data changes
   useEffect(() => {
     const currentKeys = Object.keys(groupedSegments);
     setOrderedGroupKeys(prev => {
-        // Keep existing order, add new keys at end
         const newKeys = [...prev];
-        // Add keys that are in current but not in prev
         currentKeys.forEach(k => {
             if (!newKeys.includes(k)) newKeys.push(k);
         });
-        // Remove keys that are in prev but not in current (deleted groups)
         return newKeys.filter(k => currentKeys.includes(k));
     });
   }, [groupedSegments]);
 
-  const moveGroup = (fromIndex: number, toIndex: number) => {
-    const newOrder = [...orderedGroupKeys];
-    const [movedItem] = newOrder.splice(fromIndex, 1);
-    newOrder.splice(toIndex, 0, movedItem);
-    setOrderedGroupKeys(newOrder);
-  };
+  const moveGroup = useCallback((fromIndex: number, toIndex: number) => {
+    setOrderedGroupKeys(prev => {
+        const newOrder = [...prev];
+        const [movedItem] = newOrder.splice(fromIndex, 1);
+        newOrder.splice(toIndex, 0, movedItem);
+        return newOrder;
+    });
+  }, []);
 
   return (
     <MotionConfig reducedMotion={settings.animations ? "never" : "always"}>
@@ -305,7 +290,6 @@ export default function DashboardPage(): React.JSX.Element {
               <AnimatePresence mode="popLayout">
                 {orderedGroupKeys.map((groupName, index) => {
                    const groupNodes = groupedSegments[groupName] || [];
-                   // Determine if this is the last item and odd count to span full width
                    const isLastAndOdd = orderedGroupKeys.length % 2 !== 0 && index === orderedGroupKeys.length - 1;
                    const spanClass = isLastAndOdd ? "col-span-1 xl:col-span-2" : "col-span-1";
 
