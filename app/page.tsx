@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MotionConfig, AnimatePresence, motion } from 'framer-motion';
+import { MotionConfig, AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { Header } from '../components/Header/Header';
 import { SideMenu } from '../components/UI/SideMenu';
 import { SegmentGroup } from '../components/Group/SegmentGroup';
@@ -10,7 +9,7 @@ import { useSettingsStore } from '../lib/store/settings';
 import { useConnection } from '../lib/store/connection';
 import { CMD, Segment } from '../types/index';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { Zap, Trash2, Hexagon, Cpu, Laptop, Smartphone } from 'lucide-react';
+import { Zap, Trash2, Hexagon, Cpu, Laptop, Smartphone, GripHorizontal } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { translations } from '../lib/i18n';
 import { MUSIC_TRACKS } from '../lib/constants';
@@ -37,6 +36,128 @@ const CoreEmblem: React.FC = () => (
   </div>
 );
 
+// Draggable Wrapper for Groups
+const DraggableGroupItem = ({
+  groupName,
+  groupNodes,
+  index,
+  containerRef,
+  moveGroup,
+  segments,
+  setSegments,
+  removeSegment,
+  toggleSegment,
+  sendCommand,
+  setPWM,
+  lastReorderTime,
+  className,
+  onDragStart,
+  onDragEnd
+}: {
+  groupName: string,
+  groupNodes: Segment[],
+  index: number,
+  containerRef: React.RefObject<HTMLDivElement>,
+  moveGroup: (from: number, to: number) => void,
+  segments: Segment[],
+  setSegments: (s: Segment[]) => void,
+  removeSegment: (id: string) => void,
+  toggleSegment: (id: string) => void,
+  sendCommand: any,
+  setPWM: any,
+  lastReorderTime: React.MutableRefObject<number>,
+  className: string,
+  onDragStart: () => void,
+  onDragEnd: () => void
+}) => {
+  const controls = useDragControls();
+
+  const handleDrag = (event: any, info: any) => {
+    if (!containerRef.current) return;
+    
+    // THROTTLE: 400ms cooldown to prevent crashes during rapid movement
+    const now = Date.now();
+    if (now - lastReorderTime.current < 400) return;
+
+    const dragX = info.point.x;
+    const dragY = info.point.y;
+    
+    // Get all group items freshly from DOM
+    const items = Array.from(containerRef.current.querySelectorAll('.group_area')) as HTMLElement[];
+    
+    let targetIndex = -1;
+
+    // Check overlap with other groups
+    items.forEach((item, idx) => {
+      if (idx === index) return; 
+
+      const rect = item.getBoundingClientRect();
+      const isOver = 
+        dragX > rect.left && 
+        dragX < rect.right && 
+        dragY > rect.top && 
+        dragY < rect.bottom;
+
+      if (isOver) {
+        targetIndex = idx;
+      }
+    });
+
+    if (targetIndex !== -1 && targetIndex !== index) {
+      moveGroup(index, targetIndex);
+      lastReorderTime.current = Date.now();
+    }
+  };
+
+  return (
+    <MotionDiv
+      layout
+      drag
+      dragListener={false} // Only drag from handle
+      dragControls={controls}
+      dragSnapToOrigin
+      dragElastic={0.1}
+      onDragStart={onDragStart}
+      onDrag={handleDrag}
+      onDragEnd={onDragEnd}
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className={cn("group_area z-0 hover:z-10 relative", className)}
+    >
+      <SegmentGroup 
+        name={groupName}
+        segments={groupNodes}
+        dragHandle={
+          <div 
+             className="cursor-grab active:cursor-grabbing text-primary hover:text-foreground transition-colors"
+             onPointerDown={(e) => controls.start(e)}
+             style={{ touchAction: 'none' }}
+          >
+             <GripHorizontal size={20} />
+          </div>
+        }
+        onReorder={(newNodes) => {
+          // Identify other groups
+          const otherGroupsSegments = segments.filter(s => (s.group || "basic") !== groupName);
+          // Update store with new order for this group + others
+          setSegments([...otherGroupsSegments, ...newNodes]);
+        }}
+        onRemove={removeSegment}
+        onToggle={(id) => {
+          toggleSegment(id);
+          const seg = segments.find(s => s.num_of_node === id);
+          if (seg) sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
+        }}
+        onPWMChange={setPWM}
+        onToggleBit={() => {}}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      />
+    </MotionDiv>
+  );
+};
+
+
 export default function DashboardPage(): React.JSX.Element {
   const { segments, setSegments, removeSegment, toggleSegment, setPWM } = useSegments();
   const { settings } = useSettingsStore();
@@ -44,8 +165,14 @@ export default function DashboardPage(): React.JSX.Element {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [deviceType, setDeviceType] = useState<string>("UNKNOWN");
   
+  // Ref for the Groups Grid Container
+  const groupsContainerRef = useRef<HTMLDivElement>(null);
+  const lastGroupReorderTime = useRef<number>(0);
+  
+  // Local state to manage visual order of groups
+  const [orderedGroupKeys, setOrderedGroupKeys] = useState<string[]>([]);
+  
   const t = translations[settings.language];
-
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { sendCommand } = useWebSocket();
 
@@ -97,6 +224,7 @@ export default function DashboardPage(): React.JSX.Element {
     void handlePlayback();
   }, [settings.bgMusic, settings.currentTrackIndex, settings.volume]);
 
+  // Derive grouped segments
   const groupedSegments = useMemo(() => {
     const groups: Record<string, Segment[]> = {};
     segments.forEach((seg) => {
@@ -107,13 +235,26 @@ export default function DashboardPage(): React.JSX.Element {
     return groups;
   }, [segments]);
 
-  const groupEntries = Object.entries(groupedSegments);
-  const totalGroups = groupEntries.length;
+  // Sync orderedGroupKeys with actual data changes
+  useEffect(() => {
+    const currentKeys = Object.keys(groupedSegments);
+    setOrderedGroupKeys(prev => {
+        // Keep existing order, add new keys at end
+        const newKeys = [...prev];
+        // Add keys that are in current but not in prev
+        currentKeys.forEach(k => {
+            if (!newKeys.includes(k)) newKeys.push(k);
+        });
+        // Remove keys that are in prev but not in current (deleted groups)
+        return newKeys.filter(k => currentKeys.includes(k));
+    });
+  }, [groupedSegments]);
 
-  const getGroupSpan = (index: number): string => {
-    if (totalGroups === 1) return "col-span-1 xl:col-span-2";
-    if (totalGroups % 2 !== 0 && index === totalGroups - 1) return "col-span-1 xl:col-span-2";
-    return "col-span-1";
+  const moveGroup = (fromIndex: number, toIndex: number) => {
+    const newOrder = [...orderedGroupKeys];
+    const [movedItem] = newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, movedItem);
+    setOrderedGroupKeys(newOrder);
   };
 
   return (
@@ -144,29 +285,39 @@ export default function DashboardPage(): React.JSX.Element {
               </MotionDiv>
             </MotionDiv>
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-              {groupEntries.map(([groupName, groupNodes], index) => (
-                <div key={groupName} className={`${getGroupSpan(index)}`}>
-                  <SegmentGroup 
-                    name={groupName}
-                    segments={groupNodes}
-                    onReorder={(newNodes) => {
-                      const otherGroupsSegments = segments.filter(s => (s.group || "basic") !== groupName);
-                      setSegments([...otherGroupsSegments, ...newNodes]);
-                    }}
-                    onRemove={removeSegment}
-                    onToggle={(id) => {
-                      toggleSegment(id);
-                      const seg = segments.find(s => s.num_of_node === id);
-                      if (seg) sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
-                    }}
-                    onPWMChange={setPWM}
-                    onToggleBit={() => {}}
-                    onDragStart={() => setIsDragging(true)}
-                    onDragEnd={() => setIsDragging(false)}
-                  />
-                </div>
-              ))}
+            <div 
+              ref={groupsContainerRef}
+              className="grid grid-cols-1 xl:grid-cols-2 gap-8 relative"
+            >
+              <AnimatePresence mode="popLayout">
+                {orderedGroupKeys.map((groupName, index) => {
+                   const groupNodes = groupedSegments[groupName] || [];
+                   // Determine if this is the last item and odd count to span full width
+                   const isLastAndOdd = orderedGroupKeys.length % 2 !== 0 && index === orderedGroupKeys.length - 1;
+                   const spanClass = isLastAndOdd ? "col-span-1 xl:col-span-2" : "col-span-1";
+
+                   return (
+                     <DraggableGroupItem
+                       key={groupName}
+                       groupName={groupName}
+                       groupNodes={groupNodes}
+                       index={index}
+                       containerRef={groupsContainerRef}
+                       moveGroup={moveGroup}
+                       segments={segments}
+                       setSegments={setSegments}
+                       removeSegment={removeSegment}
+                       toggleSegment={toggleSegment}
+                       sendCommand={sendCommand}
+                       setPWM={setPWM}
+                       lastReorderTime={lastGroupReorderTime}
+                       className={spanClass}
+                       onDragStart={() => setIsDragging(true)}
+                       onDragEnd={() => setIsDragging(false)}
+                     />
+                   );
+                })}
+              </AnimatePresence>
             </div>
           )}
         </main>

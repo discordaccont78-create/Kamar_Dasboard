@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
+import * as SliderPrimitive from "@radix-ui/react-slider";
 import { useSegments } from '../../lib/store/segments';
 import { useSettingsStore } from '../../lib/store/settings';
 import { SegmentType } from '../../types/index';
@@ -12,10 +13,30 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Slider } from '../ui/slider';
 import { TrafficChart } from '../Analytics/TrafficChart';
 import { cn } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
+
+// Inlined Slider component to avoid casing collision between components/UI/Slider.tsx and components/ui/slider.tsx
+const Slider = React.forwardRef<
+  React.ElementRef<typeof SliderPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
+>(({ className, ...props }, ref) => (
+  <SliderPrimitive.Root
+    ref={ref}
+    className={cn(
+      "relative flex w-full touch-none select-none items-center",
+      className
+    )}
+    {...props}
+  >
+    <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-secondary/20">
+      <SliderPrimitive.Range className="absolute h-full bg-primary" />
+    </SliderPrimitive.Track>
+    <SliderPrimitive.Thumb className="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:scale-110 duration-100" />
+  </SliderPrimitive.Root>
+))
+Slider.displayName = SliderPrimitive.Root.displayName
 
 interface SideMenuProps { isOpen: boolean; onClose: () => void; }
 

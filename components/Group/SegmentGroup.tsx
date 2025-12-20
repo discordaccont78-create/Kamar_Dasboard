@@ -21,6 +21,7 @@ interface Props {
   onToggleBit: (id: string, bit: number) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  dragHandle?: React.ReactNode; // New Prop for Group Dragging
 }
 
 const MotionDiv = motion.div as any;
@@ -166,7 +167,8 @@ export const SegmentGroup: React.FC<Props> = ({
   onPWMChange, 
   onToggleBit,
   onDragStart,
-  onDragEnd
+  onDragEnd,
+  dragHandle
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { settings } = useSettingsStore();
@@ -190,15 +192,20 @@ export const SegmentGroup: React.FC<Props> = ({
         backgroundImage: `linear-gradient(135deg, ${settings.primaryColor}05 0%, transparent 100%)`
       }} 
     >
-      {/* Group Boundary Label */}
+      {/* Group Boundary Label & Drag Handle */}
       <div 
-        className="absolute -top-3 left-8 px-3 text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-colors z-10 border border-dashed rounded-full backdrop-blur-md"
+        className="absolute -top-3 left-8 pl-1 pr-3 text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-colors z-10 border border-dashed rounded-full backdrop-blur-md"
         style={{ 
           color: 'var(--primary)',
           borderColor: `${settings.primaryColor}40`,
           backgroundColor: `${settings.primaryColor}15`
         }}
       >
+        {dragHandle && (
+           <div className="bg-primary/20 hover:bg-primary/40 rounded-full p-1 cursor-grab active:cursor-grabbing transition-colors -ml-1">
+              {dragHandle}
+           </div>
+        )}
         <span>ZONE: {name}</span>
       </div>
 
