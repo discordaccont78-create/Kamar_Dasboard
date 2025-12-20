@@ -11,8 +11,54 @@ import { useSettingsStore } from '../lib/store/settings';
 import { useAnalytics } from '../lib/store/analytics';
 import { CMD, Segment } from '../types/index';
 
-// Singleton Instance
-let sharedSocket: WebSocketManager | null = null;
+// --- SIMULATION CONFIGURATION ---
+// Set this to true to ignore server connection errors and mock a successful connection.
+const SIMULATION_MODE = true;
+
+/**
+ * Mock Socket Manager for Simulator Environment
+ * Pretends to be a real WebSocket connection to allow UI testing without a backend.
+ */
+class MockWebSocketManager {
+  private onStatusChange?: (connected: boolean) => void;
+  private onMessageCallback?: (data: ArrayBuffer | string) => void;
+  public url: string;
+
+  constructor(url: string) {
+    this.url = url;
+    console.log(`%c[SIMULATOR] Virtual Socket Initialized: ${url}`, 'color: #daa520; font-weight: bold;');
+  }
+
+  connect() {
+    // Simulate network delay then connect
+    setTimeout(() => {
+        if (this.onStatusChange) {
+            console.log('%c[SIMULATOR] Connection Established (Virtual)', 'color: #10b981; font-weight: bold;');
+            this.onStatusChange(true);
+        }
+    }, 500);
+  }
+
+  send(data: ArrayBuffer | string) {
+    // Always return true in simulation to allow Optimistic UI updates to persist
+    return true; 
+  }
+
+  onMessage(callback: (data: ArrayBuffer | string) => void) {
+    this.onMessageCallback = callback;
+  }
+
+  onStatus(callback: (connected: boolean) => void) {
+    this.onStatusChange = callback;
+  }
+
+  disconnect() {
+    if (this.onStatusChange) this.onStatusChange(false);
+  }
+}
+
+// Singleton Instance (Union type to allow Mock)
+let sharedSocket: WebSocketManager | MockWebSocketManager | null = null;
 let activeSubscribers = 0;
 
 export function useWebSocket() {
@@ -24,18 +70,13 @@ export function useWebSocket() {
   const queryClient = useQueryClient();
   
   useEffect(() => {
-    // 1. Sanitize Domain input (remove protocols if user typed them)
+    // 1. Sanitize Domain input
     const cleanDomain = settings.domain.replace(/^(ws|wss|http|https):\/\//, '').trim();
-    if (!cleanDomain) return;
+    if (!cleanDomain && !SIMULATION_MODE) return;
 
-    // 2. Security Check: If page is HTTPS, we MUST use WSS.
-    // Browsers block "ws://" from "https://" pages (Mixed Content).
+    // 2. Protocol & URL Construction
     const isSecureContext = typeof window !== 'undefined' && window.location.protocol === 'https:';
     const protocol = (settings.useSsl || isSecureContext) ? 'wss' : 'ws';
-    
-    // 3. Construct URL
-    // Note: We maintain the .local suffix for mDNS compatibility as per original design.
-    // Ideally, users should type the IP directly if not using mDNS.
     const url = `${protocol}://${cleanDomain}.local/ws`;
 
     // Initialize Singleton if not exists or URL changed
@@ -43,7 +84,14 @@ export function useWebSocket() {
         if (sharedSocket) {
             sharedSocket.disconnect();
         }
-        sharedSocket = new WebSocketManager(url);
+
+        // --- SIMULATION SWITCH ---
+        if (SIMULATION_MODE) {
+            sharedSocket = new MockWebSocketManager("simulation://virtual-device");
+        } else {
+            sharedSocket = new WebSocketManager(url);
+        }
+        
         // Monkey-patch to track URL for change detection
         (sharedSocket as any)['url'] = url; 
     }
@@ -53,6 +101,8 @@ export function useWebSocket() {
 
     socket.onStatus(setConnected);
     
+    // In simulation, we typically don't receive messages back unless we echo them.
+    // For now, the Optimistic UI handles the state changes visually.
     socket.onMessage((data: ArrayBuffer | string) => {
       if (data instanceof ArrayBuffer) {
         const msg = protocolRef.current.decode(data);
@@ -77,6 +127,7 @@ export function useWebSocket() {
           };
                
           switch (msg.cmd) {
+            // (Existing switch logic retained for real hardware mode)
             case CMD.LED_ON: 
                 updateSegmentByGpio(msg.seg, { is_led_on: 'on' });
                 break;
@@ -149,8 +200,10 @@ export function useWebSocket() {
     try {
       socket.connect();
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown Connection Error';
-      console.error(errorMessage);
+      if (!SIMULATION_MODE) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown Connection Error';
+        console.error(errorMessage);
+      }
     }
 
     return () => {
@@ -163,12 +216,17 @@ export function useWebSocket() {
   }, [settings.domain, settings.useSsl, setConnected, addLog, addToast, queryClient, addSensorReading]);
 
   const sendCommand = (cmd: number, gpio: number, value: number): boolean => {
-    // Capture the current socket instance to a local variable to prevent race conditions
-    // where sharedSocket might become null (cleanup) between check and usage.
     const socket = sharedSocket;
     
     if (!socket) return false;
 
+    // Check if we are using the Mock Socket (which doesn't require binary encoding for success)
+    if (SIMULATION_MODE) {
+        addLog('out', `[SIM] ${cmd.toString(16)}`, `CMD:${cmd} GPIO:${gpio} VAL:${value}`);
+        return true; 
+    }
+
+    // Real Hardware Logic
     const buffer = protocolRef.current.encode(cmd, gpio, value);
     const success = socket.send(buffer);
     
