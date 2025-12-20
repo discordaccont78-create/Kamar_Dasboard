@@ -11,7 +11,7 @@ import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
   Sun, Moon, Settings as SettingsIcon, Volume2, 
   X, LayoutGrid, Play, Pause, Activity, Monitor, Zap, Type, Palette, Bell,
-  SkipBack, SkipForward, Clock, Power, Check, Plus, ChevronDown
+  SkipBack, SkipForward, Clock, Power, Check, Plus, ChevronDown, Cpu, Cloud
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -141,6 +141,20 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     trigger: '1' // 1=Toggle as default
   });
 
+  // Register Form
+  const [regForm, setRegForm] = useState({
+    gpio: '',
+    name: '',
+    group: ''
+  });
+
+  // DHT Form
+  const [dhtForm, setDhtForm] = useState({
+    gpio: '',
+    name: '',
+    group: ''
+  });
+
   // Timer Form
   const [timerForm, setTimerForm] = useState({
     hours: 0,
@@ -182,6 +196,39 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     });
     setInputForm({ gpio: '', name: '', group: '', trigger: '1' });
     addToast("Input segment added successfully", "success");
+  };
+
+  const handleAddRegister = () => {
+    if (!regForm.gpio || !regForm.name) return;
+    addSegment({
+        num_of_node: Math.random().toString(36).substr(2, 9),
+        name: regForm.name.trim(),
+        group: regForm.group.trim() || "registers",
+        groupType: 'register',
+        segType: 'All', // Acts as byte holder
+        gpio: parseInt(regForm.gpio), // Latch pin usually
+        is_led_on: 'on',
+        val_of_slide: 0 // Byte value (0-255)
+    });
+    setRegForm({ gpio: '', name: '', group: '' });
+    addToast("Shift Register module added", "success");
+  };
+
+  const handleAddDHT = () => {
+    if (!dhtForm.gpio || !dhtForm.name) return;
+    addSegment({
+        num_of_node: Math.random().toString(36).substr(2, 9),
+        name: dhtForm.name.trim(),
+        group: dhtForm.group.trim() || "weather",
+        groupType: 'weather',
+        segType: 'Input-0-1', // Placeholder type
+        gpio: parseInt(dhtForm.gpio),
+        dhtPin: parseInt(dhtForm.gpio),
+        temperature: 0,
+        humidity: 0
+    });
+    setDhtForm({ gpio: '', name: '', group: '' });
+    addToast("Weather station added", "success");
   };
 
   const handleSetTimer = () => {
@@ -327,6 +374,63 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                    <TechButton variant="outline" onClick={handleSetTimer} icon={Play}>
                      Initialize Timer
                    </TechButton>
+                </CardContent>
+              </Card>
+            </MenuSection>
+
+            {/* === HARDWARE TEMPLATES SECTION (NEW) === */}
+            <MenuSection title="Hardware Templates" icon={Cpu} defaultOpen={false}>
+               {/* Shift Register Card */}
+               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
+                <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
+                   <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
+                      <Cpu size={12} /> Shift Register (74HC595)
+                   </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Latch</label>
+                     <Input type="number" value={regForm.gpio} onChange={e => setRegForm({...regForm, gpio: e.target.value})} className="col-span-3 h-9" placeholder="Latch Pin GPIO" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
+                     <Input value={regForm.name} onChange={e => setRegForm({...regForm, name: e.target.value})} className="col-span-3 h-9" placeholder="Module Name" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
+                     <Input value={regForm.group} onChange={e => setRegForm({...regForm, group: e.target.value})} className="col-span-3 h-9" placeholder="Register Group" />
+                  </div>
+                  
+                  <TechButton onClick={handleAddRegister} icon={Plus} variant="outline">
+                    Add 8-Bit Register
+                  </TechButton>
+                </CardContent>
+              </Card>
+
+              {/* DHT Weather Card */}
+              <Card className="rounded-2xl border-border shadow-sm bg-card/50">
+                <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
+                   <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-blue-500">
+                      <Cloud size={12} /> Weather Station (DHT)
+                   </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Data</label>
+                     <Input type="number" value={dhtForm.gpio} onChange={e => setDhtForm({...dhtForm, gpio: e.target.value})} className="col-span-3 h-9" placeholder="Data Pin GPIO" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
+                     <Input value={dhtForm.name} onChange={e => setDhtForm({...dhtForm, name: e.target.value})} className="col-span-3 h-9" placeholder="Sensor Name" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
+                     <Input value={dhtForm.group} onChange={e => setDhtForm({...dhtForm, group: e.target.value})} className="col-span-3 h-9" placeholder="Weather Group" />
+                  </div>
+                  
+                  <TechButton onClick={handleAddDHT} icon={Plus} variant="outline">
+                    Add DHT Module
+                  </TechButton>
                 </CardContent>
               </Card>
             </MenuSection>

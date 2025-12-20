@@ -49,6 +49,7 @@ const DraggableGroupItem = React.memo(({
   removeSegment,
   removeGroup, 
   toggleSegment,
+  toggleBit,
   sendCommand,
   setPWM,
   lastReorderTime,
@@ -66,6 +67,7 @@ const DraggableGroupItem = React.memo(({
   removeSegment: (id: string) => void,
   removeGroup: (name: string) => void, 
   toggleSegment: (id: string) => void,
+  toggleBit: (id: string, bit: number) => void,
   sendCommand: any,
   setPWM: any,
   lastReorderTime: React.MutableRefObject<number>,
@@ -116,6 +118,16 @@ const DraggableGroupItem = React.memo(({
     if (seg) sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
   }, [toggleSegment, segments, sendCommand]);
 
+  // Callback for Bit Toggling (Shift Register)
+  const handleToggleBit = useCallback((id: string, bit: number) => {
+     const seg = segments.find(s => s.num_of_node === id);
+     if(seg) {
+        const newVal = seg.val_of_slide ^ (1 << bit);
+        setPWM(id, newVal); // Update local store
+        sendCommand(CMD.SR_STATE, seg.gpio || 0, newVal); // Send to hardware
+     }
+  }, [segments, setPWM, sendCommand]);
+
   // Callback for reordering inside the group
   const handleInternalReorder = useCallback((newNodes: Segment[]) => {
     const otherGroupsSegments = segments.filter(s => (s.group || "basic") !== groupName);
@@ -159,7 +171,7 @@ const DraggableGroupItem = React.memo(({
         onRemove={removeSegment}
         onToggle={handleToggle}
         onPWMChange={setPWM}
-        onToggleBit={() => {}}
+        onToggleBit={handleToggleBit}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
       />
@@ -306,6 +318,7 @@ export default function DashboardPage(): React.JSX.Element {
                        removeSegment={removeSegment}
                        removeGroup={removeGroup}
                        toggleSegment={toggleSegment}
+                       toggleBit={() => {}} // Initial placeholder, fixed in actual render logic below
                        sendCommand={sendCommand}
                        setPWM={setPWM}
                        lastReorderTime={lastGroupReorderTime}
