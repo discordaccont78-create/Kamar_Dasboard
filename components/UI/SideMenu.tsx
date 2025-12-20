@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,13 +11,13 @@ import { SegmentType } from '../../types/index';
 import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
   Settings as SettingsIcon, X, Zap, Play, Activity, Monitor, 
-  SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type
+  SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type, TableProperties
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { cn } from '../../lib/utils';
+import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
 
 // Workaround for Framer Motion types
@@ -156,6 +156,15 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
         (s.regBitIndex !== undefined || s.groupType === 'weather')
     );
   };
+
+  // --- Sorting & Data Preparation for Status Table ---
+  const sortedSegments = useMemo(() => {
+    return [...segments].sort((a, b) => {
+        const pinA = a.gpio || a.dhtPin || a.dsPin || 0;
+        const pinB = b.gpio || b.dhtPin || b.dsPin || 0;
+        return pinA - pinB;
+    });
+  }, [segments]);
 
   // --- Handlers ---
 
@@ -480,7 +489,81 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </Card>
             </MenuSection>
 
-            {/* ... Other Sections ... */}
+            {/* === STATUS OF YOUR DASHBOARD SECTION === */}
+            <MenuSection 
+                id="status" 
+                title={t.dash_status || "Dashboard Status"} 
+                icon={TableProperties} 
+                activeId={activeSection} 
+                onToggle={handleSectionToggle}
+            >
+              <Card className="rounded-2xl border-border shadow-sm bg-card/50 overflow-hidden">
+                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
+                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
+                       <Activity size={12} /> {t.status_desc || "Hardware Map"}
+                    </CardTitle>
+                 </CardHeader>
+                 <CardContent className="p-0">
+                    <div className="grid grid-cols-[35px_1fr_1fr_auto] bg-muted/40 p-2 text-[8px] font-black uppercase tracking-widest text-muted-foreground border-b border-border/50 gap-2">
+                       <div className="text-center">{t.gpio || "PIN"}</div>
+                       <div>{t.name || "ID"}</div>
+                       <div>{t.group || "GRP"}</div>
+                       <div className="text-right">DATA</div>
+                    </div>
+                    
+                    {sortedSegments.length === 0 ? (
+                       <div className="p-4 text-center text-[10px] text-muted-foreground font-mono">
+                          No configured segments
+                       </div>
+                    ) : (
+                       <div className="max-h-[300px] overflow-y-auto no-scrollbar">
+                          {sortedSegments.map(seg => {
+                             // Determine display state based on type
+                             let displayState = "-";
+                             let stateColor = "text-muted-foreground";
+
+                             if (seg.groupType === 'weather') {
+                                displayState = `${seg.temperature || 0}°C / ${seg.humidity || 0}%`;
+                                stateColor = "text-blue-500";
+                             } else if (seg.groupType === 'input') {
+                                displayState = seg.inputActive ? "HIGH" : "LOW";
+                                stateColor = seg.inputActive ? "text-primary" : "text-muted-foreground";
+                             } else if (seg.segType === 'PWM' || seg.segType === 'All') {
+                                displayState = `VAL: ${seg.val_of_slide}`;
+                                stateColor = "text-orange-500";
+                             } else if (seg.segType === 'Digital' || seg.groupType === 'register') {
+                                displayState = seg.is_led_on === 'on' ? "ON" : "OFF";
+                                stateColor = seg.is_led_on === 'on' ? "text-green-500" : "text-red-500";
+                             }
+
+                             // Font Logic for Names
+                             const nameFont = isPersian(seg.name) ? "font-persian" : "";
+                             const groupFont = isPersian(seg.group) ? "font-persian" : "";
+
+                             return (
+                                <div key={seg.num_of_node} className="grid grid-cols-[35px_1fr_1fr_auto] p-2 border-b border-border/20 last:border-0 hover:bg-secondary/5 transition-colors gap-2 items-center">
+                                   <div className="text-center font-mono text-[9px] font-bold bg-muted/20 rounded py-0.5 text-foreground/70">
+                                      {seg.gpio || seg.dhtPin || seg.dsPin || "-"}
+                                   </div>
+                                   <div className={cn("text-[9px] font-bold truncate", nameFont)}>
+                                      {seg.name}
+                                   </div>
+                                   <div className={cn("text-[8px] uppercase tracking-wider text-muted-foreground truncate", groupFont)}>
+                                      {seg.group}
+                                   </div>
+                                   <div className={cn("text-[9px] font-mono font-black text-right min-w-[30px]", stateColor)}>
+                                      {displayState}
+                                   </div>
+                                </div>
+                             )
+                          })}
+                       </div>
+                    )}
+                 </CardContent>
+              </Card>
+            </MenuSection>
+
+            {/* ... Hardware Templates ... */}
             
             <MenuSection 
                 id="hardware" 

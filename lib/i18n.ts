@@ -1,3 +1,4 @@
+
 export const translations = {
   en: {
     system_time: "System Time",
@@ -36,7 +37,9 @@ export const translations = {
     focus_effort: "Focus and effort.",
     we_control: "And we control both.",
     hardware_intel: "Hardware Intelligence",
-    node_controller: "V3.1 Node Controller"
+    node_controller: "V3.1 Node Controller",
+    dash_status: "Dashboard Status",
+    status_desc: "Hardware Map & State"
   },
   fa: {
     system_time: "زمان سیستم",
@@ -75,6 +78,8 @@ export const translations = {
     focus_effort: "تمرکز و تلاش.",
     we_control: "و ما هر دو را کنترل می‌کنیم.",
     hardware_intel: "هوش سخت‌افزاری",
-    node_controller: "کنترل‌کننده نود V3.1"
+    node_controller: "کنترل‌کننده نود V3.1",
+    dash_status: "وضعیت داشبورد",
+    status_desc: "نقشه سخت‌افزار و داده‌ها"
   }
 };
