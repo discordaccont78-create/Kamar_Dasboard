@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun, Settings, Zap, Terminal, Globe } from 'lucide-react';
+import { Moon, Sun, Settings, Zap, Terminal, Globe, CalendarClock } from 'lucide-react';
 import { ConnectionStatus } from './ConnectionStatus';
 import { useSettingsStore } from '../../lib/store/settings';
+import { SchedulerDialog } from '../Scheduler/SchedulerDialog';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
@@ -14,6 +15,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const { settings, updateSettings } = useSettingsStore();
   const [time, setTime] = useState<string>('');
+  const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
   
   const t = translations[settings.language];
 
@@ -76,6 +78,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
           <Button
             variant="outline"
             size="icon"
+            onClick={() => setIsSchedulerOpen(true)}
+            title={t.scheduler}
+            className="rounded-xl h-12 w-12 hover:bg-primary/10 hover:border-primary/50 text-primary border-primary/30"
+          >
+             <CalendarClock size={20} />
+          </Button>
+
+          <Button
+            variant="outline"
+            size="icon"
             onClick={toggleTheme}
             title={t.switch_env}
             className="rounded-xl h-12 w-12 hover:bg-primary/10 hover:border-primary/50"
@@ -107,6 +119,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
           </div>
         </div>
       </div>
+      
+      <SchedulerDialog isOpen={isSchedulerOpen} onClose={() => setIsSchedulerOpen(false)} />
     </header>
   );
 };

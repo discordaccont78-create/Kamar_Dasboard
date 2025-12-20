@@ -39,7 +39,19 @@ export const translations = {
     hardware_intel: "Hardware Intelligence",
     node_controller: "V3.1 Node Controller",
     dash_status: "Dashboard Status",
-    status_desc: "Hardware Map & State"
+    status_desc: "Hardware Map & State",
+    scheduler: "Time Scheduler",
+    scheduler_desc: "Automated Temporal Tasks",
+    add_schedule: "Create Schedule",
+    target_device: "Target Device",
+    exec_time: "Execution Time",
+    action_type: "Action Protocol",
+    no_schedules: "No active time schedules",
+    suggested_tool: "Suggested Tool",
+    action_on: "POWER ON",
+    action_off: "POWER OFF",
+    action_toggle: "SWITCH STATE",
+    digital_only: "Currently limited to Digital (On/Off) devices."
   },
   fa: {
     system_time: "زمان سیستم",
@@ -80,6 +92,18 @@ export const translations = {
     hardware_intel: "هوش سخت‌افزاری",
     node_controller: "کنترل‌کننده نود V3.1",
     dash_status: "وضعیت داشبورد",
-    status_desc: "نقشه سخت‌افزار و داده‌ها"
+    status_desc: "نقشه سخت‌افزار و داده‌ها",
+    scheduler: "زمان‌بندی هوشمند",
+    scheduler_desc: "وظایف خودکار زمانی",
+    add_schedule: "ایجاد برنامه",
+    target_device: "دستگاه هدف",
+    exec_time: "زمان اجرا",
+    action_type: "پروتکل عملیات",
+    no_schedules: "هیچ برنامه زمانی فعالی وجود ندارد",
+    suggested_tool: "ابزار پیشنهادی",
+    action_on: "روشن کردن",
+    action_off: "خاموش کردن",
+    action_toggle: "تغییر وضعیت",
+    digital_only: "در حال حاضر محدود به دستگاه‌های دیجیتال (On/Off) است."
   }
 };

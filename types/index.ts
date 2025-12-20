@@ -64,6 +64,15 @@ export interface Segment {
   inputActive?: boolean; 
 }
 
+export interface Schedule {
+  id: string;
+  time: string; // HH:MM (24h format)
+  targetSegmentId: string;
+  action: 'ON' | 'OFF' | 'TOGGLE';
+  enabled: boolean;
+  lastRun?: number; // Timestamp of last execution to prevent multi-trigger in same minute
+}
+
 export interface AppSettings {
   domain: string;
   animations: boolean;

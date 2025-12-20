@@ -10,6 +10,7 @@ import { useSettingsStore } from '../lib/store/settings';
 import { useConnection } from '../lib/store/connection';
 import { CMD, Segment } from '../types/index';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useSchedulerEngine } from '../hooks/useSchedulerEngine';
 import { Zap, Trash2, Hexagon, Cpu, Laptop, Smartphone, GripHorizontal } from 'lucide-react';
 import { cn, getFontClass } from '../lib/utils';
 import { translations } from '../lib/i18n';
@@ -218,6 +219,9 @@ export default function DashboardPage(): React.JSX.Element {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [deviceType, setDeviceType] = useState<string>("UNKNOWN");
+  
+  // Init Scheduler Engine
+  useSchedulerEngine();
   
   const groupsContainerRef = useRef<HTMLDivElement>(null);
   const lastGroupReorderTime = useRef<number>(0);
