@@ -7,7 +7,8 @@ import { SegmentType } from '../../types/index';
 import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
   Sun, Moon, Settings as SettingsIcon, Volume2, 
-  X, LayoutGrid, Play, Pause, Activity, Monitor, Zap, Type, Palette, Bell
+  X, LayoutGrid, Play, Pause, Activity, Monitor, Zap, Type, Palette, Bell,
+  SkipBack, SkipForward
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -66,6 +67,16 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
       val_of_slide: 0,
     });
     setForm({ gpio: '', name: '', type: 'Digital', group: '' });
+  };
+
+  const handleNextTrack = () => {
+    const nextIndex = (settings.currentTrackIndex + 1) % MUSIC_TRACKS.length;
+    updateSettings({ currentTrackIndex: nextIndex });
+  };
+
+  const handlePrevTrack = () => {
+    const prevIndex = (settings.currentTrackIndex - 1 + MUSIC_TRACKS.length) % MUSIC_TRACKS.length;
+    updateSettings({ currentTrackIndex: prevIndex });
   };
 
   return (
@@ -285,18 +296,43 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 </div>
                 
                 <div className="flex items-center justify-between p-3 rounded-lg border bg-background/50 transition-all" style={{ borderColor: `${settings.primaryColor}33` }}>
-                  <div className="flex flex-col overflow-hidden mr-4">
+                  <div className="flex flex-col overflow-hidden mr-4 flex-1">
                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{t.active_station}</span>
                      <span className="text-xs font-bold truncate text-primary">{MUSIC_TRACKS[settings.currentTrackIndex].title}</span>
                   </div>
-                  <Button 
-                    size="icon" 
-                    variant={settings.bgMusic ? "default" : "outline"}
-                    onClick={() => updateSettings({ bgMusic: !settings.bgMusic })}
-                    className={cn(settings.bgMusic && "animate-pulse")}
-                  >
-                    {settings.bgMusic ? <Pause size={16} /> : <Play size={16} />}
-                  </Button>
+                  
+                  {/* Playback Controls */}
+                  <div className="flex items-center gap-1">
+                     <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        onClick={handlePrevTrack}
+                        className="h-8 w-8 hover:text-primary"
+                      >
+                        <SkipBack size={16} />
+                     </Button>
+
+                     <Button 
+                        size="icon" 
+                        variant={settings.bgMusic ? "default" : "outline"}
+                        onClick={() => updateSettings({ bgMusic: !settings.bgMusic })}
+                        className={cn(
+                          "h-9 w-9 shadow-md transition-all", 
+                          settings.bgMusic && "animate-pulse shadow-primary/20"
+                        )}
+                      >
+                        {settings.bgMusic ? <Pause size={16} /> : <Play size={16} />}
+                     </Button>
+
+                     <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        onClick={handleNextTrack}
+                        className="h-8 w-8 hover:text-primary"
+                      >
+                        <SkipForward size={16} />
+                     </Button>
+                  </div>
                 </div>
                 
                 <div className="space-y-3">

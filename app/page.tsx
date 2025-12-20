@@ -24,12 +24,14 @@ const CoreEmblem: React.FC = () => (
       transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
       className="absolute"
     >
-      <Hexagon size={180} strokeWidth={0.5} className="text-primary/20" />
+      {/* Updated Hexagon: Changed color to foreground for better visibility and increased stroke width */}
+      <Hexagon size={180} strokeWidth={1.5} className="text-foreground/80 dark:text-foreground/60" />
     </MotionDiv>
     <MotionDiv
-      animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
+      animate={{ scale: [1, 1.05, 1], opacity: [0.8, 1, 0.8] }}
       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      className="bg-card-light dark:bg-card-dark border-2 border-primary/50 p-6 rounded-full shadow-[0_0_40px_rgba(var(--primary),0.2)] z-10 transition-colors"
+      // Updated Circle: Added transparency (bg-card/30) and backdrop-blur for glass effect seeing the grid behind
+      className="bg-card/30 dark:bg-card/30 backdrop-blur-md border-2 border-primary p-6 rounded-full shadow-[0_0_40px_rgba(var(--primary),0.2)] z-10 transition-colors"
     >
       <Zap size={48} className="text-primary" fill="currentColor" />
     </MotionDiv>
@@ -334,7 +336,7 @@ export default function DashboardPage(): React.JSX.Element {
         </main>
 
         <footer className="fixed bottom-4 left-0 w-full px-4 sm:px-6 z-[40] transition-colors duration-500">
-          <div className="bg-card/80 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-2xl py-4 px-10 flex items-center justify-between h-20 max-w-7xl mx-auto">
+          <div className="bg-card/85 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-2xl py-4 px-10 flex items-center justify-between h-20 max-w-7xl mx-auto">
             <div className="flex items-center gap-3 font-black text-[9px] uppercase tracking-[0.2em] text-primary">
               <Cpu size={14} /> 
               <span className="opacity-60">ESP32-NODE-PRO</span>
