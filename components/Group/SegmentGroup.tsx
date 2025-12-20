@@ -4,7 +4,6 @@ import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { GripVertical } from 'lucide-react';
 import { SegmentCard } from '../Segment/SegmentCard';
 import { CustomSegment } from '../Segment/CustomSegment';
-import { RegisterSegment } from '../Segment/RegisterSegment';
 import { WeatherSegment } from '../Segment/WeatherSegment';
 import { InputSegment } from '../Segment/InputSegment';
 import { Segment } from '../../types/index';
@@ -139,17 +138,12 @@ const DraggableSegmentItem = React.memo(({
           </div>
         }
       >
-        {segment.groupType === 'custom' && (
+        {/* Render Logic: Register Bits are just CustomSegments now */}
+        {(segment.groupType === 'custom' || segment.groupType === 'register') && (
           <CustomSegment 
             segment={segment} 
             onToggle={() => onToggle(segment.num_of_node)} 
             onPWMChange={(val) => onPWMChange(segment.num_of_node, val)} 
-          />
-        )}
-        {segment.groupType === 'register' && (
-          <RegisterSegment 
-            segment={segment} 
-            onToggleBit={(bit) => onToggleBit(segment.num_of_node, bit)} 
           />
         )}
         {segment.groupType === 'input' && <InputSegment segment={segment} />}

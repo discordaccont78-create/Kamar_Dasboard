@@ -163,15 +163,46 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     targetSegmentId: ''
   });
 
+  // --- Validation Helpers ---
+  const isGpioUsed = (pin: number) => {
+    return segments.some(s => s.gpio === pin || s.dhtPin === pin);
+  };
+
+  const isGroupTakenByTemplate = (groupName: string) => {
+    // Check if a group exists and if it likely belongs to a template (Shift Reg or DHT)
+    // We infer this if the group contains segments with regBitIndex or dhtPin
+    return segments.some(s => 
+        (s.group || "basic") === groupName && 
+        (s.regBitIndex !== undefined || s.groupType === 'weather')
+    );
+  };
+
+  // --- Handlers ---
+
   const handleAddOutput = () => {
+    const pin = parseInt(outputForm.gpio);
+    const groupName = outputForm.group.trim() || "basic";
+
     if (!outputForm.gpio || !outputForm.name) return;
+    if (isNaN(pin)) { addToast("Invalid GPIO", "error"); return; }
+    
+    if (isGpioUsed(pin)) {
+        addToast(`GPIO ${pin} is already in use!`, "error");
+        return;
+    }
+
+    if (isGroupTakenByTemplate(groupName)) {
+        addToast(`Group '${groupName}' is reserved for a hardware module.`, "error");
+        return;
+    }
+
     addSegment({
       num_of_node: Math.random().toString(36).substr(2, 9),
       name: outputForm.name.trim(),
-      group: outputForm.group.trim() || "basic",
+      group: groupName,
       groupType: 'custom',
       segType: outputForm.type,
-      gpio: parseInt(outputForm.gpio),
+      gpio: pin,
       is_led_on: 'off',
       val_of_slide: 0,
     });
@@ -180,14 +211,29 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   };
 
   const handleAddInput = () => {
+    const pin = parseInt(inputForm.gpio);
+    const groupName = inputForm.group.trim() || "sensors";
+
     if (!inputForm.gpio || !inputForm.name) return;
+    if (isNaN(pin)) { addToast("Invalid GPIO", "error"); return; }
+
+    if (isGpioUsed(pin)) {
+        addToast(`GPIO ${pin} is already in use!`, "error");
+        return;
+    }
+
+    if (isGroupTakenByTemplate(groupName)) {
+        addToast(`Group '${groupName}' is reserved for a hardware module.`, "error");
+        return;
+    }
+
     addSegment({
       num_of_node: Math.random().toString(36).substr(2, 9),
       name: inputForm.name.trim(),
-      group: inputForm.group.trim() || "sensors",
+      group: groupName,
       groupType: 'input',
       segType: 'Input-0-1',
-      gpio: parseInt(inputForm.gpio),
+      gpio: pin,
       is_led_on: 'off',
       val_of_slide: 0,
       inputCondition: parseInt(inputForm.trigger) as any,
@@ -199,31 +245,66 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   };
 
   const handleAddRegister = () => {
-    if (!regForm.gpio || !regForm.name) return;
-    addSegment({
-        num_of_node: Math.random().toString(36).substr(2, 9),
-        name: regForm.name.trim(),
-        group: regForm.group.trim() || "registers",
-        groupType: 'register',
-        segType: 'All', // Acts as byte holder
-        gpio: parseInt(regForm.gpio), // Latch pin usually
-        is_led_on: 'on',
-        val_of_slide: 0 // Byte value (0-255)
-    });
+    const latchPin = parseInt(regForm.gpio);
+    const groupName = regForm.group.trim() || "Register_Group";
+    const baseName = regForm.name.trim() || "Bit";
+
+    if (!regForm.gpio) return;
+    if (isNaN(latchPin)) { addToast("Invalid GPIO", "error"); return; }
+
+    if (isGpioUsed(latchPin)) {
+        addToast(`Latch GPIO ${latchPin} is already in use!`, "error");
+        return;
+    }
+    
+    // Check if group exists and is not empty (Registers need their own exclusive group usually for cleanliness)
+    // But per user request, we just need to ensure "Standard Segment Rules". 
+    // Mixing into an existing group is technically allowed by segment rules, but let's warn if it clashes with types.
+    const existingGroup = segments.find(s => s.group === groupName);
+    if (existingGroup && existingGroup.groupType !== 'custom' && existingGroup.groupType !== 'register') {
+         addToast(`Group '${groupName}' already exists with a different type.`, "error");
+         return;
+    }
+
+    // Create 8 individual segments for the 8 bits
+    for(let i = 0; i < 8; i++) {
+        addSegment({
+            num_of_node: Math.random().toString(36).substr(2, 9),
+            name: `${baseName} ${i}`,
+            group: groupName,
+            groupType: 'custom', // Use 'custom' so it renders as a standard digital switch
+            segType: 'Digital',  // Forces On/Off UI
+            gpio: latchPin,      // All share the Latch Pin
+            is_led_on: 'off',
+            val_of_slide: 0,
+            regBitIndex: i       // This property makes it part of the register logic
+        });
+    }
+
     setRegForm({ gpio: '', name: '', group: '' });
-    addToast("Shift Register module added", "success");
+    addToast("8-Bit Shift Register Group created", "success");
   };
 
   const handleAddDHT = () => {
+    const pin = parseInt(dhtForm.gpio);
+    const groupName = dhtForm.group.trim() || "Weather_Station";
+
     if (!dhtForm.gpio || !dhtForm.name) return;
+    if (isNaN(pin)) { addToast("Invalid GPIO", "error"); return; }
+
+    if (isGpioUsed(pin)) {
+        addToast(`Data GPIO ${pin} is already in use!`, "error");
+        return;
+    }
+
     addSegment({
         num_of_node: Math.random().toString(36).substr(2, 9),
         name: dhtForm.name.trim(),
-        group: dhtForm.group.trim() || "weather",
+        group: groupName,
         groupType: 'weather',
-        segType: 'Input-0-1', // Placeholder type
-        gpio: parseInt(dhtForm.gpio),
-        dhtPin: parseInt(dhtForm.gpio),
+        segType: 'Input-0-1', 
+        gpio: pin,
+        dhtPin: pin,
         temperature: 0,
         humidity: 0
     });
@@ -378,7 +459,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </Card>
             </MenuSection>
 
-            {/* === HARDWARE TEMPLATES SECTION (NEW) === */}
+            {/* === HARDWARE TEMPLATES SECTION === */}
             <MenuSection title="Hardware Templates" icon={Cpu} defaultOpen={false}>
                {/* Shift Register Card */}
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
@@ -394,15 +475,15 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
-                     <Input value={regForm.name} onChange={e => setRegForm({...regForm, name: e.target.value})} className="col-span-3 h-9" placeholder="Module Name" />
+                     <Input value={regForm.name} onChange={e => setRegForm({...regForm, name: e.target.value})} className="col-span-3 h-9" placeholder="Base Name (e.g. Relay)" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input value={regForm.group} onChange={e => setRegForm({...regForm, group: e.target.value})} className="col-span-3 h-9" placeholder="Register Group" />
+                     <Input value={regForm.group} onChange={e => setRegForm({...regForm, group: e.target.value})} className="col-span-3 h-9" placeholder="Group Name" />
                   </div>
                   
                   <TechButton onClick={handleAddRegister} icon={Plus} variant="outline">
-                    Add 8-Bit Register
+                    Add 8-Bit Group
                   </TechButton>
                 </CardContent>
               </Card>

@@ -49,7 +49,6 @@ const DraggableGroupItem = React.memo(({
   removeSegment,
   removeGroup, 
   toggleSegment,
-  toggleBit,
   sendCommand,
   setPWM,
   lastReorderTime,
@@ -67,7 +66,6 @@ const DraggableGroupItem = React.memo(({
   removeSegment: (id: string) => void,
   removeGroup: (name: string) => void, 
   toggleSegment: (id: string) => void,
-  toggleBit: (id: string, bit: number) => void,
   sendCommand: any,
   setPWM: any,
   lastReorderTime: React.MutableRefObject<number>,
@@ -113,20 +111,54 @@ const DraggableGroupItem = React.memo(({
 
   // Callback to handle toggling with WS command
   const handleToggle = useCallback((id: string) => {
-    toggleSegment(id);
     const seg = segments.find(s => s.num_of_node === id);
-    if (seg) sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
-  }, [toggleSegment, segments, sendCommand]);
+    if (!seg) return;
 
-  // Callback for Bit Toggling (Shift Register)
-  const handleToggleBit = useCallback((id: string, bit: number) => {
-     const seg = segments.find(s => s.num_of_node === id);
-     if(seg) {
-        const newVal = seg.val_of_slide ^ (1 << bit);
-        setPWM(id, newVal); // Update local store
-        sendCommand(CMD.SR_STATE, seg.gpio || 0, newVal); // Send to hardware
-     }
-  }, [segments, setPWM, sendCommand]);
+    // Check if this is a Shift Register Segment (has regBitIndex)
+    if (seg.regBitIndex !== undefined) {
+        // Toggle Local State
+        toggleSegment(id);
+        
+        // Calculate new Byte value
+        // We must look at ALL segments that share this GPIO to reconstruct the byte
+        const allRegisterSegments = segments.filter(s => s.gpio === seg.gpio && s.regBitIndex !== undefined);
+        
+        let newByteValue = 0;
+        allRegisterSegments.forEach(s => {
+            // Determine state: if it's the one we just clicked, flip it relative to current state
+            // (Note: toggleSegment updates store async/sync depending on implementation, 
+            // but here we are in the callback before re-render might fully propagate visually.
+            // However, Zustand updates are synchronous. So 'toggleSegment' has already updated the store.)
+            
+            // Re-fetch the updated segment from the store or use logic. 
+            // Since `segments` in this closure might be stale if we don't depend on it correctly,
+            // but `segments` is passed as prop. 
+            // To be safe, we determine logic:
+            
+            let isOn = s.is_led_on === 'on';
+            
+            // If we assume `toggleSegment` ran immediately before this calculation:
+            // The segment `id` is already flipped in the store. 
+            // BUT `segments` prop passed to this memoized component might be from PREVIOUS render.
+            // So we must manually flip the target segment for calculation purposes.
+            if (s.num_of_node === id) {
+                 isOn = !isOn; // Flip it for the calculation because props are old
+            }
+            
+            if (isOn) {
+                newByteValue |= (1 << (s.regBitIndex || 0));
+            }
+        });
+
+        // Send SR_STATE command with the Latch GPIO and the full Byte value
+        sendCommand(CMD.SR_STATE, seg.gpio || 0, newByteValue);
+
+    } else {
+        // Standard Digital Segment
+        toggleSegment(id);
+        sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
+    }
+  }, [toggleSegment, segments, sendCommand]);
 
   // Callback for reordering inside the group
   const handleInternalReorder = useCallback((newNodes: Segment[]) => {
@@ -171,7 +203,7 @@ const DraggableGroupItem = React.memo(({
         onRemove={removeSegment}
         onToggle={handleToggle}
         onPWMChange={setPWM}
-        onToggleBit={handleToggleBit}
+        onToggleBit={() => {}} // Deprecated, handled by onToggle now
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
       />
@@ -318,7 +350,6 @@ export default function DashboardPage(): React.JSX.Element {
                        removeSegment={removeSegment}
                        removeGroup={removeGroup}
                        toggleSegment={toggleSegment}
-                       toggleBit={() => {}} // Initial placeholder, fixed in actual render logic below
                        sendCommand={sendCommand}
                        setPWM={setPWM}
                        lastReorderTime={lastGroupReorderTime}
