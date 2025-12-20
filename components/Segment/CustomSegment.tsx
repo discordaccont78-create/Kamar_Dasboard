@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint } from 'lucide-react';
@@ -135,20 +134,20 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   const showTimer = safeSegment.segType !== 'Code'; 
 
   return (
-    <MotionDiv initial={false} className="flex flex-col gap-6">
+    <MotionDiv initial={false} className="flex flex-col gap-4 md:gap-6">
       
       {/* Industrial Power Button */}
       {showToggle && (
         <div className="relative">
            {/* Header Info */}
-           <div className="flex justify-between items-center mb-2 px-1">
-              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+           <div className="flex justify-between items-center mb-1.5 md:mb-2 px-1">
+              <label className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
                  {mode === 'toggle' ? <MousePointerClick size={10} /> : <Fingerprint size={10} />}
-                 {mode === 'toggle' ? "Feshari (Toggle)" : "Switch (Push)"} Mode
+                 {mode === 'toggle' ? "Feshari (Toggle)" : "Push Mode"}
               </label>
               <button 
                 onClick={cycleMode} 
-                className="text-[9px] text-primary opacity-60 hover:opacity-100 uppercase font-bold tracking-wider hover:underline flex items-center gap-1"
+                className="text-[8px] md:text-[9px] text-primary opacity-60 hover:opacity-100 uppercase font-bold tracking-wider hover:underline flex items-center gap-1"
                 title="Change Button Mode"
               >
                 <Settings2 size={10} /> Change
@@ -162,7 +161,7 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
              onPointerLeave={mode === 'momentary' ? handlePressEnd : undefined}
              onClick={mode === 'toggle' ? handleToggle : undefined}
              className={cn(
-                "w-full h-16 rounded-xl border-2 transition-all duration-300 relative overflow-hidden group active:scale-[0.98] outline-none",
+                "w-full h-12 md:h-16 rounded-lg md:rounded-xl border-2 transition-all duration-300 relative overflow-hidden group active:scale-[0.98] outline-none",
                 isOn 
                   ? "border-primary bg-primary/20 shadow-[0_0_30px_rgba(var(--primary),0.25)]" 
                   : "border-white/10 bg-black/5 dark:bg-white/5 hover:border-white/20 hover:bg-white/10"
@@ -176,14 +175,13 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
               
               <div className="flex items-center justify-center gap-3 relative z-10">
                  <Power 
-                    size={24} 
                     className={cn(
-                        "transition-all duration-300", 
+                        "w-5 h-5 md:w-6 md:h-6 transition-all duration-300", 
                         isOn ? "text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.8)]" : "text-muted-foreground opacity-50"
                     )} 
                  />
                  <span className={cn(
-                    "text-xl font-black uppercase tracking-[0.2em] transition-colors duration-300",
+                    "text-base md:text-xl font-black uppercase tracking-[0.2em] transition-colors duration-300",
                     isOn ? "text-foreground" : "text-muted-foreground opacity-50"
                  )}>
                     {isOn ? "ACTIVE" : "OFFLINE"}
@@ -201,10 +199,10 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
 
       {/* Proportional Control (Slider) */}
       {showSlider && (
-        <div className="bg-secondary/5 p-4 rounded-xl border border-border-light dark:border-border-dark flex flex-col gap-4">
+        <div className="bg-secondary/5 p-3 md:p-4 rounded-lg md:rounded-xl border border-border-light dark:border-border-dark flex flex-col gap-3 md:gap-4">
           <div className="flex justify-between items-center">
-             <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">PWM Intensity</label>
-             <span className="font-mono text-xs font-bold text-primary">{localPwm}</span>
+             <label className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">PWM Intensity</label>
+             <span className="font-mono text-[10px] md:text-xs font-bold text-primary">{localPwm}</span>
           </div>
           <Slider
             value={[localPwm]}
@@ -224,7 +222,7 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
             <div className="flex gap-2 items-center">
             <Input 
                 type="text" 
-                placeholder="HEX Command..."
+                placeholder="HEX..."
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 className="h-9 text-xs"
@@ -248,12 +246,12 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
       {showTimer && (
         <div className={cn(
             "flex items-center justify-between px-1 transition-all duration-300",
-            timeLeft !== null ? "bg-primary/10 p-2 rounded-lg border border-primary/30" : ""
+            timeLeft !== null ? "bg-primary/10 p-1.5 md:p-2 rounded-lg border border-primary/30" : ""
         )}>
             <div className="flex items-center gap-2 text-muted-foreground">
             {timeLeft !== null ? <Hourglass size={12} className="animate-spin text-primary" /> : <Clock size={12} />}
             <span className={cn(
-                "text-[9px] font-black uppercase tracking-widest",
+                "text-[8px] md:text-[9px] font-black uppercase tracking-widest",
                 timeLeft !== null ? "text-primary" : ""
             )}>
                 {timeLeft !== null ? "Auto-Action In" : "Runtime"}
@@ -261,15 +259,15 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
             </div>
             
             {timeString ? (
-            <div className="flex gap-1 font-mono text-[10px] font-bold items-center">
-                <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[22px] text-center shadow-sm">{timeString.h}</span>
+            <div className="flex gap-1 font-mono text-[9px] md:text-[10px] font-bold items-center">
+                <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[20px] text-center shadow-sm">{timeString.h}</span>
                 <span className="text-primary animate-pulse">:</span>
-                <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[22px] text-center shadow-sm">{timeString.m}</span>
+                <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[20px] text-center shadow-sm">{timeString.m}</span>
                 <span className="text-primary animate-pulse">:</span>
-                <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[22px] text-center shadow-sm">{timeString.s}</span>
+                <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[20px] text-center shadow-sm">{timeString.s}</span>
             </div>
             ) : (
-            <div className="flex gap-1 font-mono text-[10px] font-bold text-foreground/80 items-center opacity-50">
+            <div className="flex gap-1 font-mono text-[9px] md:text-[10px] font-bold text-foreground/80 items-center opacity-50">
                 <span>00</span><span>:</span><span>00</span><span>:</span><span>00</span>
             </div>
             )}

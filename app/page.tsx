@@ -26,14 +26,14 @@ const CoreEmblem: React.FC = React.memo(() => (
       transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
       className="absolute"
     >
-      <Hexagon size={180} strokeWidth={1.5} className="text-foreground/80 dark:text-foreground/60" />
+      <Hexagon className="text-foreground/80 dark:text-foreground/60 w-[120px] h-[120px] md:w-[180px] md:h-[180px]" strokeWidth={1.5} />
     </MotionDiv>
     <MotionDiv
       animate={{ scale: [1, 1.05, 1], opacity: [0.8, 1, 0.8] }}
       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      className="bg-card/30 dark:bg-card/30 backdrop-blur-md border-2 border-primary p-6 rounded-full shadow-[0_0_40px_rgba(var(--primary),0.2)] z-10 transition-colors"
+      className="bg-card/30 dark:bg-card/30 backdrop-blur-md border-2 border-primary p-4 md:p-6 rounded-full shadow-[0_0_40px_rgba(var(--primary),0.2)] z-10 transition-colors"
     >
-      <Zap size={48} className="text-primary" fill="currentColor" />
+      <Zap className="text-primary w-8 h-8 md:w-12 md:h-12" fill="currentColor" />
     </MotionDiv>
   </div>
 ));
@@ -117,51 +117,25 @@ const DraggableGroupItem = React.memo(({
 
     // Check if this is a Shift Register Segment (has regBitIndex)
     if (seg.regBitIndex !== undefined) {
-        // Toggle Local State
         toggleSegment(id);
-        
-        // Calculate new Byte value
-        // We must look at ALL segments that share this GPIO to reconstruct the byte
         const allRegisterSegments = segments.filter(s => s.gpio === seg.gpio && s.regBitIndex !== undefined);
-        
         let newByteValue = 0;
         allRegisterSegments.forEach(s => {
-            // Determine state: if it's the one we just clicked, flip it relative to current state
-            // (Note: toggleSegment updates store async/sync depending on implementation, 
-            // but here we are in the callback before re-render might fully propagate visually.
-            // However, Zustand updates are synchronous. So 'toggleSegment' has already updated the store.)
-            
-            // Re-fetch the updated segment from the store or use logic. 
-            // Since `segments` in this closure might be stale if we don't depend on it correctly,
-            // but `segments` is passed as prop. 
-            // To be safe, we determine logic:
-            
             let isOn = s.is_led_on === 'on';
-            
-            // If we assume `toggleSegment` ran immediately before this calculation:
-            // The segment `id` is already flipped in the store. 
-            // BUT `segments` prop passed to this memoized component might be from PREVIOUS render.
-            // So we must manually flip the target segment for calculation purposes.
             if (s.num_of_node === id) {
-                 isOn = !isOn; // Flip it for the calculation because props are old
+                 isOn = !isOn; 
             }
-            
             if (isOn) {
                 newByteValue |= (1 << (s.regBitIndex || 0));
             }
         });
-
-        // Send SR_STATE command with the Latch GPIO and the full Byte value
         sendCommand(CMD.SR_STATE, seg.gpio || 0, newByteValue);
-
     } else {
-        // Standard Digital Segment
         toggleSegment(id);
         sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
     }
   }, [toggleSegment, segments, sendCommand]);
 
-  // Callback for reordering inside the group
   const handleInternalReorder = useCallback((newNodes: Segment[]) => {
     const otherGroupsSegments = segments.filter(s => (s.group || "basic") !== groupName);
     setSegments([...otherGroupsSegments, ...newNodes]);
@@ -204,7 +178,7 @@ const DraggableGroupItem = React.memo(({
         onRemove={removeSegment}
         onToggle={handleToggle}
         onPWMChange={setPWM}
-        onToggleBit={() => {}} // Deprecated, handled by onToggle now
+        onToggleBit={() => {}} 
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
       />
@@ -218,7 +192,7 @@ export default function DashboardPage(): React.JSX.Element {
   const { settings } = useSettingsStore();
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [deviceType, setDeviceType] = useState<string>("UNKNOWN");
+  const [deviceType, setDeviceType] = useState<string>("DETECTING");
   
   // Init Scheduler Engine
   useSchedulerEngine();
@@ -241,7 +215,13 @@ export default function DashboardPage(): React.JSX.Element {
   }, [settings.language]);
 
   useEffect(() => {
-    setDeviceType(/Mobi|Android/i.test(navigator.userAgent) ? "MOBILE" : "DESKTOP");
+    // Basic User Agent detection
+    const ua = navigator.userAgent;
+    if (/Mobi|Android/i.test(ua)) {
+        setDeviceType("MOBILE");
+    } else {
+        setDeviceType("DESKTOP");
+    }
   }, []);
 
   useEffect(() => {
@@ -308,25 +288,26 @@ export default function DashboardPage(): React.JSX.Element {
       <div className={cn(
           "min-h-screen graph-paper transition-colors duration-500 flex flex-col overflow-x-hidden",
           settings.animations && "animate-grid",
-          getFontClass(settings.dashboardFont) // Apply Global Dashboard Font
+          getFontClass(settings.dashboardFont) 
       )}>
         <Header onOpenMenu={() => setIsMenuOpen(true)} />
         
-        <main className="max-w-7xl mx-auto px-6 pt-12 flex-1 pb-40 w-full relative">
+        {/* Main Content: Reduced padding on mobile */}
+        <main className="max-w-7xl mx-auto px-3 md:px-6 pt-6 md:pt-12 flex-1 pb-32 md:pb-40 w-full relative">
           
           {segments.length === 0 ? (
-            <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-16 min-h-[60vh]">
-              <MotionDiv onClick={() => setIsMenuOpen(true)} className="relative z-20 cursor-pointer flex flex-col items-center gap-8">
+            <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-12 md:py-16 min-h-[60vh]">
+              <MotionDiv onClick={() => setIsMenuOpen(true)} className="relative z-20 cursor-pointer flex flex-col items-center gap-6 md:gap-8">
                 <CoreEmblem />
-                <div className="text-center max-w-2xl px-8">
-                  <h2 className="text-3xl font-black uppercase tracking-[0.2em] text-primary">{t.hardware_intel}</h2>
-                  <div className="h-0.5 w-32 bg-primary mx-auto opacity-40 my-4" />
-                  <p className="text-sm font-bold text-gray-500 italic leading-relaxed uppercase tracking-[0.1em] mb-6">
+                <div className="text-center max-w-xs md:max-w-2xl px-4 md:px-8">
+                  <h2 className="text-xl md:text-3xl font-black uppercase tracking-[0.2em] text-primary">{t.hardware_intel}</h2>
+                  <div className="h-0.5 w-24 md:w-32 bg-primary mx-auto opacity-40 my-3 md:my-4" />
+                  <p className="text-xs md:text-sm font-bold text-gray-500 italic leading-relaxed uppercase tracking-[0.1em] mb-4 md:mb-6">
                     "{t.success_msg} <br/>
                     <span className="text-[#1A1C1E] dark:text-[#E0E0E0] not-italic border-b-2 border-primary transition-colors">{t.focus_effort}</span> {t.we_control}"
                   </p>
                 </div>
-                <button className="bg-card-light dark:bg-card-dark text-primary border-2 border-primary/40 px-10 py-4 rounded-chip font-black uppercase tracking-[0.3em] text-[10px] hover:bg-primary hover:text-black transition-all duration-300 shadow-xl">
+                <button className="bg-card-light dark:bg-card-dark text-primary border-2 border-primary/40 px-6 py-3 md:px-10 md:py-4 rounded-chip font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[9px] md:text-[10px] hover:bg-primary hover:text-black transition-all duration-300 shadow-xl">
                   <span className="flex items-center gap-2"><Zap size={14} /> {t.init_deploy}</span>
                 </button>
               </MotionDiv>
@@ -334,7 +315,7 @@ export default function DashboardPage(): React.JSX.Element {
           ) : (
             <div 
               ref={groupsContainerRef}
-              className="grid grid-cols-1 xl:grid-cols-2 gap-8 relative"
+              className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-8 relative"
             >
               <AnimatePresence mode="popLayout">
                 {orderedGroupKeys.map((groupName, index) => {
@@ -369,10 +350,11 @@ export default function DashboardPage(): React.JSX.Element {
           )}
         </main>
 
-        <footer className="fixed bottom-4 left-0 w-full px-4 sm:px-6 z-[40] transition-colors duration-500">
-          <div className="bg-card/85 backdrop-blur-xl backdrop-saturate-150 border border-white/20 dark:border-white/10 rounded-2xl shadow-2xl py-4 px-10 flex items-center justify-between h-20 max-w-7xl mx-auto">
-            <div className="flex items-center gap-3 font-black text-[9px] uppercase tracking-[0.2em] text-primary">
-              <Cpu size={14} /> 
+        {/* Footer: Compact on mobile */}
+        <footer className="fixed bottom-2 md:bottom-4 left-0 w-full px-2 md:px-6 z-[40] transition-colors duration-500 pointer-events-none">
+          <div className="bg-card/85 backdrop-blur-xl backdrop-saturate-150 border border-white/20 dark:border-white/10 rounded-xl md:rounded-2xl shadow-2xl py-2 px-4 md:py-4 md:px-10 flex items-center justify-between h-14 md:h-20 max-w-7xl mx-auto pointer-events-auto">
+            <div className="flex items-center gap-2 md:gap-3 font-black text-[8px] md:text-[9px] uppercase tracking-[0.1em] md:tracking-[0.2em] text-primary">
+              <Cpu className="w-3 h-3 md:w-4 md:h-4" /> 
               <span className="opacity-60">ESP32-NODE-PRO</span>
             </div>
 
@@ -380,18 +362,18 @@ export default function DashboardPage(): React.JSX.Element {
               {isDragging && (
                 <MotionDiv 
                   initial={{ opacity: 0, y: 80 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 80 }}
-                  className="absolute inset-0 flex items-center justify-center bg-red-600/90 text-white font-black uppercase tracking-[0.3em] gap-3 z-50 pointer-events-none rounded-2xl"
+                  className="absolute inset-0 flex items-center justify-center bg-red-600/95 text-white font-black uppercase tracking-[0.2em] md:tracking-[0.3em] gap-2 md:gap-3 z-50 pointer-events-none rounded-xl md:rounded-2xl"
                 >
-                  <Trash2 size={20} /> <span className="text-[10px]">{t.release_delete}</span>
+                  <Trash2 className="w-4 h-4 md:w-5 md:h-5" /> <span className="text-[9px] md:text-[10px]">{t.release_delete}</span>
                 </MotionDiv>
               )}
             </AnimatePresence>
 
             <div className="flex flex-col items-end">
-               <div className="text-[8px] font-black uppercase tracking-[0.4em] opacity-40">Secure Link V3.1</div>
-               <div className="text-[9px] font-bold text-primary mt-1 flex items-center gap-1.5 opacity-80">
+               <div className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] md:tracking-[0.4em] opacity-40 hidden sm:block">Secure Link V3.1</div>
+               <div className="text-[8px] md:text-[9px] font-bold text-primary mt-0.5 md:mt-1 flex items-center gap-1 md:gap-1.5 opacity-80">
                   {deviceType === 'MOBILE' ? <Smartphone size={10} /> : <Laptop size={10} />}
-                  {t.footer_ver} = {deviceType} VER
+                  <span className="hidden xs:inline">{t.footer_ver} =</span> {deviceType} VER
                </div>
             </div>
           </div>

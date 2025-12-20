@@ -43,9 +43,9 @@ const RegisterButton = React.memo(({
     const isOn = segment.is_led_on === 'on';
 
     return (
-        <div className="flex h-14 bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:border-primary/50 transition-colors group">
+        <div className="flex h-12 md:h-14 bg-card border border-border rounded-lg md:rounded-xl overflow-hidden shadow-sm hover:border-primary/50 transition-colors group">
             {/* Drag Handle Area */}
-            <div className="w-8 bg-secondary/10 flex items-center justify-center cursor-grab active:cursor-grabbing border-r border-border/50">
+            <div className="w-6 md:w-8 bg-secondary/10 flex items-center justify-center cursor-grab active:cursor-grabbing border-r border-border/50">
                 {dragHandle}
             </div>
             
@@ -53,18 +53,18 @@ const RegisterButton = React.memo(({
             <button 
                 onClick={onToggle}
                 className={cn(
-                    "flex-1 flex items-center justify-between px-4 transition-all duration-200 active:scale-[0.98]",
+                    "flex-1 flex items-center justify-between px-2 md:px-4 transition-all duration-200 active:scale-[0.98]",
                     isOn ? "bg-primary/10" : "bg-transparent hover:bg-secondary/5"
                 )}
             >
-                <div className="flex flex-col items-start gap-0.5">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{segment.name}</span>
-                    <span className="text-[8px] font-mono font-bold opacity-50">INDEX {segment.regBitIndex}</span>
+                <div className="flex flex-col items-start gap-0 md:gap-0.5 overflow-hidden">
+                    <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate w-full text-left">{segment.name}</span>
+                    <span className="text-[7px] md:text-[8px] font-mono font-bold opacity-50">IDX {segment.regBitIndex}</span>
                 </div>
 
                 {/* LED Indicator */}
                 <div className={cn(
-                    "w-3 h-3 rounded-full border shadow-inner transition-all duration-300",
+                    "w-2 h-2 md:w-3 md:h-3 rounded-full border shadow-inner transition-all duration-300 shrink-0",
                     isOn 
                         ? "bg-primary border-primary shadow-[0_0_8px_rgba(218,165,32,0.6)]" 
                         : "bg-black/20 dark:bg-white/10 border-transparent"
@@ -183,7 +183,7 @@ const DraggableSegmentItem = React.memo(({
                   onPointerDown={(e) => controls.start(e)}
                   style={{ touchAction: 'none' }}
                 >
-                  <GripVertical size={16} />
+                  <GripVertical size={14} />
                 </div>
             }
           />
@@ -199,7 +199,7 @@ const DraggableSegmentItem = React.memo(({
               >
                 <GripVertical 
                   className="text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white transition-colors" 
-                  size={18} 
+                  size={16} 
                 />
               </div>
             }
@@ -258,24 +258,23 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
   }), [settings.primaryColor]);
 
   // Determine Grid Layout based on content type
-  // If register group, use 4-column grid for buttons. Else use 1/2 col grid for cards.
   const isRegisterGroup = segments.some(s => s.groupType === 'register');
   const gridClass = isRegisterGroup 
-    ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3" 
-    : (segments.length === 2 ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2 gap-6");
+    ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-2 md:gap-3" 
+    : (segments.length === 2 ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6");
     
   // Smart Font Class for Zone Name
   const zoneFontClass = isPersian(name) ? "font-persian" : getFontClass(settings.dashboardFont);
 
   return (
     <div 
-      className="h-full relative border-2 border-dashed rounded-[2rem] p-8 transition-all duration-500 backdrop-blur-[2px]"
+      className="h-full relative border-2 border-dashed rounded-xl md:rounded-[2rem] p-3 pt-6 md:p-8 transition-all duration-500 backdrop-blur-[2px]"
       style={containerStyle} 
     >
       {/* Group Boundary Label & Drag Handle */}
       <div 
         className={cn(
-          "absolute -top-3 left-8 pl-1 pr-3 text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-colors z-10 border border-dashed rounded-full backdrop-blur-md",
+          "absolute -top-3 left-4 md:left-8 pl-1 pr-3 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-colors z-10 border border-dashed rounded-full backdrop-blur-md",
           zoneFontClass
         )}
         style={labelStyle}
@@ -285,17 +284,17 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
               {dragHandle}
            </div>
         )}
-        <span>ZONE: {name}</span>
+        <span className="truncate max-w-[150px] md:max-w-none">ZONE: {name}</span>
       </div>
 
-      <div className="-mt-2 mb-6">
+      <div className="-mt-1 mb-3 md:-mt-2 md:mb-6">
          <GroupHeader name={name} count={segments.length} />
       </div>
       
       <div 
         ref={containerRef}
         className={cn(
-          "grid relative min-h-[100px]",
+          "grid relative min-h-[50px] md:min-h-[100px]",
           gridClass
         )}
       >
