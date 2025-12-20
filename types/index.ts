@@ -68,7 +68,8 @@ export interface Schedule {
   id: string;
   time: string; // HH:MM (24h format)
   targetSegmentId: string;
-  action: 'ON' | 'OFF' | 'TOGGLE';
+  action: 'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE';
+  targetValue?: number; // 0-255 for PWM
   enabled: boolean;
   lastRun?: number; // Timestamp of last execution to prevent multi-trigger in same minute
 }

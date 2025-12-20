@@ -51,6 +51,8 @@ export const translations = {
     action_on: "POWER ON",
     action_off: "POWER OFF",
     action_toggle: "SWITCH STATE",
+    action_set_value: "SET INTENSITY",
+    set_pwm_val: "Set Value (0-255)",
     digital_only: "Currently limited to Digital (On/Off) devices."
   },
   fa: {
@@ -104,6 +106,8 @@ export const translations = {
     action_on: "روشن کردن",
     action_off: "خاموش کردن",
     action_toggle: "تغییر وضعیت",
+    action_set_value: "تنظیم شدت",
+    set_pwm_val: "مقدار خروجی (۰-۲۵۵)",
     digital_only: "در حال حاضر محدود به دستگاه‌های دیجیتال (On/Off) است."
   }
 };

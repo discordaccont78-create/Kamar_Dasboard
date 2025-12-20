@@ -10,11 +10,11 @@ import { CMD, Segment } from '../types/index';
 
 export function useSchedulerEngine() {
   const { schedules, updateLastRun } = useSchedulerStore();
-  const { segments, updateSegment } = useSegments(); // Use updateSegment instead of toggle
+  const { segments, updateSegment } = useSegments(); 
   const { settings } = useSettingsStore();
   const { sendCommand } = useWebSocket();
   const { addToast } = useConnection();
-  const queryClient = useQueryClient(); // Access React Query Cache
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -39,45 +39,60 @@ export function useSchedulerEngine() {
                 const segment = segments.find(s => s.num_of_node === schedule.targetSegmentId);
                 
                 if (segment) {
-                    let targetState: 'on' | 'off' = 'off';
                     let cmdToSend = CMD.LED_OFF;
+                    let targetValForCmd = 0; // Default 0 for OFF
+                    
+                    // State updates for UI
+                    const updates: Partial<Segment> = {};
+                    let actionLabel = "";
 
-                    // Determine Target State
+                    // Determine Command & Target State
                     if (schedule.action === 'ON') {
-                        targetState = 'on';
                         cmdToSend = CMD.LED_ON;
+                        updates.is_led_on = 'on';
+                        actionLabel = settings.language === 'fa' ? 'روشن' : 'ON';
+
                     } else if (schedule.action === 'OFF') {
-                        targetState = 'off';
                         cmdToSend = CMD.LED_OFF;
+                        updates.is_led_on = 'off';
+                        actionLabel = settings.language === 'fa' ? 'خاموش' : 'OFF';
+
                     } else if (schedule.action === 'TOGGLE') {
-                        // Invert current state
-                        targetState = segment.is_led_on === 'on' ? 'off' : 'on';
-                        cmdToSend = targetState === 'on' ? CMD.LED_ON : CMD.LED_OFF;
+                        const newState = segment.is_led_on === 'on' ? 'off' : 'on';
+                        cmdToSend = newState === 'on' ? CMD.LED_ON : CMD.LED_OFF;
+                        updates.is_led_on = newState;
+                        actionLabel = settings.language === 'fa' 
+                            ? (newState === 'on' ? 'روشن' : 'خاموش')
+                            : (newState === 'on' ? 'ON' : 'OFF');
+
+                    } else if (schedule.action === 'SET_VALUE') {
+                        // PWM Logic
+                        cmdToSend = CMD.LED_PWM;
+                        targetValForCmd = schedule.targetValue || 0;
+                        updates.val_of_slide = targetValForCmd;
+                        actionLabel = `PWM: ${targetValForCmd}`;
                     }
 
                     // 1. Send Hardware Command
-                    const success = sendCommand(cmdToSend, segment.gpio || 0, 0);
+                    const success = sendCommand(cmdToSend, segment.gpio || 0, targetValForCmd);
                     
                     // 2. Update UI Source of Truth (React Query Cache)
-                    // This forces the CustomSegment component to re-render immediately
                     queryClient.setQueryData(['device', segment.num_of_node], (old: Segment | undefined) => {
                         if (!old) return undefined;
-                        return { ...old, is_led_on: targetState };
+                        return { ...old, ...updates };
                     });
 
                     // 3. Update Global Store (Zustand)
-                    updateSegment(segment.num_of_node, { is_led_on: targetState });
+                    updateSegment(segment.num_of_node, updates);
 
-                    // 4. Update Timestamp to prevent double-fire
+                    // 4. Update Timestamp
                     updateLastRun(schedule.id, currentTimestamp);
                     
                     // 5. Notification
-                    const actionLabel = targetState === 'on' ? (settings.language === 'fa' ? 'روشن' : 'ON') : (settings.language === 'fa' ? 'خاموش' : 'OFF');
-
                     if (success) {
                         const msg = settings.language === 'fa'
                             ? `وظیفه خودکار: ${segment.name} -> ${actionLabel}`
-                            : `Auto-Task: ${segment.name} turned ${actionLabel}`;
+                            : `Auto-Task: ${segment.name} set to ${actionLabel}`;
                         addToast(msg, 'info');
                     } else {
                         const msg = settings.language === 'fa'
@@ -89,10 +104,6 @@ export function useSchedulerEngine() {
                 } else {
                     // Segment not found
                     updateLastRun(schedule.id, currentTimestamp);
-                    const msg = settings.language === 'fa'
-                            ? `خطا: دستگاه برای برنامه ${schedule.time} پیدا نشد`
-                            : `Error: Target device not found for ${schedule.time}`;
-                    addToast(msg, 'error');
                 }
             }
         });

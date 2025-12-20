@@ -1,14 +1,15 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarClock, Power, Plus, Trash2, Clock, Check, ArrowRight } from 'lucide-react';
+import { X, CalendarClock, Power, Plus, Trash2, Clock, Check, ArrowRight, Sliders, ToggleLeft, ToggleRight, Fingerprint } from 'lucide-react';
 import { useSegments } from '../../lib/store/segments';
 import { useSchedulerStore } from '../../lib/store/scheduler';
 import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
+import { Slider } from '../UI/Slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 
@@ -28,12 +29,50 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   // Local Form State
   const [time, setTime] = useState("");
   const [targetId, setTargetId] = useState("");
-  const [action, setAction] = useState<'ON' | 'OFF' | 'TOGGLE'>('ON');
+  const [action, setAction] = useState<'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE'>('ON');
+  const [pwmValue, setPwmValue] = useState(128); // Default half brightness
+  
+  // New State for 'All' type segments: 'digital' or 'pwm'
+  const [hybridMode, setHybridMode] = useState<'digital' | 'pwm'>('digital');
 
-  // Filter for allowed segments (Digital / On-Off only as requested)
+  // Filter for allowed segments (Digital, Register, PWM, and All)
   const allowedSegments = segments.filter(s => 
-    s.segType === 'Digital' || s.segType === 'All' || s.groupType === 'register'
+    s.segType === 'Digital' || s.segType === 'All' || s.groupType === 'register' || s.segType === 'PWM'
   );
+
+  // Determine type of selected segment
+  const selectedSegment = segments.find(s => s.num_of_node === targetId);
+  
+  const isHybrid = selectedSegment?.segType === 'All';
+  const isPurePwm = selectedSegment?.segType === 'PWM';
+  
+  // Should we show PWM tools? 
+  // YES if it's a pure PWM device OR if it's a Hybrid device in PWM mode.
+  const showPwmTools = isPurePwm || (isHybrid && hybridMode === 'pwm');
+
+  // Reset states when target changes
+  useEffect(() => {
+    if (isPurePwm) {
+        setAction('SET_VALUE');
+    } else if (isHybrid) {
+        // Default hybrid to digital mode initially
+        setHybridMode('digital');
+        setAction('ON');
+    } else {
+        setAction('ON');
+    }
+  }, [targetId, isPurePwm, isHybrid]);
+
+  // When switching hybrid modes, update the action type
+  useEffect(() => {
+    if (isHybrid) {
+        if (hybridMode === 'pwm') {
+            setAction('SET_VALUE');
+        } else {
+            setAction('ON');
+        }
+    }
+  }, [hybridMode, isHybrid]);
 
   const handleAdd = () => {
     if (!time || !targetId) return;
@@ -42,13 +81,16 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
         id: Math.random().toString(36).substr(2, 9),
         time,
         targetSegmentId: targetId,
-        action,
+        action: showPwmTools ? 'SET_VALUE' : action,
+        targetValue: showPwmTools ? pwmValue : undefined,
         enabled: true
     });
     
     // Reset defaults
     setTargetId("");
     setAction("ON");
+    setPwmValue(128);
+    setHybridMode('digital');
   };
 
   const getTargetName = (id: string) => segments.find(s => s.num_of_node === id)?.name || "Unknown Device";
@@ -112,47 +154,101 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                          >
                              <option value="">-- Select --</option>
                              {allowedSegments.map(s => (
-                                 <option key={s.num_of_node} value={s.num_of_node}>{s.name} (GP-{s.gpio})</option>
+                                 <option key={s.num_of_node} value={s.num_of_node}>
+                                    {s.name} ({s.segType}) GP-{s.gpio}
+                                 </option>
                              ))}
                          </select>
                     </div>
                 </div>
 
                 {/* Intelligent Suggestions Area */}
-                <AnimatePresence>
+                <AnimatePresence mode="wait">
                     {targetId && (
                         <MotionDiv 
+                            key={showPwmTools ? 'pwm-tools' : 'dig-tools'}
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
                             className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3"
                         >
-                            <div className="flex justify-between items-center">
+                            {/* Header & Mode Switcher for Hybrid */}
+                            <div className="flex justify-between items-center mb-2">
                                 <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
-                                    <Power size={12} /> {t.suggested_tool}: On/Off Switch
+                                    {showPwmTools ? <Sliders size={12} /> : <Power size={12} />} 
+                                    {t.suggested_tool}: {showPwmTools ? 'PWM Dimmer' : 'On/Off Switch'}
                                 </span>
-                                <span className="text-[8px] text-muted-foreground bg-background px-2 py-0.5 rounded border border-border">DIGITAL</span>
+                                
+                                {isHybrid ? (
+                                    <div className="flex bg-background/50 rounded-lg p-0.5 border border-white/10">
+                                        <button 
+                                            onClick={() => setHybridMode('digital')}
+                                            className={cn(
+                                                "px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider transition-all flex items-center gap-1",
+                                                hybridMode === 'digital' ? "bg-primary text-black shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                            )}
+                                        >
+                                            <ToggleLeft size={10} /> Digital
+                                        </button>
+                                        <button 
+                                            onClick={() => setHybridMode('pwm')}
+                                            className={cn(
+                                                "px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider transition-all flex items-center gap-1",
+                                                hybridMode === 'pwm' ? "bg-primary text-black shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                            )}
+                                        >
+                                            <ToggleRight size={10} /> Analog
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <span className="text-[8px] text-muted-foreground bg-background px-2 py-0.5 rounded border border-border font-bold">
+                                        {showPwmTools ? 'ANALOG ONLY' : 'DIGITAL ONLY'}
+                                    </span>
+                                )}
                             </div>
 
-                            <div className="grid grid-cols-3 gap-2">
-                                {(['ON', 'OFF', 'TOGGLE'] as const).map(act => (
-                                    <button
-                                        key={act}
-                                        onClick={() => setAction(act)}
-                                        className={cn(
-                                            "h-10 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
-                                            action === act 
-                                                ? "bg-primary text-black border-primary shadow-md scale-[1.02]" 
-                                                : "bg-background text-muted-foreground border-border hover:bg-secondary/10"
-                                        )}
-                                    >
-                                        {act === 'ON' && <Check size={12} />}
-                                        {act === 'OFF' && <X size={12} />}
-                                        {act === 'TOGGLE' && <ArrowRight size={12} />}
-                                        {act === 'ON' ? t.action_on : act === 'OFF' ? t.action_off : t.action_toggle}
-                                    </button>
-                                ))}
-                            </div>
+                            {showPwmTools ? (
+                                /* PWM UI */
+                                <div className="space-y-4 pt-2">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{t.set_pwm_val}</label>
+                                        <span className="font-mono text-sm font-bold text-primary bg-primary/10 px-2 rounded">{pwmValue}</span>
+                                    </div>
+                                    <Slider 
+                                        value={[pwmValue]}
+                                        onValueChange={(val) => setPwmValue(val[0])}
+                                        max={255}
+                                        step={1}
+                                        className="w-full"
+                                    />
+                                    <div className="flex justify-between text-[8px] text-muted-foreground font-mono opacity-50">
+                                        <span>0 (OFF)</span>
+                                        <span>128 (50%)</span>
+                                        <span>255 (MAX)</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                /* Digital UI */
+                                <div className="grid grid-cols-3 gap-2">
+                                    {(['ON', 'OFF', 'TOGGLE'] as const).map(act => (
+                                        <button
+                                            key={act}
+                                            onClick={() => setAction(act)}
+                                            className={cn(
+                                                "h-10 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
+                                                action === act 
+                                                    ? "bg-primary text-black border-primary shadow-md scale-[1.02]" 
+                                                    : "bg-background text-muted-foreground border-border hover:bg-secondary/10"
+                                            )}
+                                        >
+                                            {act === 'ON' && <Check size={12} />}
+                                            {act === 'OFF' && <X size={12} />}
+                                            {act === 'TOGGLE' && <ArrowRight size={12} />}
+                                            {act === 'ON' ? t.action_on : act === 'OFF' ? t.action_off : t.action_toggle}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </MotionDiv>
                     )}
                 </AnimatePresence>
@@ -186,13 +282,20 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                         </span>
                                         <div className="flex gap-2 text-[9px] text-muted-foreground font-medium">
                                             <span className="bg-muted/30 px-1.5 py-0.5 rounded">GP-{getTargetGpio(sch.targetSegmentId)}</span>
-                                            <span className={cn(
-                                                "px-1.5 py-0.5 rounded font-black",
-                                                sch.action === 'ON' ? 'text-green-500 bg-green-500/10' : 
-                                                sch.action === 'OFF' ? 'text-red-500 bg-red-500/10' : 'text-blue-500 bg-blue-500/10'
-                                            )}>
-                                                {sch.action}
-                                            </span>
+                                            
+                                            {sch.action === 'SET_VALUE' ? (
+                                                <span className="px-1.5 py-0.5 rounded font-black text-orange-500 bg-orange-500/10 flex items-center gap-1">
+                                                    <Fingerprint size={10} /> PWM: {sch.targetValue}
+                                                </span>
+                                            ) : (
+                                                <span className={cn(
+                                                    "px-1.5 py-0.5 rounded font-black flex items-center gap-1",
+                                                    sch.action === 'ON' ? 'text-green-500 bg-green-500/10' : 
+                                                    sch.action === 'OFF' ? 'text-red-500 bg-red-500/10' : 'text-blue-500 bg-blue-500/10'
+                                                )}>
+                                                    <Power size={10} /> {sch.action}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
