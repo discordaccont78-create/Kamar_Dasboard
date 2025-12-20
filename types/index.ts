@@ -34,15 +34,18 @@ export interface Segment {
   group: string;
   readonly groupType: GroupType;
   readonly segType: SegmentType;
-  readonly gpio?: number; // Hardware pin mapping shouldn't change at runtime usually
+  readonly gpio?: number; // Primary control pin (Latch for Registers)
   is_led_on: 'on' | 'off';
   val_of_slide: number;
   
   // Timer Feature
   timerFinishAt?: number; // Timestamp (ms) when timer expires
 
-  // Shift Register
+  // Shift Register Hardware Pins
   readonly regBitIndex?: number;
+  readonly dsPin?: number;   // Data
+  readonly shcpPin?: number; // Clock
+  readonly stcpPin?: number; // Latch (Usually mapped to gpio as well)
   
   // Weather
   readonly dhtPin?: number;

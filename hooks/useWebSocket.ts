@@ -16,8 +16,6 @@ export function useWebSocket() {
   const protocolRef = useRef(new BinaryProtocol());
   
   const { setConnected, addLog, addToast } = useConnection();
-  // Only read structure from store, updates happen via React Query or store actions
-  const segments = useSegments((state) => state.segments);
   const settings = useSettingsStore((state) => state.settings);
   const { addSensorReading, addTrafficSample } = useAnalytics();
   const queryClient = useQueryClient();
@@ -60,35 +58,82 @@ export function useWebSocket() {
             
           addLog('in', hex, `CMD:${msg.cmd} SEG:${msg.seg} VAL:${msg.val}`);
           
-          // Identify segment by GPIO
-          const currentSegments = useSegments.getState().segments;
-          const seg = currentSegments.find(s => s.gpio === msg.seg);
-          
-          if (seg) {
-            // Update React Query Cache
-            queryClient.setQueryData(['device', seg.num_of_node], (old: Segment | undefined): Segment | undefined => {
-               if (!old) return undefined;
+          // Helper to update segment by GPIO
+          const updateSegmentByGpio = (gpio: number, updates: Partial<Segment>) => {
+            const currentSegments = useSegments.getState().segments;
+            const seg = currentSegments.find(s => s.gpio === gpio && s.groupType !== 'register');
+            if (seg) {
+                queryClient.setQueryData(['device', seg.num_of_node], (old: Segment | undefined) => {
+                    if (!old) return undefined;
+                    return { ...old, ...updates };
+                });
+            }
+          };
                
-               const updates: Partial<Segment> = {};
-               
-               switch (msg.cmd) {
-                 case CMD.LED_ON: updates.is_led_on = 'on'; break;
-                 case CMD.LED_OFF: updates.is_led_on = 'off'; break;
-                 case CMD.LED_PWM: updates.val_of_slide = msg.val; break;
-                 case CMD.TEMP_DATA: 
-                   updates.temperature = msg.val / 10;
-                   addSensorReading(seg.num_of_node, 'temp', updates.temperature);
-                   break;
-                 case CMD.HUM_DATA: 
-                   updates.humidity = msg.val / 10;
-                   addSensorReading(seg.num_of_node, 'hum', updates.humidity);
-                   break;
-                 case CMD.GPIO_STATE: updates.inputActive = msg.val === 1; break;
-                 case CMD.SR_STATE: updates.val_of_slide = msg.val; break;
-               }
-               
-               return { ...old, ...updates };
-            });
+          switch (msg.cmd) {
+            case CMD.LED_ON: 
+                updateSegmentByGpio(msg.seg, { is_led_on: 'on' });
+                break;
+            case CMD.LED_OFF: 
+                updateSegmentByGpio(msg.seg, { is_led_on: 'off' });
+                break;
+            case CMD.LED_PWM: 
+                updateSegmentByGpio(msg.seg, { val_of_slide: msg.val });
+                break;
+            case CMD.TEMP_DATA: {
+                const temp = msg.val / 10;
+                // For Weather, msg.seg is likely the DHT pin
+                const currentSegments = useSegments.getState().segments;
+                const seg = currentSegments.find(s => s.dhtPin === msg.seg);
+                if (seg) {
+                    queryClient.setQueryData(['device', seg.num_of_node], (old: Segment | undefined) => 
+                        old ? { ...old, temperature: temp } : undefined
+                    );
+                    addSensorReading(seg.num_of_node, 'temp', temp);
+                }
+                break;
+            }
+            case CMD.HUM_DATA: {
+                const hum = msg.val / 10;
+                const currentSegments = useSegments.getState().segments;
+                const seg = currentSegments.find(s => s.dhtPin === msg.seg);
+                if (seg) {
+                    queryClient.setQueryData(['device', seg.num_of_node], (old: Segment | undefined) => 
+                        old ? { ...old, humidity: hum } : undefined
+                    );
+                    addSensorReading(seg.num_of_node, 'hum', hum);
+                }
+                break;
+            }
+            case CMD.GPIO_STATE: 
+                updateSegmentByGpio(msg.seg, { inputActive: msg.val === 1 });
+                break;
+            case CMD.BTN_INPUT: 
+                // Handles direct input changes (e.g. from physical button press)
+                updateSegmentByGpio(msg.seg, { inputActive: msg.val === 1 });
+                break;
+            case CMD.GPIO_BATCH: {
+                const { gpios, states } = protocolRef.current.decodeBatchGPIO(msg.val, msg.seg);
+                gpios.forEach((gpio, idx) => {
+                    updateSegmentByGpio(gpio, { is_led_on: states[idx] ? 'on' : 'off' });
+                });
+                break;
+            }
+            case CMD.SR_STATE: 
+                // SR_STATE usually updates a register group. 
+                // We need to find segments attached to this Latch Pin (msg.seg)
+                const currentSegments = useSegments.getState().segments;
+                const regSegments = currentSegments.filter(s => s.gpio === msg.seg && s.groupType === 'register');
+                
+                regSegments.forEach(s => {
+                    if (s.regBitIndex !== undefined) {
+                        const isOn = ((msg.val >> s.regBitIndex) & 1) === 1;
+                        queryClient.setQueryData(['device', s.num_of_node], (old: Segment | undefined) => 
+                            old ? { ...old, is_led_on: isOn ? 'on' : 'off' } : undefined
+                        );
+                    }
+                });
+                break;
           }
         }
       }

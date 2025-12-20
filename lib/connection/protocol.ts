@@ -1,5 +1,6 @@
 
 import { BinaryMessage } from '../../types/index';
+import { CMD } from '../../types/index';
 
 export class BinaryProtocol {
   private crc8Table: Uint8Array;
@@ -48,6 +49,28 @@ export class BinaryProtocol {
       seg: view.getUint16(1, true),
       val: view.getInt32(3, true),
     };
+  }
+
+  // Support for batch updates (up to 8 GPIOs at once)
+  encodeBatchGPIO(gpios: number[], states: boolean[]): ArrayBuffer | null {
+    if (!Array.isArray(gpios) || gpios.length === 0 || gpios.length > 8) return null;
+    let packed = 0;
+    for (let i = 0; i < gpios.length; i++) {
+      packed |= (gpios[i] & 0x3F) << (i * 4);  // 6 bits per GPIO
+      if (states[i]) packed |= (1 << (i * 4 + 6)); // 1 bit for state
+    }
+    return this.encode(CMD.GPIO_BATCH, gpios.length, packed);
+  }
+
+  // Decode batch updates
+  decodeBatchGPIO(val: number, count: number): { gpios: number[], states: boolean[] } {
+    const gpios = [];
+    const states = [];
+    for (let i = 0; i < count && i < 8; i++) {
+      gpios.push((val >> (i * 4)) & 0x3F);
+      states.push(((val >> (i * 4 + 6)) & 1) === 1);
+    }
+    return { gpios, states };
   }
 
   private crc8(data: Uint8Array): number {

@@ -11,7 +11,7 @@ import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
   Sun, Moon, Settings as SettingsIcon, Volume2, 
   X, LayoutGrid, Play, Pause, Activity, Monitor, Zap, Type, Palette, Bell,
-  SkipBack, SkipForward, Clock, Power, Check, Plus, ChevronDown, Cpu, Cloud
+  SkipBack, SkipForward, Clock, Power, Check, Plus, ChevronDown, Cpu, Cloud, ToggleRight
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -141,10 +141,11 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     trigger: '1' // 1=Toggle as default
   });
 
-  // Register Form
+  // Register Form (Corrected inputs)
   const [regForm, setRegForm] = useState({
-    gpio: '',
-    name: '',
+    ds: '',
+    shcp: '',
+    stcp: '',
     group: ''
   });
 
@@ -165,12 +166,16 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
 
   // --- Validation Helpers ---
   const isGpioUsed = (pin: number) => {
-    return segments.some(s => s.gpio === pin || s.dhtPin === pin);
+    return segments.some(s => 
+      s.gpio === pin || 
+      s.dhtPin === pin ||
+      s.dsPin === pin ||
+      s.shcpPin === pin ||
+      s.stcpPin === pin
+    );
   };
 
   const isGroupTakenByTemplate = (groupName: string) => {
-    // Check if a group exists and if it likely belongs to a template (Shift Reg or DHT)
-    // We infer this if the group contains segments with regBitIndex or dhtPin
     return segments.some(s => 
         (s.group || "basic") === groupName && 
         (s.regBitIndex !== undefined || s.groupType === 'weather')
@@ -245,44 +250,48 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   };
 
   const handleAddRegister = () => {
-    const latchPin = parseInt(regForm.gpio);
-    const groupName = regForm.group.trim() || "Register_Group";
-    const baseName = regForm.name.trim() || "Bit";
+    const ds = parseInt(regForm.ds);
+    const shcp = parseInt(regForm.shcp);
+    const stcp = parseInt(regForm.stcp);
+    const groupName = regForm.group.trim();
 
-    if (!regForm.gpio) return;
-    if (isNaN(latchPin)) { addToast("Invalid GPIO", "error"); return; }
-
-    if (isGpioUsed(latchPin)) {
-        addToast(`Latch GPIO ${latchPin} is already in use!`, "error");
-        return;
+    if (!groupName || isNaN(ds) || isNaN(shcp) || isNaN(stcp)) { 
+        addToast("Please fill all Register fields correctly.", "error"); 
+        return; 
     }
-    
-    // Check if group exists and is not empty (Registers need their own exclusive group usually for cleanliness)
-    // But per user request, we just need to ensure "Standard Segment Rules". 
-    // Mixing into an existing group is technically allowed by segment rules, but let's warn if it clashes with types.
+
+    // Check unique pins
+    if (isGpioUsed(ds)) { addToast(`DS Pin ${ds} is in use`, "error"); return; }
+    if (isGpioUsed(shcp)) { addToast(`SHCP Pin ${shcp} is in use`, "error"); return; }
+    if (isGpioUsed(stcp)) { addToast(`STCP Pin ${stcp} is in use`, "error"); return; }
+
+    // Check group
     const existingGroup = segments.find(s => s.group === groupName);
-    if (existingGroup && existingGroup.groupType !== 'custom' && existingGroup.groupType !== 'register') {
-         addToast(`Group '${groupName}' already exists with a different type.`, "error");
+    if (existingGroup && existingGroup.groupType !== 'register') {
+         addToast(`Group '${groupName}' is taken by non-register devices.`, "error");
          return;
     }
 
-    // Create 8 individual segments for the 8 bits
+    // Create 8 individual segments acting as bits
     for(let i = 0; i < 8; i++) {
         addSegment({
             num_of_node: Math.random().toString(36).substr(2, 9),
-            name: `${baseName} ${i}`,
+            name: `BIT ${i}`,
             group: groupName,
-            groupType: 'custom', // Use 'custom' so it renders as a standard digital switch
-            segType: 'Digital',  // Forces On/Off UI
-            gpio: latchPin,      // All share the Latch Pin
+            groupType: 'register', // Specifically marked as register
+            segType: 'Digital',
+            gpio: stcp, // Main ID pin (Latch)
+            dsPin: ds,
+            shcpPin: shcp,
+            stcpPin: stcp,
             is_led_on: 'off',
             val_of_slide: 0,
-            regBitIndex: i       // This property makes it part of the register logic
+            regBitIndex: i
         });
     }
 
-    setRegForm({ gpio: '', name: '', group: '' });
-    addToast("8-Bit Shift Register Group created", "success");
+    setRegForm({ ds: '', shcp: '', stcp: '', group: '' });
+    addToast(`Register Group '${groupName}' created`, "success");
   };
 
   const handleAddDHT = () => {
@@ -461,7 +470,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
 
             {/* === HARDWARE TEMPLATES SECTION === */}
             <MenuSection title="Hardware Templates" icon={Cpu} defaultOpen={false}>
-               {/* Shift Register Card */}
+               {/* Shift Register Card (Corrected 3-Pin Input) */}
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
@@ -470,20 +479,24 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Latch</label>
-                     <Input type="number" value={regForm.gpio} onChange={e => setRegForm({...regForm, gpio: e.target.value})} className="col-span-3 h-9" placeholder="Latch Pin GPIO" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
-                     <Input value={regForm.name} onChange={e => setRegForm({...regForm, name: e.target.value})} className="col-span-3 h-9" placeholder="Base Name (e.g. Relay)" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input value={regForm.group} onChange={e => setRegForm({...regForm, group: e.target.value})} className="col-span-3 h-9" placeholder="Group Name" />
+                     <Input value={regForm.group} onChange={e => setRegForm({...regForm, group: e.target.value})} className="col-span-3 h-9" placeholder="Register Name (e.g. Relays)" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">DS</label>
+                     <Input type="number" value={regForm.ds} onChange={e => setRegForm({...regForm, ds: e.target.value})} className="col-span-3 h-9" placeholder="Data Pin (SER)" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">SHCP</label>
+                     <Input type="number" value={regForm.shcp} onChange={e => setRegForm({...regForm, shcp: e.target.value})} className="col-span-3 h-9" placeholder="Clock Pin (SRCLK)" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">STCP</label>
+                     <Input type="number" value={regForm.stcp} onChange={e => setRegForm({...regForm, stcp: e.target.value})} className="col-span-3 h-9" placeholder="Latch Pin (RCLK)" />
                   </div>
                   
                   <TechButton onClick={handleAddRegister} icon={Plus} variant="outline">
-                    Add 8-Bit Group
+                    Add 74HC595 Group
                   </TechButton>
                 </CardContent>
               </Card>
@@ -549,139 +562,98 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </Card>
             </MenuSection>
 
-            {/* === CORE SETTINGS === */}
+            {/* === SYSTEM CORE SECTION (RESTORED) === */}
             <MenuSection title="System Core" icon={Activity} defaultOpen={true}>
-                <Card className="rounded-2xl border-border shadow-sm">
-                   <CardContent className="p-5 flex flex-col gap-5">
-                      {/* Notifications Toggle */}
-                      <div className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-lg transition-colors">
-                         <label className="flex items-center gap-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest cursor-pointer">
-                            <Bell size={16} /> {t.sys_notif}
-                         </label>
-                         <Switch 
-                            checked={settings.enableNotifications} 
-                            onCheckedChange={(c) => updateSettings({ enableNotifications: c })} 
-                         />
-                      </div>
-
-                      {/* Animations Toggle */}
-                      <div className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-lg transition-colors">
-                         <label className="flex items-center gap-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest cursor-pointer">
-                            <Zap size={16} /> {t.ui_anim}
-                         </label>
-                         <Switch 
-                            checked={settings.animations} 
-                            onCheckedChange={(c) => updateSettings({ animations: c })} 
-                         />
-                      </div>
-
-                      {/* Theme Toggle - Segmented Control Style */}
-                      <div className="flex items-center justify-between p-2">
-                         <label className="flex items-center gap-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                            {settings.theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />} {t.env_ui}
-                         </label>
-                         <div className="flex bg-secondary/10 p-1 rounded-lg gap-1 border border-white/5">
-                            <button 
-                               onClick={() => updateSettings({ theme: 'light' })}
-                               className={cn(
-                                   "px-4 py-1.5 rounded-md text-[9px] font-black uppercase tracking-wider transition-all",
-                                   settings.theme === 'light' 
-                                    ? "bg-white text-black shadow-sm" 
-                                    : "text-muted-foreground hover:text-foreground"
-                               )}
-                            >
-                               {t.light}
-                            </button>
-                            <button 
-                               onClick={() => updateSettings({ theme: 'dark' })}
-                               className={cn(
-                                   "px-4 py-1.5 rounded-md text-[9px] font-black uppercase tracking-wider transition-all",
-                                   settings.theme === 'dark' 
-                                    ? "bg-zinc-800 text-white shadow-sm border border-zinc-700" 
-                                    : "text-muted-foreground hover:text-foreground"
-                               )}
-                            >
-                               {t.dark}
-                            </button>
-                         </div>
-                      </div>
-                   </CardContent>
-                </Card>
-
-                {/* Visual Settings (Colors) */}
-                <Card className="rounded-2xl border-border shadow-sm">
-                   <CardContent className="p-5">
-                      <div className="flex items-center justify-between p-2">
-                         <div className="flex items-center gap-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                            <Palette size={16} /> {t.accent_color}
-                         </div>
-                         <div className="flex items-center gap-3 pl-4 py-1 pr-1 bg-secondary/10 rounded-full border border-border">
-                            <span className="text-[9px] font-mono font-bold text-muted-foreground opacity-70">{settings.primaryColor}</span>
-                            <div className="relative overflow-hidden w-8 h-8 rounded-full border-2 border-white/20 shadow-md hover:scale-110 transition-transform cursor-pointer">
-                               <input 
-                                  type="color" 
-                                  value={settings.primaryColor}
-                                  onChange={(e) => updateSettings({ primaryColor: e.target.value })}
-                                  className="absolute -top-4 -left-4 w-16 h-16 cursor-pointer p-0 border-0"
-                               />
-                            </div>
-                         </div>
-                      </div>
-                   </CardContent>
-                </Card>
-
-                <Card className="rounded-2xl border-border bg-gradient-to-br from-card to-secondary/5 overflow-hidden shadow-sm">
-                    <CardHeader className="pb-3 border-b border-border/50 bg-secondary/5 py-4">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
-                            <Activity size={14} /> {t.net_analytics}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                        <TrafficChart />
-                    </CardContent>
-                </Card>
-
-                {/* Audio Engine */}
-                <Card className="rounded-2xl border-border shadow-sm">
-                  <CardContent className="p-5 flex flex-col gap-6">
-                    <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-primary/10 rounded-md text-primary">
-                            <Volume2 size={14} />
-                        </div>
-                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-foreground/80">{t.audio_engine}</span>
+               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
+                  <CardContent className="space-y-6 pt-6">
+                    {/* Dashboard Title */}
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.dash_title}</label>
+                       <Input 
+                         value={settings.title} 
+                         onChange={(e) => updateSettings({ title: e.target.value })} 
+                         placeholder={t.enter_dash_name}
+                       />
                     </div>
-                    
-                    <div className="flex items-center justify-between p-4 rounded-xl border bg-gradient-to-r from-background to-secondary/5 transition-all shadow-sm group hover:border-primary/30" style={{ borderColor: `${settings.primaryColor}20` }}>
-                      <div className="flex flex-col overflow-hidden mr-4 flex-1 gap-1">
-                         <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest opacity-70">{t.active_station}</span>
-                         <span className="text-xs font-bold truncate text-primary group-hover:text-foreground transition-colors">{MUSIC_TRACKS[settings.currentTrackIndex].title}</span>
+
+                    {/* Network Domain */}
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.net_domain}</label>
+                       <Input 
+                         value={settings.domain} 
+                         onChange={(e) => updateSettings({ domain: e.target.value })} 
+                         placeholder="iot-device"
+                       />
+                    </div>
+
+                    {/* Toggles */}
+                    <div className="space-y-4 pt-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.ui_anim}</label>
+                        <Switch checked={settings.animations} onCheckedChange={(c) => updateSettings({ animations: c })} />
                       </div>
-                      <div className="flex items-center gap-1">
-                         <Button size="icon" variant="ghost" onClick={handlePrevTrack} className="h-8 w-8 hover:bg-primary/10 hover:text-primary rounded-lg transition-colors"><SkipBack size={14} /></Button>
-                         <Button 
-                            size="icon" 
-                            variant={settings.bgMusic ? "default" : "outline"} 
-                            onClick={() => updateSettings({ bgMusic: !settings.bgMusic })} 
-                            className={cn(
-                                "h-10 w-10 shadow-lg rounded-xl transition-all", 
-                                settings.bgMusic ? "shadow-primary/30 scale-105" : "hover:border-primary/50"
-                            )}
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.sys_notif}</label>
+                        <Switch checked={settings.enableNotifications} onCheckedChange={(c) => updateSettings({ enableNotifications: c })} />
+                      </div>
+                       <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.audio_engine}</label>
+                        <Switch checked={settings.bgMusic} onCheckedChange={(c) => updateSettings({ bgMusic: c })} />
+                      </div>
+                    </div>
+
+                    {/* Audio Controls */}
+                    <AnimatePresence>
+                      {settings.bgMusic && (
+                        <MotionDiv
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="bg-secondary/5 rounded-xl p-4 space-y-4 border border-border"
                         >
-                            {settings.bgMusic ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
-                         </Button>
-                         <Button size="icon" variant="ghost" onClick={handleNextTrack} className="h-8 w-8 hover:bg-primary/10 hover:text-primary rounded-lg transition-colors"><SkipForward size={14} /></Button>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3 px-1">
-                       <div className="flex justify-between items-end">
-                          <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{t.master_vol}</span>
-                          <span className="text-[10px] font-mono font-bold text-primary">{settings.volume}%</span>
+                           <div className="flex items-center justify-between">
+                              <span className="text-[9px] font-black uppercase tracking-widest opacity-70">{t.active_station}</span>
+                              <div className="flex items-center gap-2">
+                                  <Button variant="ghost" size="icon" onClick={handlePrevTrack} className="h-6 w-6"><SkipBack size={12} /></Button>
+                                  <span className="text-[9px] font-mono font-bold text-primary truncate max-w-[100px]">{MUSIC_TRACKS[settings.currentTrackIndex]?.title}</span>
+                                  <Button variant="ghost" size="icon" onClick={handleNextTrack} className="h-6 w-6"><SkipForward size={12} /></Button>
+                              </div>
+                           </div>
+                           <div className="space-y-2">
+                              <div className="flex justify-between text-[9px] font-black uppercase tracking-widest opacity-60">
+                                 <span>{t.master_vol}</span>
+                                 <span>{settings.volume}%</span>
+                              </div>
+                              <Slider
+                                value={[settings.volume]}
+                                onValueChange={(val) => updateSettings({ volume: val[0] })}
+                                max={100}
+                                step={1}
+                              />
+                           </div>
+                        </MotionDiv>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Theme Accent */}
+                    <div className="space-y-2 pt-2 border-t border-border/50">
+                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.accent_color}</label>
+                       <div className="flex gap-2 flex-wrap">
+                          {["#daa520", "#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"].map(color => (
+                            <button
+                              key={color}
+                              onClick={() => updateSettings({ primaryColor: color })}
+                              className={cn(
+                                "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
+                                settings.primaryColor === color ? "border-foreground scale-110 shadow-sm" : "border-transparent opacity-70 hover:opacity-100"
+                              )}
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
                        </div>
-                       <Slider value={[settings.volume]} onValueChange={([v]) => updateSettings({ volume: v })} max={100} step={1} className="py-1" />
                     </div>
                   </CardContent>
-                </Card>
+               </Card>
             </MenuSection>
             
           </div>
