@@ -2,7 +2,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '../ui/card';
-import { cn } from '../../lib/utils';
+import { cn, isPersian, getFontClass } from '../../lib/utils';
+import { useSettingsStore } from '../../lib/store/settings';
 
 interface SegmentCardProps {
   gpio: number;
@@ -15,6 +16,9 @@ interface SegmentCardProps {
 const MotionCard = motion(Card) as any;
 
 export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children, onRemove, dragHandle }) => {
+  const { settings } = useSettingsStore();
+  const labelFontClass = isPersian(label) ? "font-persian" : getFontClass(settings.dashboardFont);
+
   return (
     <MotionCard 
       layout
@@ -41,10 +45,13 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children,
           {dragHandle}
         </div>
         <div className="flex flex-col">
-          <span className="text-black font-black text-[10px] tracking-tight uppercase leading-none">
+          <span className={cn(
+            "text-black font-black text-[10px] tracking-tight uppercase leading-none",
+            labelFontClass
+          )}>
             DEVICE-ID: {label}
           </span>
-          <span className="text-black/60 font-black text-[8px] uppercase tracking-widest mt-0.5">
+          <span className="text-black/60 font-black text-[8px] uppercase tracking-widest mt-0.5 font-mono">
             pin-number: GP-{gpio}
           </span>
         </div>

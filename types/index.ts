@@ -23,7 +23,7 @@ export enum CMD {
   ERROR = 0xFF,
 }
 
-export type SegmentType = 'All' | 'PWM' | 'Digital' | 'Input-0-1';
+export type SegmentType = 'All' | 'PWM' | 'Digital' | 'Code' | 'Input-0-1';
 export type GroupType = 'custom' | 'register' | 'weather' | 'input';
 export type ButtonTrigger = 0 | 1 | 2 | 3; // Hold, Toggle, High, Low
 export type ButtonAction = 0 | 1 | 2 | 3; // None, ON, OFF, Toggle
@@ -38,6 +38,9 @@ export interface Segment {
   is_led_on: 'on' | 'off';
   val_of_slide: number;
   
+  // Digital Button Mode
+  onOffMode?: 'toggle' | 'momentary'; // 'toggle' = Standard Click, 'momentary' = Push to Hold
+
   // Timer Feature
   timerFinishAt?: number; // Timestamp (ms) when timer expires
 
@@ -69,6 +72,7 @@ export interface AppSettings {
   theme: 'dark' | 'light';
   readonly useSsl: boolean; // Derived from window location
   currentTrackIndex: number; 
+  dashboardFont?: 'Inter' | 'Oswald' | 'Lato' | 'Montserrat' | 'DinaRemaster' | 'PrpggyDotted';
 }
 
 export interface LogEntry {

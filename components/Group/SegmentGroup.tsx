@@ -8,7 +8,7 @@ import { WeatherSegment } from '../Segment/WeatherSegment';
 import { InputSegment } from '../Segment/InputSegment';
 import { Segment } from '../../types/index';
 import { GroupHeader } from './GroupHeader';
-import { cn } from '../../lib/utils';
+import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { useSettingsStore } from '../../lib/store/settings';
 
 interface Props {
@@ -263,6 +263,9 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
   const gridClass = isRegisterGroup 
     ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3" 
     : (segments.length === 2 ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2 gap-6");
+    
+  // Smart Font Class for Zone Name
+  const zoneFontClass = isPersian(name) ? "font-persian" : getFontClass(settings.dashboardFont);
 
   return (
     <div 
@@ -271,7 +274,10 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
     >
       {/* Group Boundary Label & Drag Handle */}
       <div 
-        className="absolute -top-3 left-8 pl-1 pr-3 text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-colors z-10 border border-dashed rounded-full backdrop-blur-md"
+        className={cn(
+          "absolute -top-3 left-8 pl-1 pr-3 text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-colors z-10 border border-dashed rounded-full backdrop-blur-md",
+          zoneFontClass
+        )}
         style={labelStyle}
       >
         {dragHandle && (

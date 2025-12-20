@@ -11,7 +11,7 @@ import { useConnection } from '../lib/store/connection';
 import { CMD, Segment } from '../types/index';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { Zap, Trash2, Hexagon, Cpu, Laptop, Smartphone, GripHorizontal } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, getFontClass } from '../lib/utils';
 import { translations } from '../lib/i18n';
 import { MUSIC_TRACKS } from '../lib/constants';
 
@@ -303,7 +303,8 @@ export default function DashboardPage(): React.JSX.Element {
     <MotionConfig reducedMotion={settings.animations ? "never" : "always"}>
       <div className={cn(
           "min-h-screen graph-paper transition-colors duration-500 flex flex-col overflow-x-hidden",
-          settings.animations && "animate-grid"
+          settings.animations && "animate-grid",
+          getFontClass(settings.dashboardFont) // Apply Global Dashboard Font
       )}>
         <Header onOpenMenu={() => setIsMenuOpen(true)} />
         

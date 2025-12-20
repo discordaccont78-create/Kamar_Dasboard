@@ -1,23 +1,22 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSegments } from '../../lib/store/segments';
 import { useSettingsStore } from '../../lib/store/settings';
 import { useConnection } from '../../lib/store/connection';
+import { useUIStore } from '../../lib/store/uiState'; // Imported UI Store
 import { SegmentType } from '../../types/index';
 import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
-  Sun, Moon, Settings as SettingsIcon, Volume2, 
-  X, LayoutGrid, Play, Pause, Activity, Monitor, Zap, Type, Palette, Bell,
-  SkipBack, SkipForward, Clock, Power, Check, Plus, ChevronDown, Cpu, Cloud, ToggleRight
+  Settings as SettingsIcon, X, Zap, Play, Activity, Monitor, 
+  SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { TrafficChart } from '../Analytics/TrafficChart';
 import { cn } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
 
@@ -65,14 +64,14 @@ const TechButton = ({ children, onClick, className, variant = 'primary', icon: I
     );
 };
 
-// Collapsible Menu Section Component
-const MenuSection = ({ title, icon: Icon, children, defaultOpen = true }: any) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+// Collapsible Menu Section Component (Controlled)
+const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle }: any) => {
+  const isOpen = id === activeId;
   
   return (
     <div className="space-y-1">
       <button 
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => onToggle(id)}
         className="w-full flex items-center gap-3 group outline-none py-3 select-none"
       >
         <div className={cn(
@@ -123,46 +122,22 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   const { addSegment, segments, setSegmentTimer } = useSegments();
   const { addToast } = useConnection();
   
-  const t = translations[settings.language];
+  // Use Persistent UI Store
+  const { 
+    activeSection, setActiveSection,
+    outputForm, setOutputForm,
+    inputForm, setInputForm,
+    regForm, setRegForm,
+    dhtForm, setDhtForm,
+    timerForm, setTimerForm
+  } = useUIStore();
   
-  // Output Segment Form
-  const [outputForm, setOutputForm] = useState({
-    gpio: '',
-    name: '',
-    type: 'Digital' as SegmentType,
-    group: ''
-  });
+  const t = translations[settings.language];
 
-  // Input Segment Form
-  const [inputForm, setInputForm] = useState({
-    gpio: '',
-    name: '',
-    group: '',
-    trigger: '1' // 1=Toggle as default
-  });
-
-  // Register Form (Corrected inputs)
-  const [regForm, setRegForm] = useState({
-    ds: '',
-    shcp: '',
-    stcp: '',
-    group: ''
-  });
-
-  // DHT Form
-  const [dhtForm, setDhtForm] = useState({
-    gpio: '',
-    name: '',
-    group: ''
-  });
-
-  // Timer Form
-  const [timerForm, setTimerForm] = useState({
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-    targetSegmentId: ''
-  });
+  // Accordion Toggle Handler
+  const handleSectionToggle = (id: string) => {
+    setActiveSection(activeSection === id ? null : id);
+  };
 
   // --- Validation Helpers ---
   const isGpioUsed = (pin: number) => {
@@ -210,8 +185,10 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
       gpio: pin,
       is_led_on: 'off',
       val_of_slide: 0,
+      onOffMode: outputForm.onOffMode
     });
-    setOutputForm({ gpio: '', name: '', type: 'Digital', group: '' });
+    // Clear form after success
+    setOutputForm({ gpio: '', name: '', type: 'Digital', group: '', onOffMode: 'toggle' });
     addToast("Output segment added successfully", "success");
   };
 
@@ -245,6 +222,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
       inputActive: false,
       usePullup: true
     });
+    // Clear form after success
     setInputForm({ gpio: '', name: '', group: '', trigger: '1' });
     addToast("Input segment added successfully", "success");
   };
@@ -260,27 +238,24 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
         return; 
     }
 
-    // Check unique pins
     if (isGpioUsed(ds)) { addToast(`DS Pin ${ds} is in use`, "error"); return; }
     if (isGpioUsed(shcp)) { addToast(`SHCP Pin ${shcp} is in use`, "error"); return; }
     if (isGpioUsed(stcp)) { addToast(`STCP Pin ${stcp} is in use`, "error"); return; }
 
-    // Check group
     const existingGroup = segments.find(s => s.group === groupName);
     if (existingGroup && existingGroup.groupType !== 'register') {
          addToast(`Group '${groupName}' is taken by non-register devices.`, "error");
          return;
     }
 
-    // Create 8 individual segments acting as bits
     for(let i = 0; i < 8; i++) {
         addSegment({
             num_of_node: Math.random().toString(36).substr(2, 9),
             name: `BIT ${i}`,
             group: groupName,
-            groupType: 'register', // Specifically marked as register
+            groupType: 'register', 
             segType: 'Digital',
-            gpio: stcp, // Main ID pin (Latch)
+            gpio: stcp, 
             dsPin: ds,
             shcpPin: shcp,
             stcpPin: stcp,
@@ -336,9 +311,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     addToast("Timer started successfully", "success");
   };
 
-  // Filter segments suitable for Timer (Digital/All/PWM)
   const timerCapableSegments = segments.filter(s => 
-    s.groupType !== 'input' && s.groupType !== 'weather'
+    s.groupType !== 'input' && s.groupType !== 'weather' && s.segType !== 'Code'
   );
 
   const handleNextTrack = () => {
@@ -354,7 +328,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="DialogOverlay fixed inset-0 bg-black/60 backdrop-blur-md z-[150]" />
+        <Dialog.Overlay className="DialogOverlay fixed inset-0 bg-[#daa520]/10 backdrop-blur-md z-[150]" />
         
         <Dialog.Content 
           className={cn(
@@ -384,29 +358,68 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
           <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-20 no-scrollbar">
             
             {/* === OUTPUT SEGMENTS SECTION === */}
-            <MenuSection title="Output Segments" icon={Zap} defaultOpen={true}>
-              {/* Add Output Card */}
+            <MenuSection 
+                id="output" 
+                title="Output Segments" 
+                icon={Zap} 
+                activeId={activeSection} 
+                onToggle={handleSectionToggle}
+            >
+              {/* ... Add Output Card ... */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardContent className="space-y-5 pt-6">
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.gpio}</label>
-                     <Input type="number" value={outputForm.gpio} onChange={e => setOutputForm({...outputForm, gpio: e.target.value})} className="col-span-3 h-9" placeholder="PIN #" />
+                     <Input type="number" value={outputForm.gpio} onChange={e => setOutputForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="PIN #" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
-                     <Input value={outputForm.name} onChange={e => setOutputForm({...outputForm, name: e.target.value})} className="col-span-3 h-9" placeholder={t.dev_name} />
+                     <Input value={outputForm.name} onChange={e => setOutputForm({ name: e.target.value })} className="col-span-3 h-9" placeholder={t.dev_name} />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.type}</label>
-                     <select value={outputForm.type} onChange={e => setOutputForm({...outputForm, type: e.target.value as SegmentType})} className="col-span-3 h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
-                        <option value="Digital">Digital (Relay)</option>
+                     <select value={outputForm.type} onChange={e => setOutputForm({ type: e.target.value as SegmentType })} className="col-span-3 h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
+                        <option value="Digital">On/Off (Relay)</option>
                         <option value="PWM">PWM (Dimmer)</option>
-                        <option value="All">Hybrid</option>
+                        <option value="Code">Protocol (Code)</option>
+                        <option value="All">Hybrid (All)</option>
                       </select>
                   </div>
+                  
+                  {/* Button Mode Selector - Only visible for Digital/All */}
+                  {(outputForm.type === 'Digital' || outputForm.type === 'All') && (
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Mode</label>
+                        <div className="col-span-3 flex gap-2">
+                           <button 
+                             onClick={() => setOutputForm({ onOffMode: 'toggle' })}
+                             className={cn(
+                               "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all",
+                               outputForm.onOffMode === 'toggle' 
+                                 ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
+                                 : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                             )}
+                           >
+                             Feshari (Toggle)
+                           </button>
+                           <button 
+                             onClick={() => setOutputForm({ onOffMode: 'momentary' })}
+                             className={cn(
+                               "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all",
+                               outputForm.onOffMode === 'momentary' 
+                                 ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
+                                 : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                             )}
+                           >
+                             Switch (Push)
+                           </button>
+                        </div>
+                     </div>
+                  )}
+
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input value={outputForm.group} onChange={e => setOutputForm({...outputForm, group: e.target.value})} className="col-span-3 h-9" placeholder="Optional Group" />
+                     <Input value={outputForm.group} onChange={e => setOutputForm({ group: e.target.value })} className="col-span-3 h-9" placeholder="Optional Group" />
                   </div>
                   
                   <TechButton onClick={handleAddOutput} icon={Plus}>
@@ -415,7 +428,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 </CardContent>
               </Card>
 
-              {/* Timer Feature */}
+              {/* ... Timer Feature ... */}
               <Card className="rounded-2xl border-border shadow-sm bg-gradient-to-br from-card to-secondary/5 overflow-hidden">
                 <CardHeader className="pb-3 border-b border-border/50 bg-secondary/5 py-4">
                    <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
@@ -433,11 +446,10 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                 value={idx === 0 ? timerForm.hours : idx === 1 ? timerForm.minutes : timerForm.seconds} 
                                 onChange={e => {
                                     const val = parseInt(e.target.value) || 0;
-                                    const newForm = {...timerForm};
-                                    if(idx === 0) newForm.hours = val;
-                                    else if(idx === 1) newForm.minutes = val;
-                                    else newForm.seconds = val;
-                                    setTimerForm(newForm);
+                                    const newForm = {};
+                                    if(idx === 0) setTimerForm({ hours: val });
+                                    else if(idx === 1) setTimerForm({ minutes: val });
+                                    else setTimerForm({ seconds: val });
                                 }} 
                                 className="h-10 w-14 text-center text-lg" 
                             />
@@ -449,7 +461,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                    <div className="space-y-2">
                       <select 
                         value={timerForm.targetSegmentId}
-                        onChange={e => setTimerForm({...timerForm, targetSegmentId: e.target.value})}
+                        onChange={e => setTimerForm({ targetSegmentId: e.target.value })}
                         className="w-full h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
                       >
                          <option value="">Select Target Device...</option>
@@ -468,9 +480,16 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </Card>
             </MenuSection>
 
-            {/* === HARDWARE TEMPLATES SECTION === */}
-            <MenuSection title="Hardware Templates" icon={Cpu} defaultOpen={false}>
-               {/* Shift Register Card (Corrected 3-Pin Input) */}
+            {/* ... Other Sections ... */}
+            
+            <MenuSection 
+                id="hardware" 
+                title="Hardware Templates" 
+                icon={Cpu} 
+                activeId={activeSection} 
+                onToggle={handleSectionToggle}
+            >
+               {/* Shift Register Card */}
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
@@ -480,19 +499,19 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 <CardContent className="space-y-4 pt-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input value={regForm.group} onChange={e => setRegForm({...regForm, group: e.target.value})} className="col-span-3 h-9" placeholder="Register Name (e.g. Relays)" />
+                     <Input value={regForm.group} onChange={e => setRegForm({ group: e.target.value })} className="col-span-3 h-9" placeholder="Register Name (e.g. Relays)" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">DS</label>
-                     <Input type="number" value={regForm.ds} onChange={e => setRegForm({...regForm, ds: e.target.value})} className="col-span-3 h-9" placeholder="Data Pin (SER)" />
+                     <Input type="number" value={regForm.ds} onChange={e => setRegForm({ ds: e.target.value })} className="col-span-3 h-9" placeholder="Data Pin (SER)" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">SHCP</label>
-                     <Input type="number" value={regForm.shcp} onChange={e => setRegForm({...regForm, shcp: e.target.value})} className="col-span-3 h-9" placeholder="Clock Pin (SRCLK)" />
+                     <Input type="number" value={regForm.shcp} onChange={e => setRegForm({ shcp: e.target.value })} className="col-span-3 h-9" placeholder="Clock Pin (SRCLK)" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">STCP</label>
-                     <Input type="number" value={regForm.stcp} onChange={e => setRegForm({...regForm, stcp: e.target.value})} className="col-span-3 h-9" placeholder="Latch Pin (RCLK)" />
+                     <Input type="number" value={regForm.stcp} onChange={e => setRegForm({ stcp: e.target.value })} className="col-span-3 h-9" placeholder="Latch Pin (RCLK)" />
                   </div>
                   
                   <TechButton onClick={handleAddRegister} icon={Plus} variant="outline">
@@ -511,15 +530,15 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 <CardContent className="space-y-4 pt-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Data</label>
-                     <Input type="number" value={dhtForm.gpio} onChange={e => setDhtForm({...dhtForm, gpio: e.target.value})} className="col-span-3 h-9" placeholder="Data Pin GPIO" />
+                     <Input type="number" value={dhtForm.gpio} onChange={e => setDhtForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="Data Pin GPIO" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
-                     <Input value={dhtForm.name} onChange={e => setDhtForm({...dhtForm, name: e.target.value})} className="col-span-3 h-9" placeholder="Sensor Name" />
+                     <Input value={dhtForm.name} onChange={e => setDhtForm({ name: e.target.value })} className="col-span-3 h-9" placeholder="Sensor Name" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input value={dhtForm.group} onChange={e => setDhtForm({...dhtForm, group: e.target.value})} className="col-span-3 h-9" placeholder="Weather Group" />
+                     <Input value={dhtForm.group} onChange={e => setDhtForm({ group: e.target.value })} className="col-span-3 h-9" placeholder="Weather Group" />
                   </div>
                   
                   <TechButton onClick={handleAddDHT} icon={Plus} variant="outline">
@@ -529,21 +548,27 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </Card>
             </MenuSection>
 
-            {/* === INPUT SEGMENTS SECTION === */}
-            <MenuSection title="Input Sensors" icon={Monitor} defaultOpen={true}>
+            <MenuSection 
+                id="inputs" 
+                title="Input Sensors" 
+                icon={Monitor} 
+                activeId={activeSection} 
+                onToggle={handleSectionToggle}
+            >
+              {/* ... Input Card ... */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardContent className="space-y-5 pt-6">
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.gpio}</label>
-                     <Input type="number" value={inputForm.gpio} onChange={e => setInputForm({...inputForm, gpio: e.target.value})} className="col-span-3 h-9" placeholder="PIN #" />
+                     <Input type="number" value={inputForm.gpio} onChange={e => setInputForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="PIN #" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
-                     <Input value={inputForm.name} onChange={e => setInputForm({...inputForm, name: e.target.value})} className="col-span-3 h-9" placeholder="Sensor Name" />
+                     <Input value={inputForm.name} onChange={e => setInputForm({ name: e.target.value })} className="col-span-3 h-9" placeholder="Sensor Name" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Trigger</label>
-                     <select value={inputForm.trigger} onChange={e => setInputForm({...inputForm, trigger: e.target.value})} className="col-span-3 h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
+                     <select value={inputForm.trigger} onChange={e => setInputForm({ trigger: e.target.value })} className="col-span-3 h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
                         <option value="2">High (1)</option>
                         <option value="3">Low (0)</option>
                         <option value="1">Toggle</option>
@@ -552,7 +577,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input value={inputForm.group} onChange={e => setInputForm({...inputForm, group: e.target.value})} className="col-span-3 h-9" placeholder="Optional" />
+                     <Input value={inputForm.group} onChange={e => setInputForm({ group: e.target.value })} className="col-span-3 h-9" placeholder="Optional" />
                   </div>
                   
                   <TechButton onClick={handleAddInput} icon={Plus}>
@@ -562,8 +587,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </Card>
             </MenuSection>
 
-            {/* === SYSTEM CORE SECTION (RESTORED) === */}
-            <MenuSection title="System Core" icon={Activity} defaultOpen={true}>
+            <MenuSection 
+                id="system" 
+                title="System Core" 
+                icon={Activity} 
+                activeId={activeSection} 
+                onToggle={handleSectionToggle}
+            >
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                   <CardContent className="space-y-6 pt-6">
                     {/* Dashboard Title */}
@@ -584,6 +614,38 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                          onChange={(e) => updateSettings({ domain: e.target.value })} 
                          placeholder="iot-device"
                        />
+                    </div>
+
+                    {/* Dashboard Font Selector */}
+                    <div className="space-y-2 pt-2">
+                         <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                            <Type size={12} /> Dashboard Font
+                         </label>
+                         <div className="grid grid-cols-2 gap-2">
+                            {['Inter', 'Oswald', 'Lato', 'Montserrat', 'DinaRemaster', 'PrpggyDotted'].map((fontName) => {
+                                const isSelected = settings.dashboardFont === fontName;
+                                let fontClass = "font-inter";
+                                if (fontName === 'Oswald') fontClass = "font-oswald";
+                                if (fontName === 'Lato') fontClass = "font-lato";
+                                if (fontName === 'Montserrat') fontClass = "font-montserrat";
+                                if (fontName === 'DinaRemaster') fontClass = "font-dina";
+                                if (fontName === 'PrpggyDotted') fontClass = "font-proggy";
+
+                                return (
+                                    <button
+                                        key={fontName}
+                                        onClick={() => updateSettings({ dashboardFont: fontName as any })}
+                                        className={cn(
+                                            "h-12 border rounded-lg flex flex-col items-center justify-center transition-all hover:bg-secondary/10",
+                                            isSelected ? "border-primary bg-primary/10 text-primary shadow-[0_0_10px_-4px_var(--primary)]" : "border-white/10 text-muted-foreground"
+                                        )}
+                                    >
+                                        <span className={cn("text-xs font-bold", fontClass)}>{fontName}</span>
+                                        <span className={cn("text-[8px] opacity-60", fontClass)}>Focus and effort</span>
+                                    </button>
+                                );
+                            })}
+                         </div>
                     </div>
 
                     {/* Toggles */}

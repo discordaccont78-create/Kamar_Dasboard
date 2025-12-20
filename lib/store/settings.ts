@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { AppSettings } from '../../types/index';
@@ -44,7 +45,8 @@ export const useSettingsStore = create<SettingsStore>()(
         currentTrackIndex: 0,
         enableNotifications: true,
         primaryColor: "#daa520", // Default Gold
-        language: 'en'
+        language: 'en',
+        dashboardFont: 'Inter'
       },
       updateSettings: (updates) => set((state) => ({
         settings: { ...state.settings, ...updates }

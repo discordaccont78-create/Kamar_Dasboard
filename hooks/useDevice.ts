@@ -17,35 +17,65 @@ export function useDeviceState(segmentId: string) {
   });
 }
 
-// Hook to control a device
+// Hook to control a device with Optimistic UI Updates
 export function useDeviceControl() {
   const { sendCommand } = useWebSocket();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: { cmd: number, gpio: number, value: number, nodeId: string }) => {
-      // Optimistic update logic could go here, but we'll wait for command sending
-      const success = sendCommand(payload.cmd, payload.gpio, payload.value);
-      if (!success) throw new Error("Failed to send command");
-      return payload;
-    },
-    onSuccess: (variables) => {
-      // Optimistically update the cache on successful send
-      // In a real app, we might wait for ACK, but for responsiveness we update now
-      queryClient.setQueryData(['device', variables.nodeId], (old: Segment | undefined) => {
+    // 1. Mutate: This runs immediately when you call controlDevice
+    onMutate: async (payload: { cmd: number, gpio: number, value: number, nodeId: string }) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['device', payload.nodeId] });
+
+      // Snapshot the previous value
+      const previousDevice = queryClient.getQueryData(['device', payload.nodeId]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(['device', payload.nodeId], (old: Segment | undefined) => {
         if (!old) return old;
         
         const updates: Partial<Segment> = {};
         
-        switch (variables.cmd) {
-            case CMD.LED_ON: updates.is_led_on = 'on'; break;
-            case CMD.LED_OFF: updates.is_led_on = 'off'; break;
-            case CMD.LED_PWM: updates.val_of_slide = variables.value; break;
-            // Add other cases as needed
+        switch (payload.cmd) {
+            case CMD.LED_ON: 
+                updates.is_led_on = 'on'; 
+                break;
+            case CMD.LED_OFF: 
+                updates.is_led_on = 'off'; 
+                break;
+            case CMD.LED_TOGGLE:
+                updates.is_led_on = old.is_led_on === 'on' ? 'off' : 'on';
+                break;
+            case CMD.LED_PWM: 
+                updates.val_of_slide = payload.value; 
+                break;
         }
 
         return { ...old, ...updates };
       });
-    }
+
+      // Return a context object with the snapshotted value
+      return { previousDevice };
+    },
+
+    // 2. The actual network request
+    mutationFn: async (payload: { cmd: number, gpio: number, value: number, nodeId: string }) => {
+      const success = sendCommand(payload.cmd, payload.gpio, payload.value);
+      if (!success) throw new Error("Failed to send command (Device Offline)");
+      return payload;
+    },
+
+    // 3. If the network request fails, roll back to the saved value
+    onError: (err, newTodo, context) => {
+      if (context?.previousDevice) {
+        queryClient.setQueryData(['device', newTodo.nodeId], context.previousDevice);
+      }
+    },
+
+    // 4. Always refetch after error or success to ensure sync
+    onSettled: (data, error, variables) => {
+      // Optional: queryClient.invalidateQueries({ queryKey: ['device', variables.nodeId] });
+    },
   });
 }
