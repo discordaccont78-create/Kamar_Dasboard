@@ -12,28 +12,44 @@ export class WebSocketManager {
   }
 
   connect() {
-    this.socket = new WebSocket(this.url);
-    this.socket.binaryType = 'arraybuffer';
-    
-    this.socket.onopen = () => {
-      this.reconnectAttempts = 0;
-      this.onStatusChange?.(true);
-    };
-    
-    this.socket.onmessage = (event) => {
-      this.onMessageCallback?.(event.data);
-    };
-    
-    this.socket.onclose = () => {
-      this.onStatusChange?.(false);
-      this.scheduleReconnect();
-    };
+    try {
+        this.socket = new WebSocket(this.url);
+        this.socket.binaryType = 'arraybuffer';
+        
+        this.socket.onopen = () => {
+          this.reconnectAttempts = 0;
+          this.onStatusChange?.(true);
+        };
+        
+        this.socket.onmessage = (event) => {
+          this.onMessageCallback?.(event.data);
+        };
+        
+        this.socket.onclose = () => {
+          this.onStatusChange?.(false);
+          this.scheduleReconnect();
+        };
+        
+        this.socket.onerror = (e) => {
+           console.error("WebSocket Error:", e);
+           // Do not throw here to prevent app crash, let onclose handle reconnect
+        };
+    } catch (e) {
+        console.error("Failed to create WebSocket:", e);
+        this.scheduleReconnect();
+    }
   }
 
   send(data: ArrayBuffer | string) {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(data);
-      return true;
+    // Defensive check: ensure socket exists AND is open
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      try {
+          this.socket.send(data);
+          return true;
+      } catch (e) {
+          console.error("Socket send failed:", e);
+          return false;
+      }
     }
     return false;
   }
@@ -49,10 +65,21 @@ export class WebSocketManager {
   private scheduleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) return;
     this.reconnectAttempts++;
-    setTimeout(() => this.connect(), 5000);
+    setTimeout(() => {
+        // Double check we haven't been disconnected/destroyed in the meantime
+        if (this.socket && this.socket.readyState !== WebSocket.OPEN) {
+            this.connect();
+        } else if (!this.socket) {
+            this.connect();
+        }
+    }, 5000);
   }
 
   disconnect() {
-    this.socket?.close();
+    if (this.socket) {
+        this.socket.onclose = null; // Prevent reconnect loop
+        this.socket.close();
+        this.socket = null;
+    }
   }
 }

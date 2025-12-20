@@ -54,9 +54,9 @@ export function useSchedulerEngine() {
                     }
 
                     // Send Hardware Command
-                    sendCommand(cmdToSend, segment.gpio || 0, 0);
+                    const success = sendCommand(cmdToSend, segment.gpio || 0, 0);
                     
-                    // Update Timestamp
+                    // Update Timestamp immediately to prevent double-fire
                     updateLastRun(schedule.id, currentTimestamp);
                     
                     // Localized Notification
@@ -64,16 +64,30 @@ export function useSchedulerEngine() {
                                       : schedule.action === 'OFF' ? (settings.language === 'fa' ? 'خاموش' : 'OFF') 
                                       : (settings.language === 'fa' ? 'تغییر وضعیت' : 'TOGGLED');
 
-                    const msg = settings.language === 'fa'
-                        ? `وظیفه خودکار اجرا شد: ${segment.name} -> ${actionLabel}`
-                        : `Auto-Task Executed: ${segment.name} turned ${actionLabel}`;
+                    if (success) {
+                        const msg = settings.language === 'fa'
+                            ? `وظیفه خودکار اجرا شد: ${segment.name} -> ${actionLabel}`
+                            : `Auto-Task Executed: ${segment.name} turned ${actionLabel}`;
+                        addToast(msg, 'info');
+                    } else {
+                        const msg = settings.language === 'fa'
+                            ? `خطا در اجرای وظیفه: دستگاه ${segment.name} پاسخ نمی‌دهد`
+                            : `Task Failed: Device ${segment.name} unreachable`;
+                        addToast(msg, 'error');
+                    }
 
-                    addToast(msg, 'info');
+                } else {
+                    // Segment not found (maybe deleted?)
+                    updateLastRun(schedule.id, currentTimestamp); // Mark run to avoid spamming error
+                    const msg = settings.language === 'fa'
+                            ? `خطا: دستگاه برای برنامه ${schedule.time} پیدا نشد`
+                            : `Error: Target device not found for ${schedule.time} schedule`;
+                    addToast(msg, 'error');
                 }
             }
         });
 
-    }, 5000); // Check every 5 seconds
+    }, 3000); // Check every 3 seconds for better precision
 
     return () => clearInterval(interval);
   }, [schedules, segments, sendCommand, updateLastRun, toggleSegment, addToast, settings.language]);
