@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Power, Send, Trash2, Clock } from 'lucide-react';
-// Fix: Import from ../UI/Slider to maintain consistency with the component's perceived file path in the program.
-import { Slider } from '../UI/Slider';
+import { Slider } from '../ui/slider';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
 import { Segment, CMD } from '../../types/index';
 import { useDeviceState, useDeviceControl } from '../../hooks/useDevice';
+import { cn } from '../../lib/utils';
 
 interface Props {
   segment: Segment;
@@ -51,12 +51,14 @@ export const CustomSegment: React.FC<Props> = ({ segment: initialSegment }) => {
       animate={{ opacity: 1, scale: 1 }}
       className="flex flex-col gap-6"
     >
-      {/* Power Control */}
+      {/* Power Control - Updated to match visual reference (White/Light Card) */}
       {(safeSegment.segType === 'All' || safeSegment.segType === 'Digital') && (
-        <div className="flex items-center justify-between bg-secondary/5 p-3 rounded-lg border border-border-light dark:border-border-dark">
-           <div className="flex flex-col">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Relay Logic</label>
-              <span className="text-xs font-mono font-bold">{isOn ? 'ACTIVE' : 'IDLE'}</span>
+        <div className="flex items-center justify-between bg-white dark:bg-white/5 p-4 rounded-xl border border-black/5 dark:border-white/10 shadow-sm transition-all hover:shadow-md">
+           <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Relay Logic</label>
+              <span className="text-xs font-mono font-bold transition-colors text-foreground/50">
+                {isOn ? <span className="text-primary">ACTIVE</span> : 'IDLE'}
+              </span>
            </div>
            <Switch checked={isOn} onCheckedChange={handleToggle} />
         </div>
@@ -104,16 +106,19 @@ export const CustomSegment: React.FC<Props> = ({ segment: initialSegment }) => {
         </div>
       </div>
 
-      {/* Timer Section */}
+      {/* Timer Section - Fixed inconsistency in digit colors */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2 text-muted-foreground">
            <Clock size={12} />
            <span className="text-[9px] font-black uppercase tracking-widest">Runtime</span>
         </div>
-        <div className="flex gap-1 font-mono text-[10px] font-black dark:text-white">
-          <span className="bg-secondary/10 px-1 py-0.5 rounded">00</span>:
-          <span className="bg-secondary/10 px-1 py-0.5 rounded text-primary">00</span>:
-          <span className="bg-secondary/10 px-1 py-0.5 rounded">00</span>
+        <div className="flex gap-1 font-mono text-[10px] font-bold text-foreground/80 items-center">
+          <span className="bg-secondary/10 px-1.5 py-0.5 rounded min-w-[22px] text-center">00</span>
+          <span className="text-muted-foreground/40">:</span>
+          {/* Removed text-primary from the middle digit to ensure uniformity */}
+          <span className="bg-secondary/10 px-1.5 py-0.5 rounded min-w-[22px] text-center">00</span>
+          <span className="text-muted-foreground/40">:</span>
+          <span className="bg-secondary/10 px-1.5 py-0.5 rounded min-w-[22px] text-center">00</span>
         </div>
       </div>
     </MotionDiv>

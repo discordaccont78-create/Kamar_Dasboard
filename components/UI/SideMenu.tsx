@@ -12,8 +12,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-// Fix: Use local Slider with correct casing (./Slider) to resolve casing conflicts with the build environment's file system perception.
-import { Slider } from './Slider';
+import { Slider } from '../ui/slider';
 import { TrafficChart } from '../Analytics/TrafficChart';
 import { cn } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
