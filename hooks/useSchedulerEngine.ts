@@ -1,18 +1,20 @@
 
 import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSchedulerStore } from '../lib/store/scheduler';
 import { useSegments } from '../lib/store/segments';
 import { useSettingsStore } from '../lib/store/settings';
 import { useWebSocket } from './useWebSocket';
 import { useConnection } from '../lib/store/connection';
-import { CMD } from '../types/index';
+import { CMD, Segment } from '../types/index';
 
 export function useSchedulerEngine() {
   const { schedules, updateLastRun } = useSchedulerStore();
-  const { segments, toggleSegment } = useSegments();
+  const { segments, updateSegment } = useSegments(); // Use updateSegment instead of toggle
   const { settings } = useSettingsStore();
   const { sendCommand } = useWebSocket();
   const { addToast } = useConnection();
+  const queryClient = useQueryClient(); // Access React Query Cache
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -37,58 +39,66 @@ export function useSchedulerEngine() {
                 const segment = segments.find(s => s.num_of_node === schedule.targetSegmentId);
                 
                 if (segment) {
-                    let cmdToSend = CMD.LED_ON; // default
-                    
-                    if (schedule.action === 'ON') cmdToSend = CMD.LED_ON;
-                    if (schedule.action === 'OFF') cmdToSend = CMD.LED_OFF;
-                    
-                    // Special logic for Toggle
-                    if (schedule.action === 'TOGGLE') {
-                        toggleSegment(segment.num_of_node);
-                        const newState = segment.is_led_on === 'on' ? 'off' : 'on'; // Inverted
-                        cmdToSend = newState === 'on' ? CMD.LED_ON : CMD.LED_OFF;
-                    } else if (schedule.action === 'ON') {
-                         if(segment.is_led_on !== 'on') toggleSegment(segment.num_of_node);
+                    let targetState: 'on' | 'off' = 'off';
+                    let cmdToSend = CMD.LED_OFF;
+
+                    // Determine Target State
+                    if (schedule.action === 'ON') {
+                        targetState = 'on';
+                        cmdToSend = CMD.LED_ON;
                     } else if (schedule.action === 'OFF') {
-                         if(segment.is_led_on !== 'off') toggleSegment(segment.num_of_node);
+                        targetState = 'off';
+                        cmdToSend = CMD.LED_OFF;
+                    } else if (schedule.action === 'TOGGLE') {
+                        // Invert current state
+                        targetState = segment.is_led_on === 'on' ? 'off' : 'on';
+                        cmdToSend = targetState === 'on' ? CMD.LED_ON : CMD.LED_OFF;
                     }
 
-                    // Send Hardware Command
+                    // 1. Send Hardware Command
                     const success = sendCommand(cmdToSend, segment.gpio || 0, 0);
                     
-                    // Update Timestamp immediately to prevent double-fire
+                    // 2. Update UI Source of Truth (React Query Cache)
+                    // This forces the CustomSegment component to re-render immediately
+                    queryClient.setQueryData(['device', segment.num_of_node], (old: Segment | undefined) => {
+                        if (!old) return undefined;
+                        return { ...old, is_led_on: targetState };
+                    });
+
+                    // 3. Update Global Store (Zustand)
+                    updateSegment(segment.num_of_node, { is_led_on: targetState });
+
+                    // 4. Update Timestamp to prevent double-fire
                     updateLastRun(schedule.id, currentTimestamp);
                     
-                    // Localized Notification
-                    const actionLabel = schedule.action === 'ON' ? (settings.language === 'fa' ? 'روشن' : 'ON') 
-                                      : schedule.action === 'OFF' ? (settings.language === 'fa' ? 'خاموش' : 'OFF') 
-                                      : (settings.language === 'fa' ? 'تغییر وضعیت' : 'TOGGLED');
+                    // 5. Notification
+                    const actionLabel = targetState === 'on' ? (settings.language === 'fa' ? 'روشن' : 'ON') : (settings.language === 'fa' ? 'خاموش' : 'OFF');
 
                     if (success) {
                         const msg = settings.language === 'fa'
-                            ? `وظیفه خودکار اجرا شد: ${segment.name} -> ${actionLabel}`
-                            : `Auto-Task Executed: ${segment.name} turned ${actionLabel}`;
+                            ? `وظیفه خودکار: ${segment.name} -> ${actionLabel}`
+                            : `Auto-Task: ${segment.name} turned ${actionLabel}`;
                         addToast(msg, 'info');
                     } else {
                         const msg = settings.language === 'fa'
-                            ? `خطا در اجرای وظیفه: دستگاه ${segment.name} پاسخ نمی‌دهد`
+                            ? `خطا: دستگاه ${segment.name} پاسخ نمی‌دهد`
                             : `Task Failed: Device ${segment.name} unreachable`;
                         addToast(msg, 'error');
                     }
 
                 } else {
-                    // Segment not found (maybe deleted?)
-                    updateLastRun(schedule.id, currentTimestamp); // Mark run to avoid spamming error
+                    // Segment not found
+                    updateLastRun(schedule.id, currentTimestamp);
                     const msg = settings.language === 'fa'
                             ? `خطا: دستگاه برای برنامه ${schedule.time} پیدا نشد`
-                            : `Error: Target device not found for ${schedule.time} schedule`;
+                            : `Error: Target device not found for ${schedule.time}`;
                     addToast(msg, 'error');
                 }
             }
         });
 
-    }, 3000); // Check every 3 seconds for better precision
+    }, 3000); // Check every 3 seconds
 
     return () => clearInterval(interval);
-  }, [schedules, segments, sendCommand, updateLastRun, toggleSegment, addToast, settings.language]);
+  }, [schedules, segments, sendCommand, updateLastRun, updateSegment, addToast, settings.language, queryClient]);
 }
