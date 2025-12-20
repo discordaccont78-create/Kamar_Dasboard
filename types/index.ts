@@ -38,6 +38,9 @@ export interface Segment {
   is_led_on: 'on' | 'off';
   val_of_slide: number;
   
+  // Timer Feature
+  timerFinishAt?: number; // Timestamp (ms) when timer expires
+
   // Shift Register
   readonly regBitIndex?: number;
   
