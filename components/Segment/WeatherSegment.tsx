@@ -53,7 +53,7 @@ export const WeatherSegment: React.FC<Props> = ({ segment: initialSegment }) => 
                 exit={{ opacity: 0, y: -10 }}
                 className="grid grid-cols-2 gap-4"
             >
-                <WeatherGauge value={safeSegment.temperature || 0} min={-10} max={50} unit="°C" label="Temp" color="#daa520" />
+                <WeatherGauge value={safeSegment.temperature || 0} min={-10} max={50} unit="°C" label="Temp" color="var(--primary)" />
                 <WeatherGauge value={safeSegment.humidity || 0} min={0} max={100} unit="%" label="Humid" color="#3b82f6" />
             </MotionDiv>
         ) : (

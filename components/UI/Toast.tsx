@@ -1,16 +1,19 @@
-
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useConnection } from '../../lib/store/connection';
+import { useSettingsStore } from '../../lib/store/settings';
 import { CheckCircle, AlertCircle, X, Info } from 'lucide-react';
 
 const MotionDiv = motion.div as any;
 
 export const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useConnection();
+  const { settings } = useSettingsStore();
+
+  if (!settings.enableNotifications) return null;
 
   return (
-    <div className="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
+    <div className="fixed top-24 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
       <AnimatePresence>
         {toasts.map((toast) => (
           <MotionDiv

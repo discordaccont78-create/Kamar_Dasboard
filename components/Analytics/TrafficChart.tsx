@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { useAnalytics } from '../../lib/store/analytics';
@@ -27,7 +26,7 @@ export const TrafficChart: React.FC = () => {
         <BarChart data={trafficHistory}>
           <Tooltip cursor={{fill: 'transparent'}} content={<CustomTooltip />} />
           <XAxis dataKey="time" hide />
-          <Bar dataKey="tx" fill="#daa520" radius={[2, 2, 0, 0]} stackId="a" animationDuration={500} />
+          <Bar dataKey="tx" fill="var(--primary)" radius={[2, 2, 0, 0]} stackId="a" animationDuration={500} />
           <Bar dataKey="rx" fill="#3b82f6" radius={[2, 2, 0, 0]} stackId="a" animationDuration={500} />
         </BarChart>
       </ResponsiveContainer>

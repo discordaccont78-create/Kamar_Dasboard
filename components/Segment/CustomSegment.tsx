@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Power, Send, Trash2, Clock } from 'lucide-react';
+// Fix: Import from ../UI/Slider to maintain consistency with the component's perceived file path in the program.
 import { Slider } from '../UI/Slider';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';

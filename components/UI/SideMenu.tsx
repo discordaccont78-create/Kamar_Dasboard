@@ -3,23 +3,28 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { useSegments } from '../../lib/store/segments';
 import { useSettingsStore } from '../../lib/store/settings';
 import { SegmentType } from '../../types/index';
-import { MUSIC_TRACKS } from '../../app/page';
+import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
   Sun, Moon, Settings as SettingsIcon, Volume2, 
-  X, LayoutGrid, Play, Pause, Activity
+  X, LayoutGrid, Play, Pause, Activity, Monitor, Zap, Type, Palette, Bell
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Switch } from '../ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+// Fix: Use local Slider with correct casing (./Slider) to resolve casing conflicts with the build environment's file system perception.
 import { Slider } from './Slider';
 import { TrafficChart } from '../Analytics/TrafficChart';
 import { cn } from '../../lib/utils';
+import { translations } from '../../lib/i18n';
 
 interface SideMenuProps { isOpen: boolean; onClose: () => void; }
 
 export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   const { settings, updateSettings } = useSettingsStore();
   const { addSegment } = useSegments();
+  
+  const t = translations[settings.language];
   
   const [form, setForm] = useState({
     gpio: '',
@@ -46,36 +51,125 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="DialogOverlay fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]" />
-        <Dialog.Content className="DialogContent fixed right-0 top-0 h-screen w-full sm:w-[450px] bg-background border-l border-border z-[70] shadow-2xl flex flex-col focus:outline-none">
+        <Dialog.Overlay className="DialogOverlay fixed inset-0 bg-black/40 backdrop-blur-sm z-[150]" />
+        
+        {/* Floating, Rounded Side Menu with high z-index to overlay footer */}
+        <Dialog.Content 
+          className={cn(
+            "DialogContent fixed top-4 bottom-4 w-full max-w-[400px] bg-background/95 backdrop-blur-xl border border-white/10 rounded-2xl z-[200] shadow-2xl flex flex-col focus:outline-none overflow-hidden ring-1 ring-primary/20",
+            settings.language === 'fa' ? 'left-4' : 'right-4'
+          )}
+        >
           
           {/* Header */}
-          <div className="p-6 flex justify-between items-center border-b border-border bg-card/50 backdrop-blur-md">
+          <div className="p-6 flex justify-between items-center border-b border-border bg-card/30">
             <Dialog.Title className="flex flex-col">
               <span className="text-lg font-bold flex items-center gap-2 text-foreground">
-                 <SettingsIcon size={20} className="text-primary" /> System Configuration
+                 <SettingsIcon size={20} className="text-primary" /> {t.sys_config}
               </span>
-              <span className="text-muted-foreground text-[10px] font-mono uppercase tracking-widest mt-1">v3.1 Control Panel</span>
+              <span className="text-muted-foreground text-[10px] font-mono uppercase tracking-widest mt-1">{t.control_panel}</span>
             </Dialog.Title>
             <Dialog.Close asChild>
-              <Button variant="ghost" size="icon" className="hover:bg-destructive/10 hover:text-destructive transition-colors">
+              <Button variant="ghost" size="icon" className="hover:bg-destructive/10 hover:text-destructive transition-colors rounded-full">
                 <X size={20} />
               </Button>
             </Dialog.Close>
           </div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-32 no-scrollbar">
+          <div className="flex-1 overflow-y-auto p-5 space-y-6 pb-20 no-scrollbar">
             
-            <Card className="rounded-xl border-border bg-gradient-to-br from-card to-secondary/5 overflow-hidden">
+            {/* Dashboard Settings (Visual & Color) */}
+            <Card className="rounded-xl border-border shadow-sm">
+               <CardContent className="p-5 flex flex-col gap-4">
+                  <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-[0.2em]">
+                     <Palette size={14} /> {t.dashboard_styling}
+                  </div>
+
+                  {/* Primary Color Picker */}
+                  <div className="flex items-center justify-between">
+                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.accent_color}</label>
+                     <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-mono text-muted-foreground">{settings.primaryColor}</span>
+                        <div className="relative overflow-hidden w-8 h-8 rounded-full border border-border shadow-inner">
+                           <input 
+                              type="color" 
+                              value={settings.primaryColor}
+                              onChange={(e) => updateSettings({ primaryColor: e.target.value })}
+                              className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer p-0 border-0"
+                           />
+                        </div>
+                     </div>
+                  </div>
+               </CardContent>
+            </Card>
+
+            {/* System Core Settings */}
+            <Card className="rounded-xl border-border shadow-sm">
+              <CardContent className="p-5 flex flex-col gap-4">
+                <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-[0.2em]">
+                  <Monitor size={14} /> {t.core_params}
+                </div>
+                
+                {/* Title Input */}
+                <div className="space-y-2">
+                   <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                      <Type size={12} /> {t.dash_title}
+                   </label>
+                   <Input 
+                      value={settings.title}
+                      onChange={(e) => updateSettings({ title: e.target.value })}
+                      className="h-9 font-bold text-xs text-primary"
+                      placeholder={t.enter_dash_name}
+                   />
+                </div>
+
+                {/* Domain / Hostname Input */}
+                <div className="space-y-2">
+                   <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.net_domain}</label>
+                   <Input 
+                      value={settings.domain}
+                      onChange={(e) => updateSettings({ domain: e.target.value })}
+                      className="h-9 font-mono text-xs"
+                      placeholder="e.g. iot-device"
+                   />
+                </div>
+
+                {/* Animations Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-background/50 transition-all" style={{ borderColor: `${settings.primaryColor}33` }}>
+                   <div className="flex items-center gap-2">
+                      <Zap size={14} className="text-primary" />
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.ui_anim}</span>
+                   </div>
+                   <Switch 
+                      checked={settings.animations}
+                      onCheckedChange={(v) => updateSettings({ animations: v })}
+                   />
+                </div>
+
+                {/* Notifications Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-background/50 transition-all" style={{ borderColor: `${settings.primaryColor}33` }}>
+                   <div className="flex items-center gap-2">
+                      <Bell size={14} className="text-primary" />
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.sys_notif}</span>
+                   </div>
+                   <Switch 
+                      checked={settings.enableNotifications}
+                      onCheckedChange={(v) => updateSettings({ enableNotifications: v })}
+                   />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-xl border-border bg-gradient-to-br from-card to-secondary/5 overflow-hidden shadow-sm">
               <CardHeader className="pb-3 border-b border-border/50 bg-secondary/5">
                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
-                    <Activity size={14} /> Network Analytics
+                    <Activity size={14} /> {t.net_analytics}
                  </CardTitle>
               </CardHeader>
               <CardContent className="pt-4">
                  <div className="flex justify-between text-[9px] font-mono uppercase mb-2 text-muted-foreground">
-                    <span>Live Traffic (2s Interval)</span>
+                    <span>{t.live_traffic}</span>
                     <span className="flex gap-2">
                       <span className="text-primary">● TX</span>
                       <span className="text-blue-500">● RX</span>
@@ -85,16 +179,16 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </CardContent>
             </Card>
 
-            <Card className="rounded-xl border-border">
+            <Card className="rounded-xl border-border shadow-sm">
               <CardHeader className="pb-3 border-b border-border/50">
                 <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center justify-between">
-                  <span>New Device Provisioning</span>
-                  <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">ADD</span>
+                  <span>{t.new_device}</span>
+                  <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">{t.add}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 pt-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                   <label className="text-right text-xs font-bold text-muted-foreground uppercase col-span-1">GPIO</label>
+                   <label className="text-right text-xs font-bold text-muted-foreground uppercase col-span-1">{t.gpio}</label>
                    <Input 
                      type="number" 
                      value={form.gpio} 
@@ -104,16 +198,16 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                    />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                   <label className="text-right text-xs font-bold text-muted-foreground uppercase col-span-1">Name</label>
+                   <label className="text-right text-xs font-bold text-muted-foreground uppercase col-span-1">{t.name}</label>
                    <Input 
                      value={form.name} 
                      onChange={e => setForm({...form, name: e.target.value})} 
                      className="col-span-3 h-9" 
-                     placeholder="Device Name"
+                     placeholder={t.dev_name}
                    />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                   <label className="text-right text-xs font-bold text-muted-foreground uppercase col-span-1">Type</label>
+                   <label className="text-right text-xs font-bold text-muted-foreground uppercase col-span-1">{t.type}</label>
                    <select 
                       value={form.type}
                       onChange={e => setForm({...form, type: e.target.value as SegmentType})}
@@ -125,7 +219,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                     </select>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                   <label className="text-right text-xs font-bold text-muted-foreground uppercase col-span-1">Group</label>
+                   <label className="text-right text-xs font-bold text-muted-foreground uppercase col-span-1">{t.group}</label>
                    <Input 
                      value={form.group} 
                      onChange={e => setForm({...form, group: e.target.value})} 
@@ -135,15 +229,15 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 </div>
                 
                 <Button onClick={handleAdd} className="w-full mt-2 font-black tracking-widest text-xs">
-                  INITIALIZE SEGMENT
+                  {t.init_seg}
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="rounded-xl border-border">
+            <Card className="rounded-xl border-border shadow-sm">
               <CardContent className="p-5 flex flex-col gap-4">
                 <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-[0.2em]">
-                  <LayoutGrid size={14} /> Environment UI
+                  <LayoutGrid size={14} /> {t.env_ui}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <Button 
@@ -151,28 +245,28 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                     onClick={() => updateSettings({ theme: 'light' })}
                     className="gap-2"
                   >
-                    <Sun size={16} /> LIGHT
+                    <Sun size={16} /> {t.light}
                   </Button>
                   <Button 
                     variant={settings.theme === 'dark' ? 'default' : 'outline'} 
                     onClick={() => updateSettings({ theme: 'dark' })}
                     className="gap-2"
                   >
-                    <Moon size={16} /> DARK
+                    <Moon size={16} /> {t.dark}
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="rounded-xl border-border">
+            <Card className="rounded-xl border-border shadow-sm">
               <CardContent className="p-5 flex flex-col gap-6">
                 <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-[0.2em]">
-                  <Volume2 size={14} /> Audio Engine
+                  <Volume2 size={14} /> {t.audio_engine}
                 </div>
                 
-                <div className="flex items-center justify-between bg-secondary/5 p-3 rounded-lg border border-border/50">
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-background/50 transition-all" style={{ borderColor: `${settings.primaryColor}33` }}>
                   <div className="flex flex-col overflow-hidden mr-4">
-                     <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Active Station</span>
+                     <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{t.active_station}</span>
                      <span className="text-xs font-bold truncate text-primary">{MUSIC_TRACKS[settings.currentTrackIndex].title}</span>
                   </div>
                   <Button 
@@ -187,7 +281,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 
                 <div className="space-y-3">
                    <div className="flex justify-between">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase">Master Volume</span>
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase">{t.master_vol}</span>
                       <span className="text-[10px] font-mono font-bold">{settings.volume}%</span>
                    </div>
                    <Slider 

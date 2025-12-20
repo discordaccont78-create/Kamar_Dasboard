@@ -9,6 +9,7 @@ import { InputSegment } from '../Segment/InputSegment';
 import { Segment } from '../../types/index';
 import { GroupHeader } from './GroupHeader';
 import { cn } from '../../lib/utils';
+import { useSettingsStore } from '../../lib/store/settings';
 
 interface Props {
   name: string;
@@ -36,6 +37,7 @@ export const SegmentGroup: React.FC<Props> = ({
   onDragEnd
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { settings } = useSettingsStore();
 
   const handleDrag = (event: any, info: any, currentIndex: number) => {
     if (!containerRef.current) return;
@@ -66,10 +68,26 @@ export const SegmentGroup: React.FC<Props> = ({
   };
 
   return (
-    <div className="h-full relative border-2 border-dashed border-primary/20 dark:border-primary/10 rounded-[2rem] p-8 bg-secondary/5 transition-colors">
+    <div 
+      className="h-full relative border-2 border-dashed rounded-[2rem] p-8 transition-all duration-500 backdrop-blur-[2px]"
+      style={{ 
+        borderColor: `${settings.primaryColor}40`, 
+        // Very low opacity to allow grid to show through, but tinted with primary color
+        backgroundColor: `${settings.primaryColor}08`, 
+        // Subtle gradient to add depth without hiding the grid
+        backgroundImage: `linear-gradient(135deg, ${settings.primaryColor}05 0%, transparent 100%)`
+      }} 
+    >
       
-      {/* Group Boundary Label - Acts as a schematic label for the zone */}
-      <div className="absolute -top-3 left-8 px-3 bg-[#f4f7f9] dark:bg-[#09090b] text-primary text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-colors z-10">
+      {/* Group Boundary Label */}
+      <div 
+        className="absolute -top-3 left-8 px-3 text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-colors z-10 border border-dashed rounded-full backdrop-blur-md"
+        style={{ 
+          color: 'var(--primary)',
+          borderColor: `${settings.primaryColor}40`,
+          backgroundColor: `${settings.primaryColor}15`
+        }}
+      >
         <span>ZONE: {name}</span>
       </div>
 

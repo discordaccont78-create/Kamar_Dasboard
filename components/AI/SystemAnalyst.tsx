@@ -1,48 +1,28 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { useSegments } from '../../lib/store/segments';
 import { useAnalytics } from '../../lib/store/analytics';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Sparkles, Loader2, KeyRound, TerminalSquare } from 'lucide-react';
+import { Sparkles, Loader2, TerminalSquare } from 'lucide-react';
 import Markdown from 'markdown-to-jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MotionDiv = motion.div as any;
 
 export const SystemAnalyst: React.FC = () => {
-  const [hasKey, setHasKey] = useState(false);
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const { segments } = useSegments();
   const { sensorHistory } = useAnalytics();
-
-  useEffect(() => {
-    checkKey();
-  }, []);
-
-  const checkKey = async () => {
-    if (window.aistudio) {
-      const selected = await window.aistudio.hasSelectedApiKey();
-      setHasKey(selected);
-    } else if (process.env.API_KEY) {
-        setHasKey(true);
-    }
-  };
-
-  const handleSelectKey = async () => {
-    if (window.aistudio) {
-      await window.aistudio.openSelectKey();
-      await checkKey();
-    }
-  };
 
   const runAnalysis = async () => {
     setLoading(true);
     setAnalysis(null);
 
     try {
-      // Re-instantiate to ensure fresh key if applicable
+      // Fix: Initializing GoogleGenAI with apiKey from process.env.API_KEY as per guidelines.
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const systemState = {
@@ -72,16 +52,17 @@ export const SystemAnalyst: React.FC = () => {
         Style: Cyberpunk/Technical, Professional, Brief (under 100 words). Use bullet points.
       `;
 
+      // Fix: Changed model to 'gemini-3-flash-preview' and called generateContent with parameters.
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-latest',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
       });
 
+      // Fix: Accessing generated text via the .text property (not a method).
       setAnalysis(response.text || "Analysis complete but returned no text.");
     } catch (e) {
       console.error(e);
-      setAnalysis("Error communicating with Neural Core. Please verify API Key selection.");
-      setHasKey(false); // Reset to force check
+      setAnalysis("Error communicating with Neural Core. Protocol failure detected.");
     } finally {
       setLoading(false);
     }
@@ -95,50 +76,36 @@ export const SystemAnalyst: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        {!hasKey ? (
-          <div className="flex flex-col items-center gap-4 py-4">
-            <p className="text-xs text-muted-foreground text-center max-w-md">
-                Access to the Neural Core requires a valid API Key. 
-                <br/>Please select a project with billing enabled.
-            </p>
-            <Button onClick={handleSelectKey} variant="outline" className="gap-2 font-bold text-xs uppercase tracking-wider border-primary text-primary hover:bg-primary hover:text-black">
-              <KeyRound size={14} /> Select API Key
-            </Button>
-            <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-[9px] text-muted-foreground underline">
-                View Billing Documentation
-            </a>
+        {/* Fix: Removed API Key selection UI as it is managed externally for standard text tasks. */}
+        <div className="flex flex-col gap-4">
+          <AnimatePresence mode="wait">
+              {analysis && (
+                  <MotionDiv 
+                      initial={{ opacity: 0, height: 0 }} 
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="bg-secondary/5 rounded-lg p-4 border-l-2 border-primary"
+                  >
+                      <div className="flex items-center gap-2 mb-2 text-primary text-[10px] font-black uppercase tracking-widest">
+                          <TerminalSquare size={12} /> Analysis Output
+                      </div>
+                      <div className="prose prose-invert prose-p:text-sm prose-li:text-sm text-sm text-muted-foreground font-mono leading-relaxed">
+                          <Markdown>{analysis}</Markdown>
+                      </div>
+                  </MotionDiv>
+              )}
+          </AnimatePresence>
+          
+          <div className="flex justify-end">
+              <Button 
+                  onClick={runAnalysis} 
+                  disabled={loading}
+                  className="gap-2 font-black text-[10px] uppercase tracking-[0.2em] min-w-[140px]"
+              >
+                  {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  {loading ? "Processing..." : "Run Diagnostics"}
+              </Button>
           </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <AnimatePresence mode="wait">
-                {analysis && (
-                    <MotionDiv 
-                        initial={{ opacity: 0, height: 0 }} 
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="bg-secondary/5 rounded-lg p-4 border-l-2 border-primary"
-                    >
-                        <div className="flex items-center gap-2 mb-2 text-primary text-[10px] font-black uppercase tracking-widest">
-                            <TerminalSquare size={12} /> Analysis Output
-                        </div>
-                        <div className="prose prose-invert prose-p:text-sm prose-li:text-sm text-sm text-muted-foreground font-mono leading-relaxed">
-                            <Markdown>{analysis}</Markdown>
-                        </div>
-                    </MotionDiv>
-                )}
-            </AnimatePresence>
-            
-            <div className="flex justify-end">
-                <Button 
-                    onClick={runAnalysis} 
-                    disabled={loading}
-                    className="gap-2 font-black text-[10px] uppercase tracking-[0.2em] min-w-[140px]"
-                >
-                    {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                    {loading ? "Processing..." : "Run Diagnostics"}
-                </Button>
-            </div>
-          </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

@@ -1,12 +1,19 @@
-
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { AppSettings } from '../../types/index';
 import { redis } from '../db/redis';
 
+// Extend AppSettings locally if needed, or rely on type augmentation. 
+interface ExtendedAppSettings extends AppSettings {
+  title: string;
+  enableNotifications: boolean;
+  primaryColor: string;
+  language: 'en' | 'fa';
+}
+
 interface SettingsStore {
-  settings: AppSettings;
-  updateSettings: (updates: Partial<AppSettings>) => void;
+  settings: ExtendedAppSettings;
+  updateSettings: (updates: Partial<ExtendedAppSettings>) => void;
 }
 
 // Define storage adapter for Zustand
@@ -27,13 +34,17 @@ export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set) => ({
       settings: {
+        title: "Kamyar Pro IoT", // Default Title
         domain: "iot-device",
         animations: true,
         bgMusic: false,
         volume: 30,
         theme: 'dark',
         useSsl: typeof window !== 'undefined' ? window.location.protocol.includes('https') : false,
-        currentTrackIndex: 0
+        currentTrackIndex: 0,
+        enableNotifications: true,
+        primaryColor: "#daa520", // Default Gold
+        language: 'en'
       },
       updateSettings: (updates) => set((state) => ({
         settings: { ...state.settings, ...updates }
