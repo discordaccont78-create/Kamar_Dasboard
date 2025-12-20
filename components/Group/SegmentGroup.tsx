@@ -215,7 +215,10 @@ export const SegmentGroup: React.FC<Props> = ({
       
       <div 
         ref={containerRef}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative min-h-[100px]"
+        className={cn(
+          "grid gap-6 relative min-h-[100px]",
+          segments.length === 2 ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
+        )}
       >
         <AnimatePresence mode="popLayout">
           {segments.map((seg, index) => {

@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { Segment } from '../../types/index';
@@ -8,6 +7,7 @@ interface SegmentsStore {
   segments: Segment[];
   addSegment: (segment: Segment) => void;
   removeSegment: (id: string) => void;
+  removeGroup: (groupName: string) => void; // Added removeGroup
   updateSegment: (id: string, data: Partial<Segment>) => void;
   toggleSegment: (id: string) => void;
   setPWM: (id: string, value: number) => void;
@@ -39,6 +39,11 @@ export const useSegments = create<SegmentsStore>()(
       
       removeSegment: (id) => set((state) => ({
         segments: state.segments.filter(s => s.num_of_node !== id)
+      })),
+
+      // New action to remove all segments in a group
+      removeGroup: (groupName) => set((state) => ({
+        segments: state.segments.filter(s => (s.group || "basic") !== groupName)
       })),
       
       updateSegment: (id, data) => set((state) => ({

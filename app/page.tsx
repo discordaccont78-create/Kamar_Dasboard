@@ -46,6 +46,7 @@ const DraggableGroupItem = ({
   segments,
   setSegments,
   removeSegment,
+  removeGroup, // Added prop
   toggleSegment,
   sendCommand,
   setPWM,
@@ -62,6 +63,7 @@ const DraggableGroupItem = ({
   segments: Segment[],
   setSegments: (s: Segment[]) => void,
   removeSegment: (id: string) => void,
+  removeGroup: (name: string) => void, // Added type
   toggleSegment: (id: string) => void,
   sendCommand: any,
   setPWM: any,
@@ -119,7 +121,15 @@ const DraggableGroupItem = ({
       dragElastic={0.1}
       onDragStart={onDragStart}
       onDrag={handleDrag}
-      onDragEnd={onDragEnd}
+      onDragEnd={(event: any, info: any) => {
+        onDragEnd(); // Reset isDragging state
+        
+        // Check if dropped in trash zone (bottom ~110px of screen)
+        const thresholdY = window.innerHeight - 110;
+        if (info.point.y > thresholdY) {
+          removeGroup(groupName);
+        }
+      }}
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       className={cn("group_area z-0 hover:z-10 relative", className)}
@@ -159,7 +169,7 @@ const DraggableGroupItem = ({
 
 
 export default function DashboardPage(): React.JSX.Element {
-  const { segments, setSegments, removeSegment, toggleSegment, setPWM } = useSegments();
+  const { segments, setSegments, removeSegment, removeGroup, toggleSegment, setPWM } = useSegments();
   const { settings } = useSettingsStore();
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -307,6 +317,7 @@ export default function DashboardPage(): React.JSX.Element {
                        segments={segments}
                        setSegments={setSegments}
                        removeSegment={removeSegment}
+                       removeGroup={removeGroup}
                        toggleSegment={toggleSegment}
                        sendCommand={sendCommand}
                        setPWM={setPWM}
