@@ -1,8 +1,6 @@
 
 import React from 'react';
 import { getIconForName } from '../../lib/iconMapper';
-import { useSettingsStore } from '../../lib/store/settings';
-import { translations } from '../../lib/i18n';
 
 interface GroupHeaderProps {
   name: string;
@@ -10,8 +8,7 @@ interface GroupHeaderProps {
 }
 
 export const GroupHeader: React.FC<GroupHeaderProps> = ({ name, count }) => {
-  const { settings } = useSettingsStore();
-  const t = translations[settings.language];
+  // Dynamically get icon based on group name
   const Icon = getIconForName(name, 'group');
 
   return (
@@ -25,7 +22,7 @@ export const GroupHeader: React.FC<GroupHeaderProps> = ({ name, count }) => {
         </h3>
       </div>
       <span className="bg-gray-200 dark:bg-white/5 text-gray-500 dark:text-gray-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-black/5 dark:border-white/5">
-        {count} {count === 1 ? t.node : t.nodes}
+        {count} {count === 1 ? 'Node' : 'Nodes'}
       </span>
     </div>
   );

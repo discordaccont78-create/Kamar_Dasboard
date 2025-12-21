@@ -18,11 +18,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
   
   const t = translations[settings.language];
-  const isFa = settings.language === 'fa';
 
   useEffect(() => {
     // Initial set
-    const locale = isFa ? 'fa-IR' : 'en-US';
+    const locale = settings.language === 'fa' ? 'fa-IR' : 'en-US';
     setTime(new Date().toLocaleTimeString(locale, { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     
     const interval = setInterval(() => {
@@ -51,15 +50,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
           <div className="flex flex-col">
             <h1 className={cn(
               "text-lg md:text-2xl font-black uppercase tracking-tighter leading-none transition-all truncate max-w-[120px] md:max-w-none",
-              settings.animations ? "text-shimmer" : "text-primary",
-              isFa && "font-persian tracking-normal"
+              settings.animations ? "text-shimmer" : "text-primary"
             )}>
               {settings.title}
             </h1>
-            <div className={cn(
-                "hidden md:flex items-center gap-2 mt-1 text-[9px] font-bold uppercase tracking-[0.3em] text-muted-foreground",
-                isFa && "font-persian tracking-normal"
-            )}>
+            <div className="hidden md:flex items-center gap-2 mt-1 text-[9px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
               <Terminal size={10} /> 
               {t.node_controller}
             </div>
@@ -74,9 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
             )}>
                {time || "00:00:00"}
             </div>
-            <div className={cn("text-[8px] uppercase tracking-[0.4em] text-muted-foreground mt-1", isFa && "font-persian tracking-normal")}>
-                {t.system_time}
-            </div>
+            <div className="text-[8px] uppercase tracking-[0.4em] text-muted-foreground mt-1">{t.system_time}</div>
         </div>
 
         {/* Right: Controls */}

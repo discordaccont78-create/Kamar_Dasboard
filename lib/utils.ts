@@ -13,13 +13,7 @@ export function isPersian(text: string): boolean {
   return persianRegex.test(text);
 }
 
-/**
- * Returns the appropriate tailwind font class based on setting and current language.
- * If language is Persian, it forces the Vazir font for better readability.
- */
-export function getFontClass(fontName: string | undefined, lang: 'en' | 'fa' = 'en'): string {
-  if (lang === 'fa') return 'font-persian';
-  
+export function getFontClass(fontName: string | undefined): string {
   switch (fontName) {
     case 'Oswald': return 'font-oswald';
     case 'Lato': return 'font-lato';

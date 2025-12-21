@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as SliderPrimitive from "@radix-ui/react-slider";
@@ -33,34 +32,28 @@ const DialogClose = Dialog.Close as any;
 // Inlined Slider component with fixed types
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
-  any
->(({ className, ...props }, ref) => {
-  const Root = SliderPrimitive.Root as any;
-  const Track = SliderPrimitive.Track as any;
-  const Range = SliderPrimitive.Range as any;
-  const Thumb = SliderPrimitive.Thumb as any;
-
-  return (
-    <Root
-      ref={ref}
-      className={cn(
-        "relative flex w-full touch-none select-none items-center",
-        className
-      )}
-      {...props}
-    >
-      <Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-secondary/20">
-        <Range className="absolute h-full bg-primary" />
-      </Track>
-      <Thumb className="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:scale-110 duration-100 cursor-grab active:cursor-grabbing" />
-    </Root>
-  );
-})
-Slider.displayName = (SliderPrimitive.Root as any).displayName
+  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
+>(({ className, ...props }, ref) => (
+  <SliderPrimitive.Root
+    ref={ref}
+    className={cn(
+      "relative flex w-full touch-none select-none items-center",
+      className
+    )}
+    {...(props as any)}
+  >
+    <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-secondary/20">
+      <SliderPrimitive.Range className="absolute h-full bg-primary" />
+    </SliderPrimitive.Track>
+    <SliderPrimitive.Thumb className="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:scale-110 duration-100 cursor-grab active:cursor-grabbing" />
+  </SliderPrimitive.Root>
+))
+Slider.displayName = SliderPrimitive.Root.displayName
 
 interface SideMenuProps { isOpen: boolean; onClose: () => void; }
 
-const TechButton = ({ children, onClick, className, variant = 'primary', icon: Icon, isFa = false }: any) => {
+// Custom "Tech" Button Component
+const TechButton = ({ children, onClick, className, variant = 'primary', icon: Icon }: any) => {
     const baseClass = "relative w-full h-10 font-black uppercase tracking-[0.2em] text-[10px] transition-all duration-300 flex items-center justify-center gap-2 rounded-lg group overflow-hidden";
     
     const variants = {
@@ -70,14 +63,15 @@ const TechButton = ({ children, onClick, className, variant = 'primary', icon: I
     };
 
     return (
-        <button onClick={onClick} className={cn(baseClass, variants[variant as keyof typeof variants], className, isFa && "font-persian tracking-normal")}>
+        <button onClick={onClick} className={cn(baseClass, variants[variant as keyof typeof variants], className)}>
             {Icon && <Icon size={14} className={cn("transition-transform group-hover:scale-110", variant === 'primary' ? 'stroke-[3px]' : '')} />}
             <span className="z-10">{children}</span>
         </button>
     );
 };
 
-const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle, isFa = false }: any) => {
+// Collapsible Menu Section Component (Controlled)
+const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle }: any) => {
   const isOpen = id === activeId;
   
   return (
@@ -94,8 +88,7 @@ const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle, isFa
         </div>
         <span className={cn(
           "text-[11px] font-black uppercase tracking-[0.2em] transition-colors",
-          isOpen ? "text-foreground/90" : "text-muted-foreground group-hover:text-foreground/70",
-          isFa && "font-persian tracking-normal"
+          isOpen ? "text-foreground/90" : "text-muted-foreground group-hover:text-foreground/70"
         )}>
             {title}
         </span>
@@ -135,6 +128,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   const { addSegment, segments, setSegmentTimer } = useSegments();
   const { addToast } = useConnection();
   
+  // Use Persistent UI Store
   const { 
     activeSection, setActiveSection,
     outputForm, setOutputForm,
@@ -145,22 +139,27 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   } = useUIStore();
   
   const t = translations[settings.language];
-  const isFa = settings.language === 'fa';
 
+  // Accordion Toggle Handler
   const handleSectionToggle = (id: string) => {
     setActiveSection(activeSection === id ? null : id);
   };
 
+  // --- Suggestion Logic ---
+  // Extract unique group names for autocomplete
   const uniqueGroups = useMemo<string[]>(() => {
     const groups = new Set(segments.map(s => s.group).filter((g): g is string => !!g));
-    return Array.from(groups).sort() as string[];
+    return Array.from(groups).sort();
   }, [segments]);
 
+  // Extract unique segment names for autocomplete
   const uniqueNames = useMemo<string[]>(() => {
     const names = new Set(segments.map(s => s.name).filter((n): n is string => !!n));
-    return Array.from(names).sort() as string[];
+    return Array.from(names).sort();
   }, [segments]);
 
+
+  // --- Validation Helpers ---
   const isGpioUsed = (pin: number) => {
     return segments.some(s => 
       s.gpio === pin || 
@@ -178,6 +177,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     );
   };
 
+  // --- Sorting & Data Preparation for Status Table ---
   const sortedSegments = useMemo(() => {
     return [...segments].sort((a, b) => {
         const pinA = a.gpio || a.dhtPin || a.dsPin || 0;
@@ -186,13 +186,25 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     });
   }, [segments]);
 
+  // --- Handlers ---
+
   const handleAddOutput = () => {
     const pin = parseInt(outputForm.gpio);
     const groupName = outputForm.group.trim() || "basic";
+
     if (!outputForm.gpio || !outputForm.name) return;
     if (isNaN(pin)) { addToast("Invalid GPIO", "error"); return; }
-    if (isGpioUsed(pin)) { addToast(`GPIO ${pin} is already in use!`, "error"); return; }
-    if (isGroupTakenByTemplate(groupName)) { addToast(`Group '${groupName}' is reserved for a hardware module.`, "error"); return; }
+    
+    if (isGpioUsed(pin)) {
+        addToast(`GPIO ${pin} is already in use!`, "error");
+        return;
+    }
+
+    if (isGroupTakenByTemplate(groupName)) {
+        addToast(`Group '${groupName}' is reserved for a hardware module.`, "error");
+        return;
+    }
+
     addSegment({
       num_of_node: Math.random().toString(36).substr(2, 9),
       name: outputForm.name.trim(),
@@ -204,6 +216,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
       val_of_slide: 0,
       onOffMode: outputForm.onOffMode
     });
+    // Clear form after success
     setOutputForm({ gpio: '', name: '', type: 'Digital', group: '', onOffMode: 'toggle' });
     addToast("Output segment added successfully", "success");
   };
@@ -211,10 +224,20 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   const handleAddInput = () => {
     const pin = parseInt(inputForm.gpio);
     const groupName = inputForm.group.trim() || "sensors";
+
     if (!inputForm.gpio || !inputForm.name) return;
     if (isNaN(pin)) { addToast("Invalid GPIO", "error"); return; }
-    if (isGpioUsed(pin)) { addToast(`GPIO ${pin} is already in use!`, "error"); return; }
-    if (isGroupTakenByTemplate(groupName)) { addToast(`Group '${groupName}' is reserved for a hardware module.`, "error"); return; }
+
+    if (isGpioUsed(pin)) {
+        addToast(`GPIO ${pin} is already in use!`, "error");
+        return;
+    }
+
+    if (isGroupTakenByTemplate(groupName)) {
+        addToast(`Group '${groupName}' is reserved for a hardware module.`, "error");
+        return;
+    }
+
     addSegment({
       num_of_node: Math.random().toString(36).substr(2, 9),
       name: inputForm.name.trim(),
@@ -228,6 +251,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
       inputActive: false,
       usePullup: true
     });
+    // Clear form after success
     setInputForm({ gpio: '', name: '', group: '', trigger: '1' });
     addToast("Input segment added successfully", "success");
   };
@@ -237,12 +261,22 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     const shcp = parseInt(regForm.shcp);
     const stcp = parseInt(regForm.stcp);
     const groupName = regForm.group.trim();
-    if (!groupName || isNaN(ds) || isNaN(shcp) || isNaN(stcp)) { addToast("Please fill all Register fields correctly.", "error"); return; }
+
+    if (!groupName || isNaN(ds) || isNaN(shcp) || isNaN(stcp)) { 
+        addToast("Please fill all Register fields correctly.", "error"); 
+        return; 
+    }
+
     if (isGpioUsed(ds)) { addToast(`DS Pin ${ds} is in use`, "error"); return; }
     if (isGpioUsed(shcp)) { addToast(`SHCP Pin ${shcp} is in use`, "error"); return; }
     if (isGpioUsed(stcp)) { addToast(`STCP Pin ${stcp} is in use`, "error"); return; }
+
     const existingGroup = segments.find(s => s.group === groupName);
-    if (existingGroup && existingGroup.groupType !== 'register') { addToast(`Group '${groupName}' is taken by non-register devices.`, "error"); return; }
+    if (existingGroup && existingGroup.groupType !== 'register') {
+         addToast(`Group '${groupName}' is taken by non-register devices.`, "error");
+         return;
+    }
+
     for(let i = 0; i < 8; i++) {
         addSegment({
             num_of_node: Math.random().toString(36).substr(2, 9),
@@ -259,6 +293,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             regBitIndex: i
         });
     }
+
     setRegForm({ ds: '', shcp: '', stcp: '', group: '' });
     addToast(`Register Group '${groupName}' created`, "success");
   };
@@ -266,9 +301,15 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   const handleAddDHT = () => {
     const pin = parseInt(dhtForm.gpio);
     const groupName = dhtForm.group.trim() || "Weather_Station";
+
     if (!dhtForm.gpio || !dhtForm.name) return;
     if (isNaN(pin)) { addToast("Invalid GPIO", "error"); return; }
-    if (isGpioUsed(pin)) { addToast(`Data GPIO ${pin} is already in use!`, "error"); return; }
+
+    if (isGpioUsed(pin)) {
+        addToast(`Data GPIO ${pin} is already in use!`, "error");
+        return;
+    }
+
     addSegment({
         num_of_node: Math.random().toString(36).substr(2, 9),
         name: dhtForm.name.trim(),
@@ -285,15 +326,23 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   };
 
   const handleSetTimer = () => {
-    if (!timerForm.targetSegmentId) { addToast("Please select a target segment", "error"); return; }
+    if (!timerForm.targetSegmentId) {
+      addToast("Please select a target segment", "error");
+      return;
+    }
     const totalSeconds = (timerForm.hours * 3600) + (timerForm.minutes * 60) + timerForm.seconds;
-    if (totalSeconds <= 0) { addToast("Please set a valid duration", "error"); return; }
+    if (totalSeconds <= 0) {
+      addToast("Please set a valid duration", "error");
+      return;
+    }
     setSegmentTimer(timerForm.targetSegmentId, totalSeconds);
     setTimerForm({ hours: 0, minutes: 0, seconds: 0, targetSegmentId: '' });
     addToast("Timer started successfully", "success");
   };
 
-  const timerCapableSegments = segments.filter(s => s.groupType !== 'input' && s.groupType !== 'weather' && s.segType !== 'Code');
+  const timerCapableSegments = segments.filter(s => 
+    s.groupType !== 'input' && s.groupType !== 'weather' && s.segType !== 'Code'
+  );
 
   const handleNextTrack = () => {
     const nextIndex = (settings.currentTrackIndex + 1) % MUSIC_TRACKS.length;
@@ -305,8 +354,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     updateSettings({ currentTrackIndex: prevIndex });
   };
 
-  const labelClass = cn("text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1", isFa && "font-persian tracking-normal");
-
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
@@ -315,18 +362,19 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
         <DialogContent 
           className={cn(
             "DialogContent fixed top-4 bottom-4 w-full max-w-[420px] bg-background/95 backdrop-blur-2xl border border-white/10 rounded-3xl z-[200] shadow-2xl flex flex-col focus:outline-none overflow-hidden ring-1 ring-white/5",
-            isFa ? 'left-4' : 'right-4'
+            settings.language === 'fa' ? 'left-4' : 'right-4'
           )}
         >
+          {/* Header */}
           <div className="p-6 flex justify-between items-center border-b border-border bg-card/30 shrink-0">
             <DialogTitle className="flex flex-col gap-1">
-              <span className={cn("text-xl font-black flex items-center gap-2 text-foreground tracking-tight", isFa && "font-persian tracking-normal")}>
+              <span className="text-xl font-black flex items-center gap-2 text-foreground tracking-tight">
                  <div className="p-2 bg-primary text-primary-foreground rounded-lg shadow-lg shadow-primary/20">
                     <SettingsIcon size={18} strokeWidth={3} />
                  </div>
                  {t.sys_config}
               </span>
-              <span className={cn("text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] opacity-60 pl-1", isFa && "font-persian tracking-normal")}>{t.control_panel}</span>
+              <span className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] opacity-60 pl-1">{t.control_panel}</span>
             </DialogTitle>
             <DialogClose asChild>
               <Button variant="ghost" size="icon" className="hover:bg-destructive hover:text-white transition-all rounded-full h-10 w-10">
@@ -335,6 +383,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             </DialogClose>
           </div>
 
+          {/* Autocomplete Datalists */}
           <datalist id="group-suggestions">
             {uniqueGroups.map(g => <option key={g} value={g} />)}
           </datalist>
@@ -342,21 +391,36 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             {uniqueNames.map(n => <option key={n} value={n} />)}
           </datalist>
 
+          {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-20 no-scrollbar">
             
-            <MenuSection id="output" title={t.output_segments} icon={Zap} activeId={activeSection} onToggle={handleSectionToggle} isFa={isFa}>
+            {/* === OUTPUT SEGMENTS SECTION === */}
+            <MenuSection 
+                id="output" 
+                title="Output Segments" 
+                icon={Zap} 
+                activeId={activeSection} 
+                onToggle={handleSectionToggle}
+            >
+              {/* ... Add Output Card ... */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardContent className="space-y-5 pt-6">
                   <div className="grid grid-cols-4 items-center gap-4">
-                     <label className={labelClass}>{t.gpio}</label>
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.gpio}</label>
                      <Input type="number" value={outputForm.gpio} onChange={e => setOutputForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="PIN #" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                     <label className={labelClass}>{t.name}</label>
-                     <Input value={outputForm.name} onChange={e => setOutputForm({ name: e.target.value })} className={cn("col-span-3 h-9", isFa && "font-persian")} placeholder={t.dev_name} list="name-suggestions" />
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
+                     <Input 
+                        value={outputForm.name} 
+                        onChange={e => setOutputForm({ name: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder={t.dev_name}
+                        list="name-suggestions" 
+                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                     <label className={labelClass}>{t.type}</label>
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.type}</label>
                      <select value={outputForm.type} onChange={e => setOutputForm({ type: e.target.value as SegmentType })} className="col-span-3 h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
                         <option value="Digital">On/Off (Relay)</option>
                         <option value="PWM">PWM (Dimmer)</option>
@@ -364,72 +428,172 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                         <option value="All">Hybrid (All)</option>
                       </select>
                   </div>
+                  
+                  {/* Button Mode Selector - Only visible for Digital/All */}
                   {(outputForm.type === 'Digital' || outputForm.type === 'All') && (
                      <div className="grid grid-cols-4 items-center gap-4">
-                        <label className={labelClass}>{t.mode}</label>
+                        <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Mode</label>
                         <div className="col-span-3 flex gap-2">
-                           <button onClick={() => setOutputForm({ onOffMode: 'toggle' })} className={cn("flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all", isFa && "font-persian tracking-normal", outputForm.onOffMode === 'toggle' ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5")}>{t.toggle_mode}</button>
-                           <button onClick={() => setOutputForm({ onOffMode: 'momentary' })} className={cn("flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all", isFa && "font-persian tracking-normal", outputForm.onOffMode === 'momentary' ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5")}>{t.momentary_mode}</button>
+                           <button 
+                             onClick={() => setOutputForm({ onOffMode: 'toggle' })}
+                             className={cn(
+                               "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all",
+                               outputForm.onOffMode === 'toggle' 
+                                 ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
+                                 : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                             )}
+                           >
+                             Feshari (Toggle)
+                           </button>
+                           <button 
+                             onClick={() => setOutputForm({ onOffMode: 'momentary' })}
+                             className={cn(
+                               "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all",
+                               outputForm.onOffMode === 'momentary' 
+                                 ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
+                                 : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                             )}
+                           >
+                             Switch (Push)
+                           </button>
                         </div>
                      </div>
                   )}
+
                   <div className="grid grid-cols-4 items-center gap-4">
-                     <label className={labelClass}>{t.group}</label>
-                     <Input value={outputForm.group} onChange={e => setOutputForm({ group: e.target.value })} className={cn("col-span-3 h-9", isFa && "font-persian")} placeholder={t.group} list="group-suggestions" />
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
+                     <Input 
+                        value={outputForm.group} 
+                        onChange={e => setOutputForm({ group: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Optional Group" 
+                        list="group-suggestions"
+                     />
                   </div>
-                  <TechButton onClick={handleAddOutput} icon={Plus} isFa={isFa}>{t.add} {t.output_segments}</TechButton>
+                  
+                  <TechButton onClick={handleAddOutput} icon={Plus}>
+                    {t.add} Output Device
+                  </TechButton>
                 </CardContent>
               </Card>
+
+              {/* ... Timer Feature ... */}
               <Card className="rounded-2xl border-border shadow-sm bg-gradient-to-br from-card to-secondary/5 overflow-hidden">
                 <CardHeader className="pb-3 border-b border-border/50 bg-secondary/5 py-4">
-                   <CardTitle className={cn("text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary", isFa && "font-persian tracking-normal")}><Clock size={14} className="animate-pulse" /> {t.automation_timer}</CardTitle>
+                   <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
+                      <Clock size={14} className="animate-pulse" /> Automation Timer
+                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-5 space-y-4">
                    <div className="flex gap-2 items-center justify-center">
                       {['HH', 'MM', 'SS'].map((label, idx) => (
                         <div key={label} className="flex flex-col gap-1 items-center">
-                            <Input type="number" min="0" max={idx === 0 ? 23 : 59} value={idx === 0 ? timerForm.hours : idx === 1 ? timerForm.minutes : timerForm.seconds} onChange={e => { const val = parseInt(e.target.value) || 0; if(idx === 0) setTimerForm({ hours: val }); else if(idx === 1) setTimerForm({ minutes: val }); else setTimerForm({ seconds: val }); }} className="h-10 w-14 text-center text-lg" />
-                            <span className={cn("text-[8px] font-black text-muted-foreground uppercase tracking-wider", isFa && "font-persian tracking-normal")}>{label}</span>
+                            <Input 
+                                type="number" 
+                                min="0" 
+                                max={idx === 0 ? 23 : 59} 
+                                value={idx === 0 ? timerForm.hours : idx === 1 ? timerForm.minutes : timerForm.seconds} 
+                                onChange={e => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    const newForm = {};
+                                    if(idx === 0) setTimerForm({ hours: val });
+                                    else if(idx === 1) setTimerForm({ minutes: val });
+                                    else setTimerForm({ seconds: val });
+                                }} 
+                                className="h-10 w-14 text-center text-lg" 
+                            />
+                            <span className="text-[8px] font-black text-muted-foreground uppercase tracking-wider">{label}</span>
                         </div>
                       ))}
                    </div>
+                   
                    <div className="space-y-2">
-                      <select value={timerForm.targetSegmentId} onChange={e => setTimerForm({ targetSegmentId: e.target.value })} className={cn("w-full h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all", isFa && "font-persian")}>
-                         <option value="">{t.target_device}...</option>
-                         {timerCapableSegments.map(s => <option key={s.num_of_node} value={s.num_of_node}>{s.name} (GPIO {s.gpio})</option>)}
+                      <select 
+                        value={timerForm.targetSegmentId}
+                        onChange={e => setTimerForm({ targetSegmentId: e.target.value })}
+                        className="w-full h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                      >
+                         <option value="">Select Target Device...</option>
+                         {timerCapableSegments.map(s => (
+                           <option key={s.num_of_node} value={s.num_of_node}>
+                             {s.name} (GPIO {s.gpio})
+                           </option>
+                         ))}
                       </select>
                    </div>
-                   <TechButton variant="outline" onClick={handleSetTimer} icon={Play} isFa={isFa}>{t.init_timer}</TechButton>
+                   
+                   <TechButton variant="outline" onClick={handleSetTimer} icon={Play}>
+                     Initialize Timer
+                   </TechButton>
                 </CardContent>
               </Card>
             </MenuSection>
 
-            <MenuSection id="status" title={t.dash_status} icon={TableProperties} activeId={activeSection} onToggle={handleSectionToggle} isFa={isFa}>
+            {/* === STATUS OF YOUR DASHBOARD SECTION === */}
+            <MenuSection 
+                id="status" 
+                title={t.dash_status || "Dashboard Status"} 
+                icon={TableProperties} 
+                activeId={activeSection} 
+                onToggle={handleSectionToggle}
+            >
               <Card className="rounded-2xl border-border shadow-sm bg-card/50 overflow-hidden">
                  <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
-                    <CardTitle className={cn("text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary", isFa && "font-persian tracking-normal")}><Activity size={12} /> {t.status_desc}</CardTitle>
+                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
+                       <Activity size={12} /> {t.status_desc || "Hardware Map"}
+                    </CardTitle>
                  </CardHeader>
                  <CardContent className="p-0">
-                    <div className={cn("grid grid-cols-[35px_1fr_1fr_auto] bg-muted/40 p-2 text-[8px] font-black uppercase tracking-widest text-muted-foreground border-b border-border/50 gap-2", isFa && "font-persian tracking-normal")}>
-                       <div className="text-center">{t.gpio}</div><div>{t.name}</div><div>{t.group}</div><div className="text-right">DATA</div>
+                    <div className="grid grid-cols-[35px_1fr_1fr_auto] bg-muted/40 p-2 text-[8px] font-black uppercase tracking-widest text-muted-foreground border-b border-border/50 gap-2">
+                       <div className="text-center">{t.gpio || "PIN"}</div>
+                       <div>{t.name || "ID"}</div>
+                       <div>{t.group || "GRP"}</div>
+                       <div className="text-right">DATA</div>
                     </div>
-                    {sortedSegments.length === 0 ? <div className="p-4 text-center text-[10px] text-muted-foreground font-mono">No configured segments</div> : (
+                    
+                    {sortedSegments.length === 0 ? (
+                       <div className="p-4 text-center text-[10px] text-muted-foreground font-mono">
+                          No configured segments
+                       </div>
+                    ) : (
                        <div className="max-h-[300px] overflow-y-auto no-scrollbar">
                           {sortedSegments.map(seg => {
+                             // Determine display state based on type
                              let displayState = "-";
                              let stateColor = "text-muted-foreground";
-                             if (seg.groupType === 'weather') { displayState = `${seg.temperature || 0}°C / ${seg.humidity || 0}%`; stateColor = "text-blue-500"; }
-                             else if (seg.groupType === 'input') { displayState = seg.inputActive ? "HIGH" : "LOW"; stateColor = seg.inputActive ? "text-primary" : "text-muted-foreground"; }
-                             else if (seg.segType === 'PWM' || seg.segType === 'All') { displayState = `VAL: ${seg.val_of_slide}`; stateColor = "text-orange-500"; }
-                             else if (seg.segType === 'Digital' || seg.groupType === 'register') { displayState = seg.is_led_on === 'on' ? t.active_status : t.offline_status; stateColor = seg.is_led_on === 'on' ? "text-green-500" : "text-red-500"; }
-                             const nameFont = isFa || isPersian(seg.name) ? "font-persian" : "";
-                             const groupFont = isFa || isPersian(seg.group) ? "font-persian" : "";
+
+                             if (seg.groupType === 'weather') {
+                                displayState = `${seg.temperature || 0}°C / ${seg.humidity || 0}%`;
+                                stateColor = "text-blue-500";
+                             } else if (seg.groupType === 'input') {
+                                displayState = seg.inputActive ? "HIGH" : "LOW";
+                                stateColor = seg.inputActive ? "text-primary" : "text-muted-foreground";
+                             } else if (seg.segType === 'PWM' || seg.segType === 'All') {
+                                displayState = `VAL: ${seg.val_of_slide}`;
+                                stateColor = "text-orange-500";
+                             } else if (seg.segType === 'Digital' || seg.groupType === 'register') {
+                                displayState = seg.is_led_on === 'on' ? "ON" : "OFF";
+                                stateColor = seg.is_led_on === 'on' ? "text-green-500" : "text-red-500";
+                             }
+
+                             // Font Logic for Names
+                             const nameFont = isPersian(seg.name) ? "font-persian" : "";
+                             const groupFont = isPersian(seg.group) ? "font-persian" : "";
+
                              return (
                                 <div key={seg.num_of_node} className="grid grid-cols-[35px_1fr_1fr_auto] p-2 border-b border-border/20 last:border-0 hover:bg-secondary/5 transition-colors gap-2 items-center">
-                                   <div className="text-center font-mono text-[9px] font-bold bg-muted/20 rounded py-0.5 text-foreground/70">{seg.gpio || seg.dhtPin || seg.dsPin || "-"}</div>
-                                   <div className={cn("text-[9px] font-bold truncate", nameFont)}>{seg.name}</div>
-                                   <div className={cn("text-[8px] uppercase tracking-wider text-muted-foreground truncate", groupFont)}>{seg.group}</div>
-                                   <div className={cn("text-[9px] font-mono font-black text-right min-w-[30px]", stateColor)}>{displayState}</div>
+                                   <div className="text-center font-mono text-[9px] font-bold bg-muted/20 rounded py-0.5 text-foreground/70">
+                                      {seg.gpio || seg.dhtPin || seg.dsPin || "-"}
+                                   </div>
+                                   <div className={cn("text-[9px] font-bold truncate", nameFont)}>
+                                      {seg.name}
+                                   </div>
+                                   <div className={cn("text-[8px] uppercase tracking-wider text-muted-foreground truncate", groupFont)}>
+                                      {seg.group}
+                                   </div>
+                                   <div className={cn("text-[9px] font-mono font-black text-right min-w-[30px]", stateColor)}>
+                                      {displayState}
+                                   </div>
                                 </div>
                              )
                           })}
@@ -439,81 +603,219 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </Card>
             </MenuSection>
 
-            <MenuSection id="hardware" title={t.hardware_templates} icon={Cpu} activeId={activeSection} onToggle={handleSectionToggle} isFa={isFa}>
+            {/* ... Hardware Templates ... */}
+            
+            <MenuSection 
+                id="hardware" 
+                title="Hardware Templates" 
+                icon={Cpu} 
+                activeId={activeSection} 
+                onToggle={handleSectionToggle}
+            >
+               {/* Shift Register Card */}
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
-                   <CardTitle className={cn("text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary", isFa && "font-persian tracking-normal")}><Cpu size={12} /> {t.shift_register}</CardTitle>
+                   <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
+                      <Cpu size={12} /> Shift Register (74HC595)
+                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                     <label className={labelClass}>{t.group}</label>
-                     <Input value={regForm.group} onChange={e => setRegForm({ group: e.target.value })} className={cn("col-span-3 h-9", isFa && "font-persian")} placeholder={t.group} list="group-suggestions" />
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
+                     <Input 
+                        value={regForm.group} 
+                        onChange={e => setRegForm({ group: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Register Name (e.g. Relays)"
+                        list="group-suggestions" 
+                     />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4"><label className={labelClass}>DS</label><Input type="number" value={regForm.ds} onChange={e => setRegForm({ ds: e.target.value })} className="col-span-3 h-9" placeholder="Data (SER)" /></div>
-                  <div className="grid grid-cols-4 items-center gap-4"><label className={labelClass}>SHCP</label><Input type="number" value={regForm.shcp} onChange={e => setRegForm({ shcp: e.target.value })} className="col-span-3 h-9" placeholder="Clock (SRCLK)" /></div>
-                  <div className="grid grid-cols-4 items-center gap-4"><label className={labelClass}>STCP</label><Input type="number" value={regForm.stcp} onChange={e => setRegForm({ stcp: e.target.value })} className="col-span-3 h-9" placeholder="Latch (RCLK)" /></div>
-                  <TechButton onClick={handleAddRegister} icon={Plus} variant="outline" isFa={isFa}>{t.add} {t.group} 74HC595</TechButton>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">DS</label>
+                     <Input type="number" value={regForm.ds} onChange={e => setRegForm({ ds: e.target.value })} className="col-span-3 h-9" placeholder="Data Pin (SER)" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">SHCP</label>
+                     <Input type="number" value={regForm.shcp} onChange={e => setRegForm({ shcp: e.target.value })} className="col-span-3 h-9" placeholder="Clock Pin (SRCLK)" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">STCP</label>
+                     <Input type="number" value={regForm.stcp} onChange={e => setRegForm({ stcp: e.target.value })} className="col-span-3 h-9" placeholder="Latch Pin (RCLK)" />
+                  </div>
+                  
+                  <TechButton onClick={handleAddRegister} icon={Plus} variant="outline">
+                    Add 74HC595 Group
+                  </TechButton>
                 </CardContent>
               </Card>
+
+              {/* DHT Weather Card */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
-                   <CardTitle className={cn("text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-blue-500", isFa && "font-persian tracking-normal")}><Cloud size={12} /> {t.weather_station}</CardTitle>
+                   <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-blue-500">
+                      <Cloud size={12} /> Weather Station (DHT)
+                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
-                  <div className="grid grid-cols-4 items-center gap-4"><label className={labelClass}>GPIO</label><Input type="number" value={dhtForm.gpio} onChange={e => setDhtForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="Data GPIO" /></div>
-                  <div className="grid grid-cols-4 items-center gap-4"><label className={labelClass}>{t.name}</label><Input value={dhtForm.name} onChange={e => setDhtForm({ name: e.target.value })} className={cn("col-span-3 h-9", isFa && "font-persian")} placeholder={t.dev_name} list="name-suggestions" /></div>
-                  <div className="grid grid-cols-4 items-center gap-4"><label className={labelClass}>{t.group}</label><Input value={dhtForm.group} onChange={e => setDhtForm({ group: e.target.value })} className={cn("col-span-3 h-9", isFa && "font-persian")} placeholder={t.group} list="group-suggestions" /></div>
-                  <TechButton onClick={handleAddDHT} icon={Plus} variant="outline" isFa={isFa}>{t.add} DHT</TechButton>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Data</label>
+                     <Input type="number" value={dhtForm.gpio} onChange={e => setDhtForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="Data Pin GPIO" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
+                     <Input 
+                        value={dhtForm.name} 
+                        onChange={e => setDhtForm({ name: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Sensor Name" 
+                        list="name-suggestions"
+                     />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
+                     <Input 
+                        value={dhtForm.group} 
+                        onChange={e => setDhtForm({ group: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Weather Group" 
+                        list="group-suggestions"
+                     />
+                  </div>
+                  
+                  <TechButton onClick={handleAddDHT} icon={Plus} variant="outline">
+                    Add DHT Module
+                  </TechButton>
                 </CardContent>
               </Card>
             </MenuSection>
 
-            <MenuSection id="inputs" title={t.input_sensors} icon={Monitor} activeId={activeSection} onToggle={handleSectionToggle} isFa={isFa}>
+            <MenuSection 
+                id="inputs" 
+                title="Input Sensors" 
+                icon={Monitor} 
+                activeId={activeSection} 
+                onToggle={handleSectionToggle}
+            >
+              {/* ... Input Card ... */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardContent className="space-y-5 pt-6">
-                  <div className="grid grid-cols-4 items-center gap-4"><label className={labelClass}>{t.gpio}</label><Input type="number" value={inputForm.gpio} onChange={e => setInputForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="PIN #" /></div>
-                  <div className="grid grid-cols-4 items-center gap-4"><label className={labelClass}>{t.name}</label><Input value={inputForm.name} onChange={e => setInputForm({ name: e.target.value })} className={cn("col-span-3 h-9", isFa && "font-persian")} placeholder={t.dev_name} list="name-suggestions" /></div>
-                  <div className="grid grid-cols-4 items-center gap-4"><label className={labelClass}>TRIGGER</label><select value={inputForm.trigger} onChange={e => setInputForm({ trigger: e.target.value })} className="col-span-3 h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"><option value="2">High (1)</option><option value="3">Low (0)</option><option value="1">Toggle</option><option value="0">Hold</option></select></div>
-                  <div className="grid grid-cols-4 items-center gap-4"><label className={labelClass}>{t.group}</label><Input value={inputForm.group} onChange={e => setInputForm({ group: e.target.value })} className={cn("col-span-3 h-9", isFa && "font-persian")} placeholder={t.group} list="group-suggestions" /></div>
-                  <TechButton onClick={handleAddInput} icon={Plus} isFa={isFa}>{t.add} {t.input_sensors}</TechButton>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.gpio}</label>
+                     <Input type="number" value={inputForm.gpio} onChange={e => setInputForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="PIN #" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
+                     <Input 
+                        value={inputForm.name} 
+                        onChange={e => setInputForm({ name: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Sensor Name"
+                        list="name-suggestions" 
+                     />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Trigger</label>
+                     <select value={inputForm.trigger} onChange={e => setInputForm({ trigger: e.target.value })} className="col-span-3 h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
+                        <option value="2">High (1)</option>
+                        <option value="3">Low (0)</option>
+                        <option value="1">Toggle</option>
+                        <option value="0">Hold</option>
+                      </select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
+                     <Input 
+                        value={inputForm.group} 
+                        onChange={e => setInputForm({ group: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Optional" 
+                        list="group-suggestions"
+                     />
+                  </div>
+                  
+                  <TechButton onClick={handleAddInput} icon={Plus}>
+                    {t.add} Sensor Input
+                  </TechButton>
                 </CardContent>
               </Card>
             </MenuSection>
 
-            <MenuSection id="system" title={t.system_core} icon={Activity} activeId={activeSection} onToggle={handleSectionToggle} isFa={isFa}>
+            <MenuSection 
+                id="system" 
+                title="System Core" 
+                icon={Activity} 
+                activeId={activeSection} 
+                onToggle={handleSectionToggle}
+            >
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                   <CardContent className="space-y-6 pt-6">
+                    {/* Dashboard Title */}
                     <div className="space-y-2">
-                       <label className={labelClass}>{t.dash_title}</label>
-                       <Input value={settings.title} onChange={(e) => updateSettings({ title: e.target.value })} className={cn(isFa && "font-persian")} placeholder={t.enter_dash_name} />
-                    </div>
-                    <div className="space-y-2">
-                       <label className={labelClass}>{t.net_domain}</label>
-                       <Input value={settings.domain} onChange={(e) => updateSettings({ domain: e.target.value })} placeholder="iot-device" />
+                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.dash_title}</label>
+                       <Input 
+                         value={settings.title} 
+                         onChange={(e) => updateSettings({ title: e.target.value })} 
+                         placeholder={t.enter_dash_name}
+                       />
                     </div>
 
+                    {/* Network Domain */}
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.net_domain}</label>
+                       <Input 
+                         value={settings.domain} 
+                         onChange={(e) => updateSettings({ domain: e.target.value })} 
+                         placeholder="iot-device"
+                       />
+                    </div>
+
+                    {/* NEW: Background Effect Selector */}
                     <div className="space-y-2 pt-2 border-t border-border/50">
-                        <label className={labelClass}>{t.bg_effect}</label>
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                            Background Effect
+                        </label>
                         <div className="grid grid-cols-2 gap-3">
-                            <button onClick={() => updateSettings({ backgroundEffect: 'grid' })} className={cn("h-10 border rounded-lg flex items-center justify-center gap-2 transition-all", settings.backgroundEffect === 'grid' ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5")}><Grid3X3 size={14} /><span className={cn("text-[9px] font-bold uppercase tracking-wider", isFa && "font-persian tracking-normal")}>Grid Matrix</span></button>
-                            <button onClick={() => updateSettings({ backgroundEffect: 'dots' })} className={cn("h-10 border rounded-lg flex items-center justify-center gap-2 transition-all", settings.backgroundEffect === 'dots' ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5")}><CircleDot size={14} /><span className={cn("text-[9px] font-bold uppercase tracking-wider", isFa && "font-persian tracking-normal")}>Dot Array</span></button>
+                            <button
+                                onClick={() => updateSettings({ backgroundEffect: 'grid' })}
+                                className={cn(
+                                    "h-10 border rounded-lg flex items-center justify-center gap-2 transition-all",
+                                    settings.backgroundEffect === 'grid' 
+                                        ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
+                                        : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                )}
+                            >
+                                <Grid3X3 size={14} />
+                                <span className="text-[9px] font-bold uppercase tracking-wider">Grid Matrix</span>
+                            </button>
+                            <button
+                                onClick={() => updateSettings({ backgroundEffect: 'dots' })}
+                                className={cn(
+                                    "h-10 border rounded-lg flex items-center justify-center gap-2 transition-all",
+                                    settings.backgroundEffect === 'dots' 
+                                        ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
+                                        : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                )}
+                            >
+                                <CircleDot size={14} />
+                                <span className="text-[9px] font-bold uppercase tracking-wider">Dot Array</span>
+                            </button>
                         </div>
                     </div>
 
-                    {/* RE-ADDED DASHBOARD FONT SELECTOR */}
+                    {/* Dashboard Font Selector */}
                     <div className="space-y-2 pt-2 border-t border-border/50">
-                         <label className={cn(labelClass, "flex items-center gap-2")}>
-                            <Type size={12} /> {t.dashboard_font}
+                         <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                            <Type size={12} /> Dashboard Font
                          </label>
                          <div className="grid grid-cols-2 gap-2">
                             {['Inter', 'Oswald', 'Lato', 'Montserrat', 'DinaRemaster', 'PrpggyDotted'].map((fontName) => {
                                 const isSelected = settings.dashboardFont === fontName;
-                                let fontPreviewClass = "font-inter";
-                                if (fontName === 'Oswald') fontPreviewClass = "font-oswald";
-                                if (fontName === 'Lato') fontPreviewClass = "font-lato";
-                                if (fontName === 'Montserrat') fontPreviewClass = "font-montserrat";
-                                if (fontName === 'DinaRemaster') fontPreviewClass = "font-dina";
-                                if (fontName === 'PrpggyDotted') fontPreviewClass = "font-proggy";
+                                let fontClass = "font-inter";
+                                if (fontName === 'Oswald') fontClass = "font-oswald";
+                                if (fontName === 'Lato') fontClass = "font-lato";
+                                if (fontName === 'Montserrat') fontClass = "font-montserrat";
+                                if (fontName === 'DinaRemaster') fontClass = "font-dina";
+                                if (fontName === 'PrpggyDotted') fontClass = "font-proggy";
 
                                 return (
                                     <button
@@ -524,38 +826,84 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                             isSelected ? "border-primary bg-primary/10 text-primary shadow-[0_0_10px_-4px_var(--primary)]" : "border-white/10 text-muted-foreground"
                                         )}
                                     >
-                                        <span className={cn("text-xs font-bold", fontPreviewClass)}>{fontName}</span>
-                                        <span className={cn("text-[8px] opacity-60", fontPreviewClass)}>Focus and effort</span>
+                                        <span className={cn("text-xs font-bold", fontClass)}>{fontName}</span>
+                                        <span className={cn("text-[8px] opacity-60", fontClass)}>Focus and effort</span>
                                     </button>
                                 );
                             })}
                          </div>
                     </div>
 
+                    {/* Toggles */}
                     <div className="space-y-4 pt-2 border-t border-border/50">
-                      <div className="flex items-center justify-between"><label className={labelClass}>{t.ui_anim}</label><Switch checked={settings.animations} onCheckedChange={(c) => updateSettings({ animations: c })} /></div>
-                      <div className="flex items-center justify-between"><label className={labelClass}>{t.sys_notif}</label><Switch checked={settings.enableNotifications} onCheckedChange={(c) => updateSettings({ enableNotifications: c })} /></div>
-                       <div className="flex items-center justify-between"><label className={labelClass}>{t.audio_engine}</label><Switch checked={settings.bgMusic} onCheckedChange={(c) => updateSettings({ bgMusic: c })} /></div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.ui_anim}</label>
+                        <Switch checked={settings.animations} onCheckedChange={(c) => updateSettings({ animations: c })} />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.sys_notif}</label>
+                        <Switch checked={settings.enableNotifications} onCheckedChange={(c) => updateSettings({ enableNotifications: c })} />
+                      </div>
+                       <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.audio_engine}</label>
+                        <Switch checked={settings.bgMusic} onCheckedChange={(c) => updateSettings({ bgMusic: c })} />
+                      </div>
                     </div>
+
+                    {/* Audio Controls */}
                     <AnimatePresence>
                       {settings.bgMusic && (
-                        <MotionDiv initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="bg-secondary/5 rounded-xl p-4 space-y-4 border border-border">
-                           <div className="flex items-center justify-between"><span className={cn("text-[9px] font-black uppercase tracking-widest opacity-70", isFa && "font-persian tracking-normal")}>{t.active_station}</span><div className="flex items-center gap-2"><Button variant="ghost" size="icon" onClick={handlePrevTrack} className="h-6 w-6"><SkipBack size={12} /></Button><span className="text-[9px] font-mono font-bold text-primary truncate max-w-[100px]">{MUSIC_TRACKS[settings.currentTrackIndex]?.title}</span><Button variant="ghost" size="icon" onClick={handleNextTrack} className="h-6 w-6"><SkipForward size={12} /></Button></div></div>
-                           <div className="space-y-2"><div className="flex justify-between text-[9px] font-black uppercase tracking-widest opacity-60"><span className={cn(isFa && "font-persian tracking-normal")}>{t.master_vol}</span><span>{settings.volume}%</span></div><Slider value={[settings.volume]} onValueChange={(val) => updateSettings({ volume: val[0] })} max={100} step={1} /></div>
+                        <MotionDiv
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="bg-secondary/5 rounded-xl p-4 space-y-4 border border-border"
+                        >
+                           <div className="flex items-center justify-between">
+                              <span className="text-[9px] font-black uppercase tracking-widest opacity-70">{t.active_station}</span>
+                              <div className="flex items-center gap-2">
+                                  <Button variant="ghost" size="icon" onClick={handlePrevTrack} className="h-6 w-6"><SkipBack size={12} /></Button>
+                                  <span className="text-[9px] font-mono font-bold text-primary truncate max-w-[100px]">{MUSIC_TRACKS[settings.currentTrackIndex]?.title}</span>
+                                  <Button variant="ghost" size="icon" onClick={handleNextTrack} className="h-6 w-6"><SkipForward size={12} /></Button>
+                              </div>
+                           </div>
+                           <div className="space-y-2">
+                              <div className="flex justify-between text-[9px] font-black uppercase tracking-widest opacity-60">
+                                 <span>{t.master_vol}</span>
+                                 <span>{settings.volume}%</span>
+                              </div>
+                              <Slider
+                                value={[settings.volume]}
+                                onValueChange={(val) => updateSettings({ volume: val[0] })}
+                                max={100}
+                                step={1}
+                              />
+                           </div>
                         </MotionDiv>
                       )}
                     </AnimatePresence>
+
+                    {/* Theme Accent */}
                     <div className="space-y-2 pt-2 border-t border-border/50">
-                       <label className={labelClass}>{t.accent_color}</label>
+                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.accent_color}</label>
                        <div className="flex gap-2 flex-wrap">
                           {["#daa520", "#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"].map(color => (
-                            <button key={color} onClick={() => updateSettings({ primaryColor: color })} className={cn("w-6 h-6 rounded-full border-2 transition-all hover:scale-110", settings.primaryColor === color ? "border-foreground scale-110 shadow-sm" : "border-transparent opacity-70 hover:opacity-100")} style={{ backgroundColor: color }} />
+                            <button
+                              key={color}
+                              onClick={() => updateSettings({ primaryColor: color })}
+                              className={cn(
+                                "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
+                                settings.primaryColor === color ? "border-foreground scale-110 shadow-sm" : "border-transparent opacity-70 hover:opacity-100"
+                              )}
+                              style={{ backgroundColor: color }}
+                            />
                           ))}
                        </div>
                     </div>
                   </CardContent>
                </Card>
             </MenuSection>
+            
           </div>
         </DialogContent>
       </Dialog.Portal>

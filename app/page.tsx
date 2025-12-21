@@ -12,7 +12,7 @@ import { CMD, Segment } from '../types/index';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useSchedulerEngine } from '../hooks/useSchedulerEngine';
 import { Zap, Trash2, Hexagon, Cpu, Laptop, Smartphone, GripHorizontal } from 'lucide-react';
-import { cn, getFontClass, isPersian } from '../lib/utils';
+import { cn, getFontClass } from '../lib/utils';
 import { translations } from '../lib/i18n';
 import { MUSIC_TRACKS } from '../lib/constants';
 
@@ -292,7 +292,7 @@ export default function DashboardPage(): React.JSX.Element {
           "min-h-screen transition-colors duration-500 flex flex-col overflow-x-hidden",
           bgClass,
           settings.animations && "animate-grid",
-          getFontClass(settings.dashboardFont, settings.language) 
+          getFontClass(settings.dashboardFont) 
       )}>
         <Header onOpenMenu={() => setIsMenuOpen(true)} />
         
