@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Card, CardContent } from '../ui/card';
 import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { useSettingsStore } from '../../lib/store/settings';
+import { getIconForName } from '../../lib/iconMapper';
 
 interface SegmentCardProps {
   gpio: number;
@@ -18,6 +19,9 @@ const MotionCard = motion(Card) as any;
 export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children, onRemove, dragHandle }) => {
   const { settings } = useSettingsStore();
   const labelFontClass = isPersian(label) ? "font-persian" : getFontClass(settings.dashboardFont);
+  
+  // Dynamically resolve icon for the segment
+  const SegmentIcon = getIconForName(label, 'device');
 
   return (
     <MotionCard 
@@ -41,15 +45,21 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children,
     >
       {/* Industrial Hardware Label - Compact on Mobile */}
       <div className="absolute -top-3 md:-top-4 left-4 md:left-6 px-3 md:px-4 bg-primary dark:bg-primary py-1 md:py-1.5 rounded-chip border-2 border-black/10 dark:border-white/20 shadow-md z-20 flex items-center gap-2 md:gap-3 max-w-[85%]">
-        <div className="drag-handle pointer-events-auto shrink-0">
+        <div className="drag-handle pointer-events-auto shrink-0 border-r border-black/10 dark:border-white/10 pr-2 mr-1">
           {dragHandle}
         </div>
+        
+        {/* Dynamic Smart Icon */}
+        <div className="text-black opacity-80">
+            <SegmentIcon size={14} strokeWidth={2.5} />
+        </div>
+
         <div className="flex flex-col min-w-0">
           <span className={cn(
             "text-black font-black text-[9px] md:text-[10px] tracking-tight uppercase leading-none truncate",
             labelFontClass
           )}>
-            ID: {label}
+            {label}
           </span>
           <span className="text-black/60 font-black text-[7px] md:text-[8px] uppercase tracking-widest mt-0.5 font-mono hidden xs:block">
             GP-{gpio}

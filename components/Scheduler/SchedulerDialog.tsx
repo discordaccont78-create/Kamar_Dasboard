@@ -8,11 +8,17 @@ import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
+// Fix: Corrected import casing to match 'components/UI/Slider.tsx'
 import { Slider } from '../UI/Slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 
 const MotionDiv = motion.div as any;
+
+// Wrapper for Radix components to bypass strict type checking if needed
+const DialogOverlay = Dialog.Overlay as any;
+const DialogContent = Dialog.Content as any;
+const DialogClose = Dialog.Close as any;
 
 interface SchedulerDialogProps {
   isOpen: boolean;
@@ -98,8 +104,8 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="DialogOverlay fixed inset-0 bg-black/60 backdrop-blur-md z-[150]" />
-        <Dialog.Content 
+        <DialogOverlay className="DialogOverlay fixed inset-0 bg-black/60 backdrop-blur-md z-[150]" />
+        <DialogContent 
           className={cn(
             "DialogContent fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[500px] bg-background/95 backdrop-blur-2xl border border-primary/20 rounded-3xl z-[200] shadow-2xl flex flex-col focus:outline-none overflow-hidden ring-1 ring-white/5",
             "max-h-[85vh]"
@@ -116,11 +122,11 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
               </span>
               <span className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] pl-1">{t.scheduler_desc}</span>
             </div>
-            <Dialog.Close asChild>
+            <DialogClose asChild>
               <Button variant="ghost" size="icon" className="hover:bg-destructive hover:text-white transition-all rounded-full h-10 w-10">
                 <X size={20} />
               </Button>
-            </Dialog.Close>
+            </DialogClose>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
@@ -317,7 +323,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
              </div>
 
           </div>
-        </Dialog.Content>
+        </DialogContent>
       </Dialog.Portal>
     </Dialog.Root>
   );

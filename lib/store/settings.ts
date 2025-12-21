@@ -10,6 +10,7 @@ interface ExtendedAppSettings extends AppSettings {
   enableNotifications: boolean;
   primaryColor: string;
   language: 'en' | 'fa';
+  backgroundEffect: 'grid' | 'dots';
 }
 
 interface SettingsStore {
@@ -46,7 +47,8 @@ export const useSettingsStore = create<SettingsStore>()(
         enableNotifications: true,
         primaryColor: "#daa520", // Default Gold
         language: 'en',
-        dashboardFont: 'Inter'
+        dashboardFont: 'Inter',
+        backgroundEffect: 'grid'
       },
       updateSettings: (updates) => set((state) => ({
         settings: { ...state.settings, ...updates }

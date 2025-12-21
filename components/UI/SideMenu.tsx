@@ -11,7 +11,8 @@ import { SegmentType } from '../../types/index';
 import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
   Settings as SettingsIcon, X, Zap, Play, Activity, Monitor, 
-  SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type, TableProperties
+  SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type, TableProperties,
+  Grid3X3, CircleDot
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -23,7 +24,13 @@ import { translations } from '../../lib/i18n';
 // Workaround for Framer Motion types
 const MotionDiv = motion.div as any;
 
-// Inlined Slider component
+// Wrapper for Radix components to bypass strict type checking if needed
+const DialogOverlay = Dialog.Overlay as any;
+const DialogContent = Dialog.Content as any;
+const DialogTitle = Dialog.Title as any;
+const DialogClose = Dialog.Close as any;
+
+// Inlined Slider component with fixed types
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
@@ -34,7 +41,7 @@ const Slider = React.forwardRef<
       "relative flex w-full touch-none select-none items-center",
       className
     )}
-    {...props}
+    {...(props as any)}
   >
     <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-secondary/20">
       <SliderPrimitive.Range className="absolute h-full bg-primary" />
@@ -337,9 +344,9 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="DialogOverlay fixed inset-0 bg-[#daa520]/10 backdrop-blur-md z-[150]" />
+        <DialogOverlay className="DialogOverlay fixed inset-0 bg-[#daa520]/10 backdrop-blur-md z-[150]" />
         
-        <Dialog.Content 
+        <DialogContent 
           className={cn(
             "DialogContent fixed top-4 bottom-4 w-full max-w-[420px] bg-background/95 backdrop-blur-2xl border border-white/10 rounded-3xl z-[200] shadow-2xl flex flex-col focus:outline-none overflow-hidden ring-1 ring-white/5",
             settings.language === 'fa' ? 'left-4' : 'right-4'
@@ -347,7 +354,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
         >
           {/* Header */}
           <div className="p-6 flex justify-between items-center border-b border-border bg-card/30 shrink-0">
-            <Dialog.Title className="flex flex-col gap-1">
+            <DialogTitle className="flex flex-col gap-1">
               <span className="text-xl font-black flex items-center gap-2 text-foreground tracking-tight">
                  <div className="p-2 bg-primary text-primary-foreground rounded-lg shadow-lg shadow-primary/20">
                     <SettingsIcon size={18} strokeWidth={3} />
@@ -355,12 +362,12 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                  {t.sys_config}
               </span>
               <span className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] opacity-60 pl-1">{t.control_panel}</span>
-            </Dialog.Title>
-            <Dialog.Close asChild>
+            </DialogTitle>
+            <DialogClose asChild>
               <Button variant="ghost" size="icon" className="hover:bg-destructive hover:text-white transition-all rounded-full h-10 w-10">
                 <X size={20} />
               </Button>
-            </Dialog.Close>
+            </DialogClose>
           </div>
 
           {/* Scrollable Content */}
@@ -699,8 +706,41 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                        />
                     </div>
 
+                    {/* NEW: Background Effect Selector */}
+                    <div className="space-y-2 pt-2 border-t border-border/50">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                            Background Effect
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => updateSettings({ backgroundEffect: 'grid' })}
+                                className={cn(
+                                    "h-10 border rounded-lg flex items-center justify-center gap-2 transition-all",
+                                    settings.backgroundEffect === 'grid' 
+                                        ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
+                                        : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                )}
+                            >
+                                <Grid3X3 size={14} />
+                                <span className="text-[9px] font-bold uppercase tracking-wider">Grid Matrix</span>
+                            </button>
+                            <button
+                                onClick={() => updateSettings({ backgroundEffect: 'dots' })}
+                                className={cn(
+                                    "h-10 border rounded-lg flex items-center justify-center gap-2 transition-all",
+                                    settings.backgroundEffect === 'dots' 
+                                        ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
+                                        : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                )}
+                            >
+                                <CircleDot size={14} />
+                                <span className="text-[9px] font-bold uppercase tracking-wider">Dot Array</span>
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Dashboard Font Selector */}
-                    <div className="space-y-2 pt-2">
+                    <div className="space-y-2 pt-2 border-t border-border/50">
                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                             <Type size={12} /> Dashboard Font
                          </label>
@@ -732,7 +772,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                     </div>
 
                     {/* Toggles */}
-                    <div className="space-y-4 pt-2">
+                    <div className="space-y-4 pt-2 border-t border-border/50">
                       <div className="flex items-center justify-between">
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.ui_anim}</label>
                         <Switch checked={settings.animations} onCheckedChange={(c) => updateSettings({ animations: c })} />
@@ -802,7 +842,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             </MenuSection>
             
           </div>
-        </Dialog.Content>
+        </DialogContent>
       </Dialog.Portal>
     </Dialog.Root>
   );

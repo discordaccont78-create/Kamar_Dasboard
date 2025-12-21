@@ -83,6 +83,7 @@ export interface AppSettings {
   readonly useSsl: boolean; // Derived from window location
   currentTrackIndex: number; 
   dashboardFont?: 'Inter' | 'Oswald' | 'Lato' | 'Montserrat' | 'DinaRemaster' | 'PrpggyDotted';
+  backgroundEffect?: 'grid' | 'dots';
 }
 
 export interface LogEntry {

@@ -283,10 +283,14 @@ export default function DashboardPage(): React.JSX.Element {
     });
   }, []);
 
+  // Determine Background Class
+  const bgClass = settings.backgroundEffect === 'dots' ? 'dot-matrix' : 'graph-paper';
+
   return (
     <MotionConfig reducedMotion={settings.animations ? "never" : "always"}>
       <div className={cn(
-          "min-h-screen graph-paper transition-colors duration-500 flex flex-col overflow-x-hidden",
+          "min-h-screen transition-colors duration-500 flex flex-col overflow-x-hidden",
+          bgClass,
           settings.animations && "animate-grid",
           getFontClass(settings.dashboardFont) 
       )}>
