@@ -11,6 +11,8 @@ interface SchedulerStore {
   toggleSchedule: (id: string) => void;
   disableSchedule: (id: string) => void;
   updateLastRun: (id: string, timestamp: number) => void;
+  decrementRepeat: (id: string) => void;
+  removeSchedulesByTarget: (segmentId: string) => void;
 }
 
 const redisStorage = {
@@ -38,6 +40,11 @@ export const useSchedulerStore = create<SchedulerStore>()(
       removeSchedule: (id) => set((state) => ({
         schedules: state.schedules.filter(s => s.id !== id)
       })),
+
+      // Cleanup schedules when a segment is deleted
+      removeSchedulesByTarget: (segmentId) => set((state) => ({
+        schedules: state.schedules.filter(s => s.targetSegmentId !== segmentId)
+      })),
       
       toggleSchedule: (id) => set((state) => ({
         schedules: state.schedules.map(s => {
@@ -63,6 +70,18 @@ export const useSchedulerStore = create<SchedulerStore>()(
         schedules: state.schedules.map(s => 
             s.id === id ? { ...s, lastRun: timestamp } : s
         )
+      })),
+
+      // New: Logic to handle repetition counts
+      decrementRepeat: (id) => set((state) => ({
+        schedules: state.schedules.map(s => {
+          if (s.id === id && s.repeatMode === 'count' && (s.repeatCount || 0) > 0) {
+            const newCount = (s.repeatCount || 0) - 1;
+            // If count reaches 0, disable the schedule
+            return { ...s, repeatCount: newCount, enabled: newCount > 0 };
+          }
+          return s;
+        })
       })),
     }),
     { 

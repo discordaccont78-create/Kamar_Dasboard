@@ -8,6 +8,7 @@ import { ToastContainer } from '../components/UI/Toast';
 import { useSegments } from '../lib/store/segments';
 import { useSettingsStore } from '../lib/store/settings';
 import { useConnection } from '../lib/store/connection';
+import { useSchedulerStore } from '../lib/store/scheduler';
 import { CMD, Segment } from '../types/index';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useSchedulerEngine } from '../hooks/useSchedulerEngine';
@@ -189,6 +190,7 @@ const DraggableGroupItem = React.memo(({
 
 export default function DashboardPage(): React.JSX.Element {
   const { segments, setSegments, removeSegment, removeGroup, toggleSegment, setPWM } = useSegments();
+  const { removeSchedulesByTarget } = useSchedulerStore();
   const { settings } = useSettingsStore();
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -205,6 +207,19 @@ export default function DashboardPage(): React.JSX.Element {
   const t = translations[settings.language];
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { sendCommand } = useWebSocket();
+
+  // Smart Remove Handlers: Remove Segment + Associated Schedules
+  const handleRemoveSegment = useCallback((id: string) => {
+    removeSchedulesByTarget(id);
+    removeSegment(id);
+  }, [removeSchedulesByTarget, removeSegment]);
+
+  const handleRemoveGroup = useCallback((groupName: string) => {
+    // Find all segment IDs in this group to clean their schedules
+    const targetIds = segments.filter(s => (s.group || "basic") === groupName).map(s => s.num_of_node);
+    targetIds.forEach(id => removeSchedulesByTarget(id));
+    removeGroup(groupName);
+  }, [segments, removeSchedulesByTarget, removeGroup]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--primary', settings.primaryColor);
@@ -337,8 +352,8 @@ export default function DashboardPage(): React.JSX.Element {
                        moveGroup={moveGroup}
                        segments={segments}
                        setSegments={setSegments}
-                       removeSegment={removeSegment}
-                       removeGroup={removeGroup}
+                       removeSegment={handleRemoveSegment}
+                       removeGroup={handleRemoveGroup}
                        toggleSegment={toggleSegment}
                        sendCommand={sendCommand}
                        setPWM={setPWM}

@@ -1,15 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarClock, Power, Plus, Trash2, Clock, Check, ArrowRight, Sliders, ToggleLeft, ToggleRight, Fingerprint, Hourglass, Timer } from 'lucide-react';
+import { X, CalendarClock, Power, Plus, Trash2, Clock, Check, ArrowRight, Sliders, ToggleLeft, ToggleRight, Fingerprint, Hourglass, Timer, Repeat, Infinity, Hash } from 'lucide-react';
 import { useSegments } from '../../lib/store/segments';
 import { useSchedulerStore } from '../../lib/store/scheduler';
 import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-import { Slider } from '../ui/slider';
+import { Slider } from '../UI/Slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 
@@ -38,30 +37,30 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   const [time, setTime] = useState("");
   const [timerHours, setTimerHours] = useState(0);
   const [timerMinutes, setTimerMinutes] = useState(30);
+  const [timerSeconds, setTimerSeconds] = useState(0); 
+
+  // New: Repetition State
+  const [repeatMode, setRepeatMode] = useState<'daily' | 'once' | 'count'>('daily');
+  const [repeatCount, setRepeatCount] = useState(1);
 
   // Target & Action State
   const [targetId, setTargetId] = useState("");
   const [action, setAction] = useState<'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE'>('ON');
-  const [pwmValue, setPwmValue] = useState(128); // Default half brightness
+  const [pwmValue, setPwmValue] = useState(128); 
   
   // New State for 'All' type segments: 'digital' or 'pwm'
   const [hybridMode, setHybridMode] = useState<'digital' | 'pwm'>('digital');
 
-  // Filter for allowed segments (Digital, Register, PWM, and All)
+  // Filter for allowed segments
   const allowedSegments = segments.filter(s => 
     s.segType === 'Digital' || s.segType === 'All' || s.groupType === 'register' || s.segType === 'PWM'
   );
 
-  // Determine type of selected segment
   const selectedSegment = segments.find(s => s.num_of_node === targetId);
-  
   const isHybrid = selectedSegment?.segType === 'All';
   const isPurePwm = selectedSegment?.segType === 'PWM';
-  
-  // Should we show PWM tools? 
   const showPwmTools = isPurePwm || (isHybrid && hybridMode === 'pwm');
 
-  // Reset states when target changes
   useEffect(() => {
     if (isPurePwm) {
         setAction('SET_VALUE');
@@ -73,7 +72,6 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
     }
   }, [targetId, isPurePwm, isHybrid]);
 
-  // When switching hybrid modes, update the action type
   useEffect(() => {
     if (isHybrid) {
         if (hybridMode === 'pwm') {
@@ -87,10 +85,9 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   const handleAdd = () => {
     if (!targetId) return;
     if (conditionType === 'daily' && !time) return;
-    if (conditionType === 'countdown' && (timerHours === 0 && timerMinutes === 0)) return;
+    if (conditionType === 'countdown' && (timerHours === 0 && timerMinutes === 0 && timerSeconds === 0)) return;
 
-    // Calculate duration for timer in seconds
-    const duration = (timerHours * 3600) + (timerMinutes * 60);
+    const duration = (timerHours * 3600) + (timerMinutes * 60) + timerSeconds;
 
     addSchedule({
         id: Math.random().toString(36).substr(2, 9),
@@ -101,29 +98,25 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
         targetSegmentId: targetId,
         action: showPwmTools ? 'SET_VALUE' : action,
         targetValue: showPwmTools ? pwmValue : undefined,
-        enabled: true
+        enabled: true,
+        repeatMode: repeatMode,
+        repeatCount: repeatMode === 'count' ? repeatCount : undefined
     });
     
     // Reset defaults
     setTargetId("");
     setAction("ON");
     setPwmValue(128);
+    setTimerHours(0);
+    setTimerMinutes(30);
+    setTimerSeconds(0);
     setHybridMode('digital');
+    setRepeatMode('daily');
+    setRepeatCount(1);
   };
 
   const getTargetName = (id: string) => segments.find(s => s.num_of_node === id)?.name || "Unknown Device";
   const getTargetGpio = (id: string) => segments.find(s => s.num_of_node === id)?.gpio || "?";
-
-  // Helper to format remaining time
-  const formatDuration = (seconds?: number) => {
-    if (!seconds) return "0m";
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m} min`;
-  };
-
-  // Filter schedules to only show DAILY ones in the list (Hide timers as requested)
   const visibleSchedules = schedules.filter(s => s.type !== 'countdown');
 
   return (
@@ -189,7 +182,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                    {/* Time Input based on Condition Type */}
+                    {/* Time Input */}
                     <div className="space-y-2">
                         <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                             {conditionType === 'daily' ? t.exec_time : 'Duration'}
@@ -198,13 +191,13 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                         {conditionType === 'daily' ? (
                             <Input 
                                 type="time" 
-                                step="1" // Enables seconds selection
+                                step="1" 
                                 value={time} 
                                 onChange={(e) => setTime(e.target.value)}
                                 className="h-12 text-lg text-center tracking-widest font-mono"
                             />
                         ) : (
-                            <div className="flex gap-2">
+                            <div className="flex gap-1">
                                 <div className="flex-1 relative">
                                     <Input 
                                         type="number" 
@@ -213,7 +206,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                         onChange={(e) => setTimerHours(parseInt(e.target.value) || 0)}
                                         className="h-12 text-lg text-center font-mono pl-1"
                                     />
-                                    <span className="absolute right-2 bottom-1 text-[8px] text-muted-foreground font-black uppercase">HR</span>
+                                    <span className="absolute right-2 bottom-1 text-[7px] text-muted-foreground font-black uppercase">HR</span>
                                 </div>
                                 <div className="flex-1 relative">
                                     <Input 
@@ -224,13 +217,24 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                         onChange={(e) => setTimerMinutes(parseInt(e.target.value) || 0)}
                                         className="h-12 text-lg text-center font-mono pl-1"
                                     />
-                                    <span className="absolute right-2 bottom-1 text-[8px] text-muted-foreground font-black uppercase">MIN</span>
+                                    <span className="absolute right-2 bottom-1 text-[7px] text-muted-foreground font-black uppercase">MIN</span>
+                                </div>
+                                <div className="flex-1 relative">
+                                    <Input 
+                                        type="number" 
+                                        min="0"
+                                        max="59"
+                                        value={timerSeconds} 
+                                        onChange={(e) => setTimerSeconds(parseInt(e.target.value) || 0)}
+                                        className="h-12 text-lg text-center font-mono pl-1"
+                                    />
+                                    <span className="absolute right-2 bottom-1 text-[7px] text-muted-foreground font-black uppercase">SEC</span>
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    {/* Segment Select */}
+                    {/* Target Segment */}
                     <div className="space-y-2">
                          <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{t.target_device}</label>
                          <select 
@@ -248,6 +252,59 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                     </div>
                 </div>
 
+                {/* Repetition Protocol Section */}
+                {conditionType === 'daily' && (
+                    <div className="bg-secondary/5 rounded-xl p-3 border border-border/50">
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 mb-2">
+                             <Repeat size={12} /> Repetition Protocol
+                        </label>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => setRepeatMode('daily')}
+                                className={cn(
+                                    "flex-1 h-9 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
+                                    repeatMode === 'daily' ? "bg-primary text-black border-primary" : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                )}
+                            >
+                                <Infinity size={12} /> Always
+                            </button>
+                            <button 
+                                onClick={() => setRepeatMode('once')}
+                                className={cn(
+                                    "flex-1 h-9 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
+                                    repeatMode === 'once' ? "bg-primary text-black border-primary" : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                )}
+                            >
+                                <Check size={12} /> Once
+                            </button>
+                            <button 
+                                onClick={() => setRepeatMode('count')}
+                                className={cn(
+                                    "flex-1 h-9 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
+                                    repeatMode === 'count' ? "bg-primary text-black border-primary" : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                )}
+                            >
+                                <Hash size={12} /> Count
+                            </button>
+                        </div>
+                        {repeatMode === 'count' && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-2">
+                                <div className="flex items-center gap-2">
+                                    <Input 
+                                        type="number" 
+                                        min="1" 
+                                        max="99" 
+                                        value={repeatCount} 
+                                        onChange={(e) => setRepeatCount(parseInt(e.target.value) || 1)} 
+                                        className="h-9 text-center" 
+                                    />
+                                    <span className="text-[9px] font-bold uppercase text-muted-foreground">Times</span>
+                                </div>
+                            </motion.div>
+                        )}
+                    </div>
+                )}
+
                 {/* Intelligent Suggestions Area */}
                 <AnimatePresence mode="wait">
                     {targetId && (
@@ -258,7 +315,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                             exit={{ opacity: 0, height: 0 }}
                             className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3"
                         >
-                            {/* Header & Mode Switcher for Hybrid */}
+                            {/* ... existing PWM/Digital UI ... */}
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
                                     {showPwmTools ? <Sliders size={12} /> : <Power size={12} />} 
@@ -344,7 +401,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                 </Button>
              </div>
 
-             {/* Existing Schedules List - UPDATED: Hides Countdown timers */}
+             {/* Existing Schedules List */}
              <div className="space-y-4 pt-4 border-t border-border">
                 <div className="flex items-center gap-2 mb-2 text-muted-foreground font-black text-[10px] uppercase tracking-widest">
                     <Clock size={12} /> Active Timeline (Daily)
@@ -358,6 +415,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                     <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
                         {visibleSchedules.map(sch => (
                             <div key={sch.id} className="group flex items-center justify-between p-3 bg-secondary/5 border border-border/50 rounded-xl hover:border-primary/30 transition-colors">
+                                {/* ... existing list item ... */}
                                 <div className="flex items-center gap-4">
                                     <div className="bg-background border border-border p-2 rounded-lg font-mono text-sm font-bold text-primary shadow-sm min-w-[60px] text-center flex items-center justify-center gap-1">
                                         {sch.time}
@@ -369,6 +427,11 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                         <div className="flex gap-2 text-[9px] text-muted-foreground font-medium">
                                             <span className="bg-muted/30 px-1.5 py-0.5 rounded">GP-{getTargetGpio(sch.targetSegmentId)}</span>
                                             
+                                            {/* Repeat Badge */}
+                                            {sch.repeatMode === 'once' && <span className="text-[8px] bg-red-500/10 text-red-500 px-1 rounded border border-red-500/20">1x RUN</span>}
+                                            {sch.repeatMode === 'count' && <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1 rounded border border-blue-500/20">{sch.repeatCount} LEFT</span>}
+                                            {(sch.repeatMode === 'daily' || !sch.repeatMode) && <span className="text-[8px] bg-green-500/10 text-green-500 px-1 rounded border border-green-500/20">LOOP</span>}
+
                                             {sch.action === 'SET_VALUE' ? (
                                                 <span className="px-1.5 py-0.5 rounded font-black text-orange-500 bg-orange-500/10 flex items-center gap-1">
                                                     <Fingerprint size={10} /> PWM: {sch.targetValue}
@@ -385,7 +448,6 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                         </div>
                                     </div>
                                 </div>
-                                
                                 <div className="flex items-center gap-3">
                                     <Switch checked={sch.enabled} onCheckedChange={() => toggleSchedule(sch.id)} />
                                     <Button 

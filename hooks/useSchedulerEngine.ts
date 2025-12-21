@@ -9,7 +9,7 @@ import { useConnection } from '../lib/store/connection';
 import { CMD, Segment } from '../types/index';
 
 export function useSchedulerEngine() {
-  const { schedules, updateLastRun, disableSchedule } = useSchedulerStore();
+  const { schedules, updateLastRun, disableSchedule, decrementRepeat } = useSchedulerStore();
   const { segments, updateSegment } = useSegments(); 
   const { settings } = useSettingsStore();
   const { sendCommand } = useWebSocket();
@@ -104,9 +104,17 @@ export function useSchedulerEngine() {
                     // 4. Update Timestamp
                     updateLastRun(schedule.id, currentTimestamp);
 
-                    // 5. Special Handling for Timers: Disable after running (One-shot)
+                    // 5. Handle Repetition & Countdown Logic
                     if (schedule.type === 'countdown') {
+                        // Timers are always one-shot unless re-enabled manually
                         disableSchedule(schedule.id);
+                    } else {
+                        // Daily Schedule Logic
+                        if (schedule.repeatMode === 'once') {
+                            disableSchedule(schedule.id);
+                        } else if (schedule.repeatMode === 'count') {
+                            decrementRepeat(schedule.id);
+                        }
                     }
                     
                     // 6. Notification
@@ -130,8 +138,8 @@ export function useSchedulerEngine() {
             }
         });
 
-    }, 1000); // Check every 1 second (increased frequency for precise timers)
+    }, 1000); 
 
     return () => clearInterval(interval);
-  }, [schedules, segments, sendCommand, updateLastRun, disableSchedule, updateSegment, addToast, settings.language, queryClient]);
+  }, [schedules, segments, sendCommand, updateLastRun, disableSchedule, decrementRepeat, updateSegment, addToast, settings.language, queryClient]);
 }

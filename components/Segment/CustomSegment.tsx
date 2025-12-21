@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, AlarmClock } from 'lucide-react';
+import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Slider } from '../ui/slider';
+import { Slider } from '../UI/Slider';
 import { Switch } from '../ui/switch';
 import { Segment, CMD, Schedule } from '../../types/index';
 import { useDeviceState, useDeviceControl } from '../../hooks/useDevice';
@@ -105,6 +105,23 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
     return `${m}:${s}`;
   };
 
+  // --- Helper: Get Tiny Action Indicator ---
+  const getActionIndicator = (sch: Schedule) => {
+    if (sch.action === 'ON') {
+        return <ArrowUpCircle size={8} strokeWidth={3} className="text-green-500" />;
+    }
+    if (sch.action === 'OFF') {
+        return <ArrowDownCircle size={8} strokeWidth={3} className="text-destructive" />;
+    }
+    if (sch.action === 'TOGGLE') {
+        return <ArrowLeftRight size={8} strokeWidth={3} className="text-blue-500" />;
+    }
+    if (sch.action === 'SET_VALUE') {
+        return <span className="text-[6px] text-orange-500 font-black font-mono">={sch.targetValue}</span>;
+    }
+    return null;
+  };
+
   // --- Toggle Handler (Latch) ---
   const handleToggle = useCallback(() => {
     const cmd = isOn ? CMD.LED_OFF : CMD.LED_ON;
@@ -157,42 +174,49 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
       {showToggle && (
         <div className="relative">
            {/* Header Info */}
-           <div className="flex justify-between items-center mb-1.5 md:mb-2 px-1">
-              {/* Left Side: Mode Label */}
-              <label className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+           <div className="flex justify-between items-center mb-1.5 md:mb-2 px-1 gap-2">
+              {/* Left Side: Mode Label - Flex shrink 0 so it doesn't disappear */}
+              <label className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1 shrink-0">
                  {mode === 'toggle' ? <MousePointerClick size={10} /> : <Fingerprint size={10} />}
-                 {mode === 'toggle' ? "Feshari (Toggle)" : "Push Mode"}
+                 <span className="hidden xs:inline">{mode === 'toggle' ? "Feshari (Toggle)" : "Push Mode"}</span>
+                 <span className="xs:hidden">{mode === 'toggle' ? "TGL" : "PSH"}</span>
               </label>
 
               {/* Right Side: Container for Scheduler Info + Change Button */}
-              <div className="flex items-center gap-2">
-                 {/* Scheduler Indicators - Render ALL sorted schedules */}
-                 <div className="flex items-center gap-1.5">
+              {/* Changed: flex-1, min-w-0 to allow scrolling of children without breaking parent layout */}
+              <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+                 
+                 {/* Scheduler Indicators */}
+                 {/* Removed fixed max-width, added overflow handling */}
+                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar justify-end px-1">
                     {sortedSchedules.map(sch => (
-                        <div key={sch.id} className="flex items-center gap-1.5 text-primary animate-in fade-in zoom-in duration-300 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                        <div key={sch.id} className="flex items-center gap-1.5 text-primary animate-in fade-in zoom-in duration-300 bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20 shrink-0 whitespace-nowrap">
+                            {/* Type Icon */}
                             {sch.type === 'countdown' ? (
-                                <>
-                                   <Hourglass size={10} className="animate-spin" />
-                                   <span className="font-mono text-[9px] font-bold">
-                                     {getCountdownString(sch)}
-                                   </span>
-                                </>
+                               <Hourglass size={8} className="animate-pulse" />
                             ) : (
-                                <>
-                                   <Clock size={10} />
-                                   <span className="font-mono text-[9px] font-bold">{sch.time}</span>
-                                </>
+                               <Clock size={8} />
                             )}
+                            
+                            {/* Time Text */}
+                            <span className="font-mono text-[8px] font-bold leading-none">
+                                {sch.type === 'countdown' ? getCountdownString(sch) : sch.time}
+                            </span>
+
+                            {/* Action Indicator (Separated by border) */}
+                            <div className="pl-1 border-l border-primary/20 flex items-center">
+                                {getActionIndicator(sch)}
+                            </div>
                         </div>
                     ))}
                  </div>
 
                  <button 
                     onClick={cycleMode} 
-                    className="text-[8px] md:text-[9px] text-primary opacity-60 hover:opacity-100 uppercase font-bold tracking-wider hover:underline flex items-center gap-1 ml-1"
+                    className="text-[8px] md:text-[9px] text-primary opacity-60 hover:opacity-100 uppercase font-bold tracking-wider hover:underline flex items-center gap-1 ml-1 shrink-0"
                     title="Change Button Mode"
                  >
-                    <Settings2 size={10} /> Change
+                    <Settings2 size={10} /> <span className="hidden sm:inline">Change</span>
                  </button>
               </div>
            </div>

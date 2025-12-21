@@ -75,6 +75,10 @@ export interface Schedule {
   targetValue?: number; // 0-255 for PWM
   enabled: boolean;
   lastRun?: number; // Timestamp of last execution
+  
+  // New Repetition Logic
+  repeatMode?: 'daily' | 'once' | 'count'; // 'daily' = infinite, 'once' = run once & disable, 'count' = run N times
+  repeatCount?: number; // Remaining runs if mode is 'count'
 }
 
 export interface AppSettings {
