@@ -84,72 +84,13 @@
         --primary: #daa520;
       }
 
-      /* Native Cursor Reset (The Dot) */
       body {
         font-family: 'Inter', sans-serif;
         background-color: #f4f7f9;
         color: #1a1c1e;
         margin: 0;
         overflow-x: hidden;
-        /* Sharp central dot */
-        cursor: url("data:image/svg+xml,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='5' cy='5' r='3' fill='%23daa520' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E") 5 5, auto !important;
-      }
-
-      /* Pointer Cursor (The Dot) - Consistency */
-      button, a, [role="button"], select, input, .interactive {
-        cursor: url("data:image/svg+xml,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='5' cy='5' r='3' fill='%23daa520' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E") 5 5, pointer !important;
-      }
-
-      /* Custom Follower */
-      #cursor-follower {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 32px;
-        height: 32px;
-        border: 1.5px solid var(--primary);
-        border-radius: 50%;
-        transform: translate3d(-50%, -50%, 0);
-        pointer-events: none;
-        z-index: 9999;
-        transition: 
-            width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-            height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-            background-color 0.3s ease,
-            border-color 0.3s ease,
-            opacity 0.3s ease;
-        opacity: 0; /* Hidden by default until move */
-        mix-blend-mode: normal;
-        will-change: transform, width, height;
-      }
-
-      /* Active State (Hovering interactive elements) */
-      #cursor-follower.active {
-        width: 64px;
-        height: 64px;
-        background-color: rgba(218, 165, 32, 0.08);
-        border-color: rgba(218, 165, 32, 0.4);
-        border-width: 1px;
-      }
-
-      /* Click State */
-      #cursor-follower.clicked {
-        transform: translate3d(-50%, -50%, 0) scale(0.85);
-        border-color: var(--primary);
-        background-color: rgba(218, 165, 32, 0.2);
-      }
-      
-      /* Mobile Optimization: Hide custom cursor on touch devices */
-      @media (hover: none) and (pointer: coarse) {
-        #cursor-follower {
-            display: none !important;
-        }
-        body {
-            cursor: auto !important;
-        }
-        button, a {
-            cursor: pointer !important;
-        }
+        cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23daa520' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3' fill='%23daa520'/%3E%3C/svg%3E") 12 12, auto;
       }
 
       /* Font Classes for Dynamic Switching */
@@ -194,6 +135,10 @@
       .dark body {
         background-color: #09090b; 
         color: #e0e0e0;
+      }
+
+      button, a, [role="button"] {
+        cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%23daa520' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ccircle cx='12' cy='12' r='2' fill='%23daa520'/%3E%3C/svg%3E") 16 16, pointer !important;
       }
 
       *:focus-visible {
@@ -340,66 +285,7 @@
 </script>
 </head>
 <body class="transition-colors duration-500">
-    <div id="cursor-follower"></div>
     <div id="root"></div>
-    <script>
-      // Interactive Cursor Logic
-      document.addEventListener('DOMContentLoaded', () => {
-        const follower = document.getElementById('cursor-follower');
-        if (!follower) return;
-
-        let mouseX = 0;
-        let mouseY = 0;
-        let followerX = 0;
-        let followerY = 0;
-        let isMoving = false;
-
-        // Mouse Move Listener
-        document.addEventListener('mousemove', (e) => {
-          mouseX = e.clientX;
-          mouseY = e.clientY;
-          if (!isMoving) {
-            // Instant snap on first move to prevent flying in
-            followerX = mouseX;
-            followerY = mouseY;
-            follower.style.opacity = '1';
-            isMoving = true;
-          }
-        });
-
-        // Hover Detection for Interactive Elements
-        const handleMouseOver = (e) => {
-          // Check if hovering over something clickable
-          if (e.target.closest('a, button, input, select, [role="button"], .interactive, .cursor-grab')) {
-            follower.classList.add('active');
-          } else {
-            follower.classList.remove('active');
-          }
-        };
-        document.addEventListener('mouseover', handleMouseOver);
-
-        // Click States
-        document.addEventListener('mousedown', () => follower.classList.add('clicked'));
-        document.addEventListener('mouseup', () => follower.classList.remove('clicked'));
-
-        // Animation Loop (Lerp)
-        const animate = () => {
-          // Linear Interpolation for smooth trailing effect
-          // Factor 0.15 = speed. Higher is faster/closer.
-          followerX += (mouseX - followerX) * 0.15;
-          followerY += (mouseY - followerY) * 0.15;
-          
-          // Using translate3d for GPU acceleration
-          follower.style.transform = `translate3d(${followerX}px, ${followerY}px, 0) translate(-50%, -50%)`;
-          
-          // Pass clicked state scale override if needed, but handled via CSS classes
-          requestAnimationFrame(animate);
-        };
-        
-        // Start Loop
-        requestAnimationFrame(animate);
-      });
-    </script>
     <script type="module" src="./index.tsx"></script>
 </body>
 </html>
