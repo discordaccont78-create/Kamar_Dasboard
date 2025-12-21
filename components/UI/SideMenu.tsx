@@ -30,25 +30,33 @@ const DialogTitle = Dialog.Title as any;
 const DialogClose = Dialog.Close as any;
 
 // Inlined Slider component with fixed types
+// Fix: Using any for props and internal primitives to resolve intrinsic property type errors in this environment
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <SliderPrimitive.Root
-    ref={ref}
-    className={cn(
-      "relative flex w-full touch-none select-none items-center",
-      className
-    )}
-    {...(props as any)}
-  >
-    <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-secondary/20">
-      <SliderPrimitive.Range className="absolute h-full bg-primary" />
-    </SliderPrimitive.Track>
-    <SliderPrimitive.Thumb className="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:scale-110 duration-100 cursor-grab active:cursor-grabbing" />
-  </SliderPrimitive.Root>
-))
-Slider.displayName = SliderPrimitive.Root.displayName
+  any
+>(({ className, ...props }, ref) => {
+  const Root = SliderPrimitive.Root as any;
+  const Track = SliderPrimitive.Track as any;
+  const Range = SliderPrimitive.Range as any;
+  const Thumb = SliderPrimitive.Thumb as any;
+
+  return (
+    <Root
+      ref={ref}
+      className={cn(
+        "relative flex w-full touch-none select-none items-center",
+        className
+      )}
+      {...props}
+    >
+      <Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-secondary/20">
+        <Range className="absolute h-full bg-primary" />
+      </Track>
+      <Thumb className="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:scale-110 duration-100 cursor-grab active:cursor-grabbing" />
+    </Root>
+  );
+})
+Slider.displayName = (SliderPrimitive.Root as any).displayName
 
 interface SideMenuProps { isOpen: boolean; onClose: () => void; }
 
@@ -146,16 +154,16 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   };
 
   // --- Suggestion Logic ---
-  // Extract unique group names for autocomplete
+  // Fix: Explicitly cast return value to string[] to resolve type inference mismatch
   const uniqueGroups = useMemo<string[]>(() => {
     const groups = new Set(segments.map(s => s.group).filter((g): g is string => !!g));
-    return Array.from(groups).sort();
+    return Array.from(groups).sort() as string[];
   }, [segments]);
 
-  // Extract unique segment names for autocomplete
+  // Fix: Explicitly cast return value to string[] to resolve type inference mismatch
   const uniqueNames = useMemo<string[]>(() => {
     const names = new Set(segments.map(s => s.name).filter((n): n is string => !!n));
-    return Array.from(names).sort();
+    return Array.from(names).sort() as string[];
   }, [segments]);
 
 
@@ -397,7 +405,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             {/* === OUTPUT SEGMENTS SECTION === */}
             <MenuSection 
                 id="output" 
-                title="Output Segments" 
+                title={t.output_segments} 
                 icon={Zap} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
@@ -432,7 +440,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   {/* Button Mode Selector - Only visible for Digital/All */}
                   {(outputForm.type === 'Digital' || outputForm.type === 'All') && (
                      <div className="grid grid-cols-4 items-center gap-4">
-                        <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Mode</label>
+                        <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.mode}</label>
                         <div className="col-span-3 flex gap-2">
                            <button 
                              onClick={() => setOutputForm({ onOffMode: 'toggle' })}
@@ -443,7 +451,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                  : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
                              )}
                            >
-                             Feshari (Toggle)
+                             {t.toggle_mode}
                            </button>
                            <button 
                              onClick={() => setOutputForm({ onOffMode: 'momentary' })}
@@ -454,7 +462,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                  : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
                              )}
                            >
-                             Switch (Push)
+                             {t.momentary_mode}
                            </button>
                         </div>
                      </div>
@@ -466,13 +474,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                         value={outputForm.group} 
                         onChange={e => setOutputForm({ group: e.target.value })} 
                         className="col-span-3 h-9" 
-                        placeholder="Optional Group" 
+                        placeholder={t.group} 
                         list="group-suggestions"
                      />
                   </div>
                   
                   <TechButton onClick={handleAddOutput} icon={Plus}>
-                    {t.add} Output Device
+                    {t.add} {t.output_segments}
                   </TechButton>
                 </CardContent>
               </Card>
@@ -481,7 +489,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               <Card className="rounded-2xl border-border shadow-sm bg-gradient-to-br from-card to-secondary/5 overflow-hidden">
                 <CardHeader className="pb-3 border-b border-border/50 bg-secondary/5 py-4">
                    <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
-                      <Clock size={14} className="animate-pulse" /> Automation Timer
+                      <Clock size={14} className="animate-pulse" /> {t.automation_timer}
                    </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-5 space-y-4">
@@ -495,7 +503,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                 value={idx === 0 ? timerForm.hours : idx === 1 ? timerForm.minutes : timerForm.seconds} 
                                 onChange={e => {
                                     const val = parseInt(e.target.value) || 0;
-                                    const newForm = {};
                                     if(idx === 0) setTimerForm({ hours: val });
                                     else if(idx === 1) setTimerForm({ minutes: val });
                                     else setTimerForm({ seconds: val });
@@ -513,7 +520,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                         onChange={e => setTimerForm({ targetSegmentId: e.target.value })}
                         className="w-full h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
                       >
-                         <option value="">Select Target Device...</option>
+                         <option value="">{t.target_device}...</option>
                          {timerCapableSegments.map(s => (
                            <option key={s.num_of_node} value={s.num_of_node}>
                              {s.name} (GPIO {s.gpio})
@@ -523,7 +530,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                    </div>
                    
                    <TechButton variant="outline" onClick={handleSetTimer} icon={Play}>
-                     Initialize Timer
+                     {t.init_timer}
                    </TechButton>
                 </CardContent>
               </Card>
@@ -532,7 +539,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             {/* === STATUS OF YOUR DASHBOARD SECTION === */}
             <MenuSection 
                 id="status" 
-                title={t.dash_status || "Dashboard Status"} 
+                title={t.dash_status} 
                 icon={TableProperties} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
@@ -540,14 +547,14 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               <Card className="rounded-2xl border-border shadow-sm bg-card/50 overflow-hidden">
                  <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                     <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
-                       <Activity size={12} /> {t.status_desc || "Hardware Map"}
+                       <Activity size={12} /> {t.status_desc}
                     </CardTitle>
                  </CardHeader>
                  <CardContent className="p-0">
                     <div className="grid grid-cols-[35px_1fr_1fr_auto] bg-muted/40 p-2 text-[8px] font-black uppercase tracking-widest text-muted-foreground border-b border-border/50 gap-2">
-                       <div className="text-center">{t.gpio || "PIN"}</div>
-                       <div>{t.name || "ID"}</div>
-                       <div>{t.group || "GRP"}</div>
+                       <div className="text-center">{t.gpio}</div>
+                       <div>{t.name}</div>
+                       <div>{t.group}</div>
                        <div className="text-right">DATA</div>
                     </div>
                     
@@ -572,7 +579,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                 displayState = `VAL: ${seg.val_of_slide}`;
                                 stateColor = "text-orange-500";
                              } else if (seg.segType === 'Digital' || seg.groupType === 'register') {
-                                displayState = seg.is_led_on === 'on' ? "ON" : "OFF";
+                                displayState = seg.is_led_on === 'on' ? t.active_status : t.offline_status;
                                 stateColor = seg.is_led_on === 'on' ? "text-green-500" : "text-red-500";
                              }
 
@@ -607,7 +614,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             
             <MenuSection 
                 id="hardware" 
-                title="Hardware Templates" 
+                title={t.hardware_templates} 
                 icon={Cpu} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
@@ -616,7 +623,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
-                      <Cpu size={12} /> Shift Register (74HC595)
+                      <Cpu size={12} /> {t.shift_register}
                    </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
@@ -626,25 +633,25 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                         value={regForm.group} 
                         onChange={e => setRegForm({ group: e.target.value })} 
                         className="col-span-3 h-9" 
-                        placeholder="Register Name (e.g. Relays)"
+                        placeholder={t.group}
                         list="group-suggestions" 
                      />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">DS</label>
-                     <Input type="number" value={regForm.ds} onChange={e => setRegForm({ ds: e.target.value })} className="col-span-3 h-9" placeholder="Data Pin (SER)" />
+                     <Input type="number" value={regForm.ds} onChange={e => setRegForm({ ds: e.target.value })} className="col-span-3 h-9" placeholder="Data (SER)" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">SHCP</label>
-                     <Input type="number" value={regForm.shcp} onChange={e => setRegForm({ shcp: e.target.value })} className="col-span-3 h-9" placeholder="Clock Pin (SRCLK)" />
+                     <Input type="number" value={regForm.shcp} onChange={e => setRegForm({ shcp: e.target.value })} className="col-span-3 h-9" placeholder="Clock (SRCLK)" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">STCP</label>
-                     <Input type="number" value={regForm.stcp} onChange={e => setRegForm({ stcp: e.target.value })} className="col-span-3 h-9" placeholder="Latch Pin (RCLK)" />
+                     <Input type="number" value={regForm.stcp} onChange={e => setRegForm({ stcp: e.target.value })} className="col-span-3 h-9" placeholder="Latch (RCLK)" />
                   </div>
                   
                   <TechButton onClick={handleAddRegister} icon={Plus} variant="outline">
-                    Add 74HC595 Group
+                    {t.add} {t.group} 74HC595
                   </TechButton>
                 </CardContent>
               </Card>
@@ -653,13 +660,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-blue-500">
-                      <Cloud size={12} /> Weather Station (DHT)
+                      <Cloud size={12} /> {t.weather_station}
                    </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Data</label>
-                     <Input type="number" value={dhtForm.gpio} onChange={e => setDhtForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="Data Pin GPIO" />
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">GPIO</label>
+                     <Input type="number" value={dhtForm.gpio} onChange={e => setDhtForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="Data GPIO" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
@@ -667,7 +674,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                         value={dhtForm.name} 
                         onChange={e => setDhtForm({ name: e.target.value })} 
                         className="col-span-3 h-9" 
-                        placeholder="Sensor Name" 
+                        placeholder={t.dev_name} 
                         list="name-suggestions"
                      />
                   </div>
@@ -677,13 +684,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                         value={dhtForm.group} 
                         onChange={e => setDhtForm({ group: e.target.value })} 
                         className="col-span-3 h-9" 
-                        placeholder="Weather Group" 
+                        placeholder={t.group} 
                         list="group-suggestions"
                      />
                   </div>
                   
                   <TechButton onClick={handleAddDHT} icon={Plus} variant="outline">
-                    Add DHT Module
+                    {t.add} DHT
                   </TechButton>
                 </CardContent>
               </Card>
@@ -691,7 +698,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
 
             <MenuSection 
                 id="inputs" 
-                title="Input Sensors" 
+                title={t.input_sensors} 
                 icon={Monitor} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
@@ -709,7 +716,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                         value={inputForm.name} 
                         onChange={e => setInputForm({ name: e.target.value })} 
                         className="col-span-3 h-9" 
-                        placeholder="Sensor Name"
+                        placeholder={t.dev_name}
                         list="name-suggestions" 
                      />
                   </div>
@@ -728,13 +735,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                         value={inputForm.group} 
                         onChange={e => setInputForm({ group: e.target.value })} 
                         className="col-span-3 h-9" 
-                        placeholder="Optional" 
+                        placeholder={t.group} 
                         list="group-suggestions"
                      />
                   </div>
                   
                   <TechButton onClick={handleAddInput} icon={Plus}>
-                    {t.add} Sensor Input
+                    {t.add} {t.input_sensors}
                   </TechButton>
                 </CardContent>
               </Card>
@@ -742,7 +749,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
 
             <MenuSection 
                 id="system" 
-                title="System Core" 
+                title={t.system_core} 
                 icon={Activity} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
@@ -800,38 +807,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                 <span className="text-[9px] font-bold uppercase tracking-wider">Dot Array</span>
                             </button>
                         </div>
-                    </div>
-
-                    {/* Dashboard Font Selector */}
-                    <div className="space-y-2 pt-2 border-t border-border/50">
-                         <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                            <Type size={12} /> Dashboard Font
-                         </label>
-                         <div className="grid grid-cols-2 gap-2">
-                            {['Inter', 'Oswald', 'Lato', 'Montserrat', 'DinaRemaster', 'PrpggyDotted'].map((fontName) => {
-                                const isSelected = settings.dashboardFont === fontName;
-                                let fontClass = "font-inter";
-                                if (fontName === 'Oswald') fontClass = "font-oswald";
-                                if (fontName === 'Lato') fontClass = "font-lato";
-                                if (fontName === 'Montserrat') fontClass = "font-montserrat";
-                                if (fontName === 'DinaRemaster') fontClass = "font-dina";
-                                if (fontName === 'PrpggyDotted') fontClass = "font-proggy";
-
-                                return (
-                                    <button
-                                        key={fontName}
-                                        onClick={() => updateSettings({ dashboardFont: fontName as any })}
-                                        className={cn(
-                                            "h-12 border rounded-lg flex flex-col items-center justify-center transition-all hover:bg-secondary/10",
-                                            isSelected ? "border-primary bg-primary/10 text-primary shadow-[0_0_10px_-4px_var(--primary)]" : "border-white/10 text-muted-foreground"
-                                        )}
-                                    >
-                                        <span className={cn("text-xs font-bold", fontClass)}>{fontName}</span>
-                                        <span className={cn("text-[8px] opacity-60", fontClass)}>Focus and effort</span>
-                                    </button>
-                                );
-                            })}
-                         </div>
                     </div>
 
                     {/* Toggles */}

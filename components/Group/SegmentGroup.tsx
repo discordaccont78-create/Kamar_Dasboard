@@ -10,6 +10,7 @@ import { Segment } from '../../types/index';
 import { GroupHeader } from './GroupHeader';
 import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { useSettingsStore } from '../../lib/store/settings';
+import { translations } from '../../lib/i18n';
 
 interface Props {
   name: string;
@@ -25,12 +26,7 @@ interface Props {
 }
 
 const MotionDiv = motion.div as any;
-const MotionButton = motion.button as any;
 
-/**
- * Specialized Simple Button for Register Bits
- * Must be small, simple, but draggable.
- */
 const RegisterButton = React.memo(({ 
   segment, 
   onToggle, 
@@ -44,12 +40,9 @@ const RegisterButton = React.memo(({
 
     return (
         <div className="flex h-12 md:h-14 bg-card border border-border rounded-lg md:rounded-xl overflow-hidden shadow-sm hover:border-primary/50 transition-colors group">
-            {/* Drag Handle Area */}
             <div className="w-6 md:w-8 bg-secondary/10 flex items-center justify-center cursor-grab active:cursor-grabbing border-r border-border/50">
                 {dragHandle}
             </div>
-            
-            {/* Interactive Button Area */}
             <button 
                 onClick={onToggle}
                 className={cn(
@@ -61,8 +54,6 @@ const RegisterButton = React.memo(({
                     <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate w-full text-left">{segment.name}</span>
                     <span className="text-[7px] md:text-[8px] font-mono font-bold opacity-50">IDX {segment.regBitIndex}</span>
                 </div>
-
-                {/* LED Indicator */}
                 <div className={cn(
                     "w-2 h-2 md:w-3 md:h-3 rounded-full border shadow-inner transition-all duration-300 shrink-0",
                     isOn 
@@ -74,7 +65,6 @@ const RegisterButton = React.memo(({
     );
 });
 
-// Wrapper component to handle individual drag controls - Memoized
 const DraggableSegmentItem = React.memo(({ 
   segment, 
   index, 
@@ -106,40 +96,21 @@ const DraggableSegmentItem = React.memo(({
 
   const handleDrag = (event: any, info: any) => {
     if (!containerRef.current) return;
-    
-    // THROTTLE: Only allow 1 swap check every 400ms to prevent crash
     const now = Date.now();
     if (now - lastReorderTime.current < 400) return;
-
     const dragX = info.point.x;
     const dragY = info.point.y;
-    
-    // Get all items freshly from DOM
     const items = Array.from(containerRef.current.querySelectorAll('.segment_area')) as HTMLElement[];
-    
     let targetIndex = -1;
-
-    // Check overlap
     items.forEach((item, idx) => {
-      if (idx === index) return; // Don't check against self
-
+      if (idx === index) return;
       const rect = item.getBoundingClientRect();
-      
-      // Strict boundary check: Mouse must be strictly inside the target box
-      const isOver = 
-        dragX > rect.left && 
-        dragX < rect.right && 
-        dragY > rect.top && 
-        dragY < rect.bottom;
-
-      if (isOver) {
-        targetIndex = idx;
-      }
+      const isOver = dragX > rect.left && dragX < rect.right && dragY > rect.top && dragY < rect.bottom;
+      if (isOver) { targetIndex = idx; }
     });
-
     if (targetIndex !== -1 && targetIndex !== index) {
       moveItem(index, targetIndex);
-      lastReorderTime.current = Date.now(); // Update timestamp
+      lastReorderTime.current = Date.now();
     }
   };
 
@@ -148,23 +119,18 @@ const DraggableSegmentItem = React.memo(({
   return (
     <MotionDiv 
       key={segment.num_of_node}
-      layout="position" // Optimize layout animation
+      layout="position"
       drag
-      dragListener={false} // IMPORTANT: Disables dragging by clicking anywhere
-      dragControls={controls} // Only drag via handle
+      dragListener={false}
+      dragControls={controls}
       dragSnapToOrigin
       dragElastic={0.1}
-      onDragStart={() => {
-        onDragStart?.();
-      }}
+      onDragStart={() => { onDragStart?.(); }}
       onDrag={handleDrag}
       onDragEnd={(event: any, info: any) => {
         onDragEnd?.();
         const thresholdY = window.innerHeight - 110;
-        // Check for deletion zone
-        if (info.point.y > thresholdY) {
-          onRemove(segment.num_of_node);
-        }
+        if (info.point.y > thresholdY) { onRemove(segment.num_of_node); }
       }}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -172,7 +138,6 @@ const DraggableSegmentItem = React.memo(({
       className={cn("segment_area z-0 hover:z-10 relative", className)}
       style={{ touchAction: 'none' }}
     >
-      {/* Conditional Rendering: Simple Button vs Full Card */}
       {isRegister ? (
           <RegisterButton 
             segment={segment} 
@@ -233,8 +198,7 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { settings } = useSettingsStore();
-  
-  // This ref persists across renders to track the last time a swap occurred
+  const t = translations[settings.language];
   const lastReorderTime = useRef<number>(0);
 
   const moveItem = (fromIndex: number, toIndex: number) => {
@@ -244,7 +208,6 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
     onReorder(newSegments);
   };
 
-  // Memoize style to prevent object creation on render
   const containerStyle = useMemo(() => ({
     borderColor: `${settings.primaryColor}40`, 
     backgroundColor: `${settings.primaryColor}08`, 
@@ -257,13 +220,11 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
     backgroundColor: `${settings.primaryColor}15`
   }), [settings.primaryColor]);
 
-  // Determine Grid Layout based on content type
   const isRegisterGroup = segments.some(s => s.groupType === 'register');
   const gridClass = isRegisterGroup 
     ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-2 md:gap-3" 
     : (segments.length === 2 ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6");
     
-  // Smart Font Class for Zone Name
   const zoneFontClass = isPersian(name) ? "font-persian" : getFontClass(settings.dashboardFont);
 
   return (
@@ -271,7 +232,6 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
       className="h-full relative border-2 border-dashed rounded-xl md:rounded-[2rem] p-3 pt-6 md:p-8 transition-all duration-500 backdrop-blur-[2px]"
       style={containerStyle} 
     >
-      {/* Group Boundary Label & Drag Handle */}
       <div 
         className={cn(
           "absolute -top-3 left-4 md:left-8 pl-1 pr-3 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-colors z-10 border border-dashed rounded-full backdrop-blur-md",
@@ -284,7 +244,7 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
               {dragHandle}
            </div>
         )}
-        <span className="truncate max-w-[150px] md:max-w-none">ZONE: {name}</span>
+        <span className="truncate max-w-[150px] md:max-w-none">{t.zone}: {name}</span>
       </div>
 
       <div className="-mt-1 mb-3 md:-mt-2 md:mb-6">
@@ -293,15 +253,11 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
       
       <div 
         ref={containerRef}
-        className={cn(
-          "grid relative min-h-[50px] md:min-h-[100px]",
-          gridClass
-        )}
+        className={cn("grid relative min-h-[50px] md:min-h-[100px]", gridClass)}
       >
         <AnimatePresence mode="popLayout">
           {segments.map((seg, index) => {
             const isLastAndOdd = !isRegisterGroup && segments.length % 2 !== 0 && index === segments.length - 1;
-            
             return (
               <DraggableSegmentItem 
                 key={seg.num_of_node}
