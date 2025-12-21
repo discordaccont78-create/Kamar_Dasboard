@@ -3,8 +3,7 @@ import { motion } from 'framer-motion';
 import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Slider } from '../UI/Slider';
-import { Switch } from '../ui/switch';
+import { Slider } from '../ui/slider';
 import { Segment, CMD, Schedule } from '../../types/index';
 import { useDeviceState, useDeviceControl } from '../../hooks/useDevice';
 import { useSegments } from '../../lib/store/segments';
@@ -17,12 +16,13 @@ interface Props {
   onPWMChange?: (val: number) => void;
 }
 
+// Workaround for Framer Motion type compatibility
 const MotionDiv = motion.div as any;
 
 const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => {
   const { data: deviceState } = useDeviceState(initialSegment.num_of_node);
   const { mutate: controlDevice } = useDeviceControl();
-  const { clearSegmentTimer, updateSegment } = useSegments();
+  const { updateSegment } = useSegments();
   const { schedules } = useSchedulerStore();
   
   // Merge state securely
@@ -53,20 +53,17 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   const mode = safeSegment.onOffMode || 'toggle';
 
   // --- Identify Active Schedules for this Segment ---
-  // Get ALL active schedules, not just one.
   const activeSchedules = useMemo(() => 
     schedules.filter(s => s.targetSegmentId === safeSegment.num_of_node && s.enabled),
   [schedules, safeSegment.num_of_node]);
 
   // --- Sorting Logic ---
-  // Sort schedules by "Time Remaining" (ascending).
   const sortedSchedules = useMemo(() => {
     return [...activeSchedules].sort((a, b) => {
         const getNextExecutionTime = (s: Schedule) => {
             if (s.type === 'countdown') {
                 return (s.startedAt || 0) + (s.duration || 0) * 1000;
             } else if (s.type === 'daily') {
-                // Parse HH:MM[:SS]
                 if (!s.time) return Infinity;
                 const parts = s.time.split(':').map(Number);
                 const h = parts[0];
@@ -76,7 +73,6 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
                 const targetDate = new Date();
                 targetDate.setHours(h, m, sec, 0);
                 
-                // If time passed today, assume tomorrow
                 if (targetDate.getTime() < Date.now()) {
                     targetDate.setDate(targetDate.getDate() + 1);
                 }
@@ -87,9 +83,8 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
 
         return getNextExecutionTime(a) - getNextExecutionTime(b);
     });
-  }, [activeSchedules, now]); // Re-sort if 'now' changes significantly (though sort order usually stable unless wrap around)
+  }, [activeSchedules, now]);
 
-  // --- Helper to format countdown string ---
   const getCountdownString = (schedule: Schedule) => {
     if (schedule.type !== 'countdown') return null;
     const finishTime = (schedule.startedAt || 0) + (schedule.duration || 0) * 1000;
@@ -105,7 +100,6 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
     return `${m}:${s}`;
   };
 
-  // --- Helper: Get Tiny Action Indicator ---
   const getActionIndicator = (sch: Schedule) => {
     if (sch.action === 'ON') {
         return <ArrowUpCircle size={8} strokeWidth={3} className="text-green-500" />;
@@ -122,7 +116,6 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
     return null;
   };
 
-  // --- Toggle Handler (Latch) ---
   const handleToggle = useCallback(() => {
     const cmd = isOn ? CMD.LED_OFF : CMD.LED_ON;
     controlDevice({ 
@@ -133,7 +126,6 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
     });
   }, [isOn, safeSegment.gpio, safeSegment.num_of_node, controlDevice]);
 
-  // --- Momentary Handlers (Push) ---
   const handlePressStart = useCallback(() => {
      if (mode !== 'momentary') return;
      controlDevice({ cmd: CMD.LED_ON, gpio: safeSegment.gpio || 0, value: 0, nodeId: safeSegment.num_of_node });
@@ -149,7 +141,6 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
     updateSegment(safeSegment.num_of_node, { onOffMode: newMode });
   };
 
-  // --- PWM Handlers ---
   const handleSliderChange = (vals: number[]) => {
     setLocalPwm(vals[0]); 
   };
@@ -170,40 +161,27 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   return (
     <MotionDiv initial={false} className="flex flex-col gap-4 md:gap-6">
       
-      {/* Industrial Power Button */}
       {showToggle && (
         <div className="relative">
-           {/* Header Info */}
            <div className="flex justify-between items-center mb-1.5 md:mb-2 px-1 gap-2">
-              {/* Left Side: Mode Label - Flex shrink 0 so it doesn't disappear */}
               <label className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1 shrink-0">
                  {mode === 'toggle' ? <MousePointerClick size={10} /> : <Fingerprint size={10} />}
                  <span className="hidden xs:inline">{mode === 'toggle' ? "Feshari (Toggle)" : "Push Mode"}</span>
                  <span className="xs:hidden">{mode === 'toggle' ? "TGL" : "PSH"}</span>
               </label>
 
-              {/* Right Side: Container for Scheduler Info + Change Button */}
-              {/* Changed: flex-1, min-w-0 to allow scrolling of children without breaking parent layout */}
               <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-                 
-                 {/* Scheduler Indicators */}
-                 {/* Removed fixed max-width, added overflow handling */}
                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar justify-end px-1">
                     {sortedSchedules.map(sch => (
                         <div key={sch.id} className="flex items-center gap-1.5 text-primary animate-in fade-in zoom-in duration-300 bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20 shrink-0 whitespace-nowrap">
-                            {/* Type Icon */}
                             {sch.type === 'countdown' ? (
                                <Hourglass size={8} className="animate-pulse" />
                             ) : (
                                <Clock size={8} />
                             )}
-                            
-                            {/* Time Text */}
                             <span className="font-mono text-[8px] font-bold leading-none">
                                 {sch.type === 'countdown' ? getCountdownString(sch) : sch.time}
                             </span>
-
-                            {/* Action Indicator (Separated by border) */}
                             <div className="pl-1 border-l border-primary/20 flex items-center">
                                 {getActionIndicator(sch)}
                             </div>
@@ -221,7 +199,6 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
               </div>
            </div>
 
-           {/* The Button */}
            <button
              onPointerDown={mode === 'momentary' ? handlePressStart : undefined}
              onPointerUp={mode === 'momentary' ? handlePressEnd : undefined}
@@ -234,7 +211,6 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
                   : "border-white/10 bg-black/5 dark:bg-white/5 hover:border-white/20 hover:bg-white/10"
              )}
            >
-              {/* Inner Glow Mesh */}
               <div className={cn(
                  "absolute inset-0 opacity-20 transition-opacity duration-500",
                  isOn ? "bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-40" : ""
@@ -255,7 +231,6 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
                  </span>
               </div>
               
-              {/* Status Bar Indicator */}
               <div className={cn(
                  "absolute bottom-0 left-0 h-1 transition-all duration-500 ease-out",
                  isOn ? "w-full bg-primary shadow-[0_-2px_10px_rgba(var(--primary),0.5)]" : "w-0 bg-transparent"
@@ -264,7 +239,6 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
         </div>
       )}
 
-      {/* Proportional Control (Slider) */}
       {showSlider && (
         <div className="bg-secondary/5 p-3 md:p-4 rounded-lg md:rounded-xl border border-border-light dark:border-border-dark flex flex-col gap-3 md:gap-4">
           <div className="flex justify-between items-center">
@@ -282,7 +256,6 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
         </div>
       )}
 
-      {/* Protocol Injector (Code) */}
       {showCode && (
         <div className="flex flex-col gap-2">
             <label className="text-[9px] text-muted-foreground font-black uppercase tracking-widest ml-1">Protocol Injector</label>
@@ -312,4 +285,8 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   );
 };
 
-export const CustomSegment = React.memo(CustomSegmentInternal);
+// Export as a named constant to satisfy parser and React Fast Refresh
+const CustomSegment = React.memo(CustomSegmentInternal);
+CustomSegment.displayName = 'CustomSegment';
+
+export { CustomSegment };

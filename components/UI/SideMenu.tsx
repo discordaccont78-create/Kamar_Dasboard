@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as SliderPrimitive from "@radix-ui/react-slider";
@@ -22,6 +23,7 @@ import { translations } from '../../lib/i18n';
 
 // Workaround for Framer Motion types
 const MotionDiv = motion.div as any;
+const MotionSpan = motion.span as any;
 
 // Wrapper for Radix components to bypass strict type checking if needed
 const DialogOverlay = Dialog.Overlay as any;
@@ -71,33 +73,48 @@ const TechButton = ({ children, onClick, className, variant = 'primary', icon: I
 };
 
 // Collapsible Menu Section Component (Controlled)
-const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle }: any) => {
+const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle, animations }: any) => {
   const isOpen = id === activeId;
   
   return (
     <div className="space-y-1">
       <button 
         onClick={() => onToggle(id)}
-        className="w-full flex items-center gap-3 group outline-none py-3 select-none"
+        className={cn(
+            "w-full flex items-center gap-3 group outline-none relative overflow-hidden transition-all duration-300 select-none",
+            // Revised Active State: No shadow, Industrial Left Border, Gradient Background
+            isOpen 
+                ? "py-4 px-4 bg-gradient-to-r from-primary/10 to-transparent border-l-4 border-primary" 
+                : "py-3 px-2 border-l-4 border-transparent hover:bg-white/5 hover:pl-3"
+        )}
       >
         <div className={cn(
-          "p-1.5 rounded-md transition-all duration-300",
-          isOpen ? "bg-primary/10 text-primary shadow-[0_0_10px_-4px_var(--primary)]" : "bg-secondary/10 text-muted-foreground group-hover:text-primary/70"
+          "transition-all duration-300 z-10",
+          isOpen ? "text-primary scale-110" : "text-muted-foreground group-hover:text-primary/70"
         )}>
-            <Icon size={14} />
+            <Icon size={isOpen ? 18 : 16} strokeWidth={isOpen ? 2.5 : 2} />
         </div>
-        <span className={cn(
-          "text-[11px] font-black uppercase tracking-[0.2em] transition-colors",
-          isOpen ? "text-foreground/90" : "text-muted-foreground group-hover:text-foreground/70"
-        )}>
+        
+        {/* Animated Title */}
+        <MotionSpan 
+            initial={false}
+            animate={animations ? { x: isOpen ? 4 : 0 } : {}}
+            className={cn(
+                "text-[11px] font-black uppercase tracking-[0.2em] transition-colors z-10",
+                isOpen ? "text-primary" : "text-muted-foreground group-hover:text-foreground/80"
+            )}
+        >
             {title}
-        </span>
+        </MotionSpan>
+
+        {/* Connecting Line (Only visible when closed or hovering) */}
+        {!isOpen && (
+            <div className="h-px flex-1 bg-border/40 group-hover:bg-primary/30 transition-colors ml-2" />
+        )}
+
+        {/* Chevron */}
         <div className={cn(
-          "h-px flex-1 transition-all duration-500",
-          isOpen ? "bg-gradient-to-r from-primary/50 to-transparent" : "bg-border/40"
-        )} />
-        <div className={cn(
-          "text-muted-foreground transition-all duration-300",
+          "text-muted-foreground transition-all duration-300 ml-auto z-10",
           isOpen ? "-rotate-180 text-primary" : "rotate-0"
         )}>
              <ChevronDown size={14} />
@@ -113,7 +130,7 @@ const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle }: an
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-             <div className="pb-2 space-y-4 px-1">
+             <div className="pb-4 pt-1 space-y-4 px-2 border-l border-white/5 ml-4">
                 {children}
              </div>
           </MotionDiv>
@@ -146,13 +163,11 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   };
 
   // --- Suggestion Logic ---
-  // Extract unique group names for autocomplete
   const uniqueGroups = useMemo<string[]>(() => {
     const groups = new Set(segments.map(s => s.group).filter((g): g is string => !!g));
     return Array.from(groups).sort() as string[];
   }, [segments]);
 
-  // Extract unique segment names for autocomplete
   const uniqueNames = useMemo<string[]>(() => {
     const names = new Set(segments.map(s => s.name).filter((n): n is string => !!n));
     return Array.from(names).sort() as string[];
@@ -163,7 +178,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   const isGpioUsed = (pin: number) => {
     return segments.some(s => 
       s.gpio === pin || 
-      s.dhtPin === pin ||
+      s.dhtPin === pin || 
       s.dsPin === pin ||
       s.shcpPin === pin ||
       s.stcpPin === pin
@@ -216,7 +231,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
       val_of_slide: 0,
       onOffMode: outputForm.onOffMode
     });
-    // Clear form after success
     setOutputForm({ gpio: '', name: '', type: 'Digital', group: '', onOffMode: 'toggle' });
     addToast("Output segment added successfully", "success");
   };
@@ -251,7 +265,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
       inputActive: false,
       usePullup: true
     });
-    // Clear form after success
     setInputForm({ gpio: '', name: '', group: '', trigger: '1' });
     addToast("Input segment added successfully", "success");
   };
@@ -325,25 +338,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     addToast("Weather station added", "success");
   };
 
-  const handleSetTimer = () => {
-    if (!timerForm.targetSegmentId) {
-      addToast("Please select a target segment", "error");
-      return;
-    }
-    const totalSeconds = (timerForm.hours * 3600) + (timerForm.minutes * 60) + timerForm.seconds;
-    if (totalSeconds <= 0) {
-      addToast("Please set a valid duration", "error");
-      return;
-    }
-    setSegmentTimer(timerForm.targetSegmentId, totalSeconds);
-    setTimerForm({ hours: 0, minutes: 0, seconds: 0, targetSegmentId: '' });
-    addToast("Timer started successfully", "success");
-  };
-
-  const timerCapableSegments = segments.filter(s => 
-    s.groupType !== 'input' && s.groupType !== 'weather' && s.segType !== 'Code'
-  );
-
   const handleNextTrack = () => {
     const nextIndex = (settings.currentTrackIndex + 1) % MUSIC_TRACKS.length;
     updateSettings({ currentTrackIndex: nextIndex });
@@ -353,6 +347,9 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     const prevIndex = (settings.currentTrackIndex - 1 + MUSIC_TRACKS.length) % MUSIC_TRACKS.length;
     updateSettings({ currentTrackIndex: prevIndex });
   };
+
+  // Dynamic Background Class for Header
+  const headerBgClass = settings.backgroundEffect === 'dots' ? 'dot-matrix' : 'graph-paper';
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -365,22 +362,30 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             settings.language === 'fa' ? 'left-4' : 'right-4'
           )}
         >
-          {/* Header */}
-          <div className="p-6 flex justify-between items-center border-b border-border bg-card/30 shrink-0">
-            <DialogTitle className="flex flex-col gap-1">
-              <span className="text-xl font-black flex items-center gap-2 text-foreground tracking-tight">
-                 <div className="p-2 bg-primary text-primary-foreground rounded-lg shadow-lg shadow-primary/20">
-                    <SettingsIcon size={18} strokeWidth={3} />
-                 </div>
-                 {t.sys_config}
-              </span>
-              <span className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] opacity-60 pl-1">{t.control_panel}</span>
-            </DialogTitle>
-            <DialogClose asChild>
-              <Button variant="ghost" size="icon" className="hover:bg-destructive hover:text-white transition-all rounded-full h-10 w-10">
-                <X size={20} />
-              </Button>
-            </DialogClose>
+          {/* Enhanced Header with Animation and better styling */}
+          <div className="relative overflow-hidden shrink-0 border-b border-border">
+             {/* Background Pattern Layer */}
+             <div className={cn("absolute inset-0 opacity-10", headerBgClass, settings.animations && "animate-grid")} />
+             
+             {/* Gradient Overlay */}
+             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background/90" />
+
+             <div className="relative z-10 p-6 flex justify-between items-center">
+                <DialogTitle className="flex flex-col gap-1">
+                <span className="text-xl font-black flex items-center gap-2 text-foreground tracking-tight">
+                    <div className="p-2 bg-primary text-primary-foreground rounded-lg shadow-lg shadow-primary/20">
+                        <SettingsIcon size={18} strokeWidth={3} />
+                    </div>
+                    {t.sys_config}
+                </span>
+                <span className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] opacity-60 pl-1">{t.control_panel}</span>
+                </DialogTitle>
+                <DialogClose asChild>
+                <Button variant="ghost" size="icon" className="hover:bg-destructive hover:text-white transition-all rounded-full h-10 w-10">
+                    <X size={20} />
+                </Button>
+                </DialogClose>
+             </div>
           </div>
 
           {/* Autocomplete Datalists */}
@@ -392,7 +397,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
           </datalist>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-20 no-scrollbar">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 no-scrollbar">
             
             {/* === OUTPUT SEGMENTS SECTION === */}
             <MenuSection 
@@ -401,8 +406,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 icon={Zap} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
+                animations={settings.animations}
             >
-              {/* ... Add Output Card ... */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardContent className="space-y-5 pt-6">
                   <div className="grid grid-cols-4 items-center gap-4">
@@ -485,6 +490,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 icon={TableProperties} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
+                animations={settings.animations}
             >
               <Card className="rounded-2xl border-border shadow-sm bg-card/50 overflow-hidden">
                  <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
@@ -560,6 +566,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 icon={Cpu} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
+                animations={settings.animations}
             >
                {/* Shift Register Card */}
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
@@ -644,6 +651,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 icon={Monitor} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
+                animations={settings.animations}
             >
               {/* ... Input Card ... */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
@@ -695,6 +703,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 icon={Activity} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
+                animations={settings.animations}
             >
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                   <CardContent className="space-y-6 pt-6">

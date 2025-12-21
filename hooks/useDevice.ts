@@ -29,15 +29,16 @@ export function useDeviceControl() {
       await queryClient.cancelQueries({ queryKey: ['device', payload.nodeId] });
 
       // Snapshot the previous value
-      const previousDevice = queryClient.getQueryData(['device', payload.nodeId]);
+      const previousDevice = queryClient.getQueryData<Segment>(['device', payload.nodeId]);
+      
+      // Snapshot Zustand state
+      const previousSegmentState = useSegments.getState().segments.find(s => s.num_of_node === payload.nodeId);
 
-      // Optimistically update to the new value
-      queryClient.setQueryData(['device', payload.nodeId], (old: Segment | undefined) => {
-        if (!old) return old;
-        
-        const updates: Partial<Segment> = {};
-        
-        switch (payload.cmd) {
+      // Prepare Updates
+      const updates: Partial<Segment> = {};
+      const currentIsOn = previousDevice?.is_led_on || previousSegmentState?.is_led_on || 'off';
+
+      switch (payload.cmd) {
             case CMD.LED_ON: 
                 updates.is_led_on = 'on'; 
                 break;
@@ -45,18 +46,24 @@ export function useDeviceControl() {
                 updates.is_led_on = 'off'; 
                 break;
             case CMD.LED_TOGGLE:
-                updates.is_led_on = old.is_led_on === 'on' ? 'off' : 'on';
+                updates.is_led_on = currentIsOn === 'on' ? 'off' : 'on';
                 break;
             case CMD.LED_PWM: 
                 updates.val_of_slide = payload.value; 
                 break;
-        }
+      }
 
+      // Optimistically update React Query Cache
+      queryClient.setQueryData(['device', payload.nodeId], (old: Segment | undefined) => {
+        if (!old) return old;
         return { ...old, ...updates };
       });
 
+      // Optimistically update Zustand Store (Critical for SideMenu status table sync)
+      useSegments.getState().updateSegment(payload.nodeId, updates);
+
       // Return a context object with the snapshotted value
-      return { previousDevice };
+      return { previousDevice, previousSegmentState };
     },
 
     // 2. The actual network request
@@ -67,9 +74,12 @@ export function useDeviceControl() {
     },
 
     // 3. If the network request fails, roll back to the saved value
-    onError: (err, newTodo, context) => {
+    onError: (err, newTodo, context: any) => {
       if (context?.previousDevice) {
         queryClient.setQueryData(['device', newTodo.nodeId], context.previousDevice);
+      }
+      if (context?.previousSegmentState) {
+        useSegments.getState().updateSegment(newTodo.nodeId, context.previousSegmentState);
       }
     },
 
