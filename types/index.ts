@@ -71,19 +71,11 @@ export interface Schedule {
   duration?: number; // Seconds for 'countdown'
   startedAt?: number; // Timestamp when countdown was enabled
   targetSegmentId: string;
-  
-  // Updated Action Types
-  action: 'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE' | 'START_TIMER';
-  
+  action: 'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE';
   targetValue?: number; // 0-255 for PWM
   enabled: boolean;
   lastRun?: number; // Timestamp of last execution
   
-  // Chained Action Logic (For START_TIMER)
-  chainedDuration?: number; // Seconds to wait before final action
-  chainedAction?: 'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE'; // Action to perform after delay
-  chainedValue?: number; // Value for chained action if PWM
-
   // New Repetition Logic
   repeatMode?: 'daily' | 'once' | 'count'; // 'daily' = infinite, 'once' = run once & disable, 'count' = run N times
   repeatCount?: number; // Remaining runs if mode is 'count'

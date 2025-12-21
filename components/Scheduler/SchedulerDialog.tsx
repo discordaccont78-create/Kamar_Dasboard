@@ -2,14 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarClock, Power, Plus, Trash2, Clock, Check, ArrowRight, Sliders, ToggleLeft, ToggleRight, Fingerprint, Hourglass, Timer, Repeat, Infinity, Hash, ArrowDownRight, Zap } from 'lucide-react';
+import { X, CalendarClock, Power, Plus, Trash2, Clock, Check, ArrowRight, Sliders, ToggleLeft, ToggleRight, Fingerprint, Hourglass, Timer, Repeat, Infinity, Hash } from 'lucide-react';
 import { useSegments } from '../../lib/store/segments';
 import { useSchedulerStore } from '../../lib/store/scheduler';
 import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-import { Slider } from '../ui/slider';
+import { Slider } from '../UI/Slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 
@@ -46,16 +46,9 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
 
   // Target & Action State
   const [targetId, setTargetId] = useState("");
-  const [action, setAction] = useState<'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE' | 'START_TIMER'>('ON');
+  const [action, setAction] = useState<'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE'>('ON');
   const [pwmValue, setPwmValue] = useState(128); 
   
-  // Chained Action State (For START_TIMER)
-  const [chainedHours, setChainedHours] = useState(0);
-  const [chainedMinutes, setChainedMinutes] = useState(10);
-  const [chainedSeconds, setChainedSeconds] = useState(0);
-  const [chainedAction, setChainedAction] = useState<'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE'>('ON');
-  const [chainedValue, setChainedValue] = useState(128);
-
   // New State for 'All' type segments: 'digital' or 'pwm'
   const [hybridMode, setHybridMode] = useState<'digital' | 'pwm'>('digital');
 
@@ -67,36 +60,28 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   const selectedSegment = segments.find(s => s.num_of_node === targetId);
   const isHybrid = selectedSegment?.segType === 'All';
   const isPurePwm = selectedSegment?.segType === 'PWM';
-  
-  // Determine if we need to show PWM tools based on primary OR chained action
-  const showPwmToolsPrimary = (isPurePwm || (isHybrid && hybridMode === 'pwm')) && action !== 'START_TIMER';
-  const showPwmToolsChained = (isPurePwm || (isHybrid && hybridMode === 'pwm')) && chainedAction === 'SET_VALUE';
+  const showPwmTools = isPurePwm || (isHybrid && hybridMode === 'pwm');
 
   useEffect(() => {
     if (isPurePwm) {
         setAction('SET_VALUE');
-        setChainedAction('SET_VALUE');
     } else if (isHybrid) {
         setHybridMode('digital');
         setAction('ON');
-        setChainedAction('ON');
     } else {
         setAction('ON');
-        setChainedAction('ON');
     }
   }, [targetId, isPurePwm, isHybrid]);
 
   useEffect(() => {
     if (isHybrid) {
         if (hybridMode === 'pwm') {
-            if (action !== 'START_TIMER') setAction('SET_VALUE');
-            setChainedAction('SET_VALUE');
+            setAction('SET_VALUE');
         } else {
-            if (action !== 'START_TIMER') setAction('ON');
-            setChainedAction('ON');
+            setAction('ON');
         }
     }
-  }, [hybridMode, isHybrid, action]);
+  }, [hybridMode, isHybrid]);
 
   const handleAdd = () => {
     if (!targetId) return;
@@ -104,7 +89,6 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
     if (conditionType === 'countdown' && (timerHours === 0 && timerMinutes === 0 && timerSeconds === 0)) return;
 
     const duration = (timerHours * 3600) + (timerMinutes * 60) + timerSeconds;
-    const chainedDurationSec = (chainedHours * 3600) + (chainedMinutes * 60) + chainedSeconds;
 
     addSchedule({
         id: Math.random().toString(36).substr(2, 9),
@@ -113,16 +97,11 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
         duration: conditionType === 'countdown' ? duration : undefined,
         startedAt: conditionType === 'countdown' ? Date.now() : undefined,
         targetSegmentId: targetId,
-        action: showPwmToolsPrimary ? 'SET_VALUE' : action,
-        targetValue: showPwmToolsPrimary ? pwmValue : undefined,
+        action: showPwmTools ? 'SET_VALUE' : action,
+        targetValue: showPwmTools ? pwmValue : undefined,
         enabled: true,
         repeatMode: repeatMode,
-        repeatCount: repeatMode === 'count' ? repeatCount : undefined,
-        
-        // Chained Props
-        chainedDuration: action === 'START_TIMER' ? chainedDurationSec : undefined,
-        chainedAction: action === 'START_TIMER' ? (showPwmToolsChained ? 'SET_VALUE' : chainedAction) : undefined,
-        chainedValue: (action === 'START_TIMER' && showPwmToolsChained) ? chainedValue : undefined
+        repeatCount: repeatMode === 'count' ? repeatCount : undefined
     });
     
     // Reset defaults
@@ -132,9 +111,6 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
     setTimerHours(0);
     setTimerMinutes(30);
     setTimerSeconds(0);
-    setChainedHours(0);
-    setChainedMinutes(10);
-    setChainedSeconds(0);
     setHybridMode('digital');
     setRepeatMode('daily');
     setRepeatCount(1);
@@ -334,7 +310,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                 <AnimatePresence mode="wait">
                     {targetId && (
                         <MotionDiv 
-                            key={showPwmToolsPrimary ? 'pwm-tools' : 'dig-tools'}
+                            key={showPwmTools ? 'pwm-tools' : 'dig-tools'}
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
@@ -343,8 +319,8 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                             {/* ... existing PWM/Digital UI ... */}
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
-                                    {showPwmToolsPrimary ? <Sliders size={12} /> : <Power size={12} />} 
-                                    {t.suggested_tool}: {showPwmToolsPrimary ? 'PWM Dimmer' : 'On/Off Switch'}
+                                    {showPwmTools ? <Sliders size={12} /> : <Power size={12} />} 
+                                    {t.suggested_tool}: {showPwmTools ? 'PWM Dimmer' : 'On/Off Switch'}
                                 </span>
                                 
                                 {isHybrid ? (
@@ -370,12 +346,12 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                     </div>
                                 ) : (
                                     <span className="text-[8px] text-muted-foreground bg-background px-2 py-0.5 rounded border border-border font-bold">
-                                        {showPwmToolsPrimary ? 'ANALOG ONLY' : 'DIGITAL ONLY'}
+                                        {showPwmTools ? 'ANALOG ONLY' : 'DIGITAL ONLY'}
                                     </span>
                                 )}
                             </div>
 
-                            {showPwmToolsPrimary ? (
+                            {showPwmTools ? (
                                 /* PWM UI */
                                 <div className="space-y-4 pt-2">
                                     <div className="flex justify-between items-center">
@@ -396,9 +372,9 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                     </div>
                                 </div>
                             ) : (
-                                /* Digital UI with Delayed Start Option */
-                                <div className="grid grid-cols-2 gap-2">
-                                    {(['ON', 'OFF', 'TOGGLE', 'START_TIMER'] as const).map(act => (
+                                /* Digital UI */
+                                <div className="grid grid-cols-3 gap-2">
+                                    {(['ON', 'OFF', 'TOGGLE'] as const).map(act => (
                                         <button
                                             key={act}
                                             onClick={() => setAction(act)}
@@ -412,76 +388,10 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                             {act === 'ON' && <Check size={12} />}
                                             {act === 'OFF' && <X size={12} />}
                                             {act === 'TOGGLE' && <ArrowRight size={12} />}
-                                            {act === 'START_TIMER' && <Hourglass size={12} />}
-                                            {act === 'ON' ? t.action_on : act === 'OFF' ? t.action_off : act === 'TOGGLE' ? t.action_toggle : t.action_start_timer}
+                                            {act === 'ON' ? t.action_on : act === 'OFF' ? t.action_off : t.action_toggle}
                                         </button>
                                     ))}
                                 </div>
-                            )}
-
-                            {/* Delayed Execution Configuration */}
-                            {action === 'START_TIMER' && (
-                                <MotionDiv 
-                                    initial={{ opacity: 0, height: 0 }} 
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    className="pt-2 border-t border-primary/20 space-y-3"
-                                >
-                                    <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-primary/80">
-                                        <ArrowDownRight size={12} /> Configure Chained Delay
-                                    </div>
-                                    
-                                    {/* Chained Duration */}
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-bold text-muted-foreground uppercase">{t.delay_duration}</label>
-                                        <div className="flex gap-1">
-                                            <div className="flex-1 relative">
-                                                <Input type="number" min="0" value={chainedHours} onChange={(e) => setChainedHours(parseInt(e.target.value) || 0)} className="h-9 text-center font-mono pl-1" />
-                                                <span className="absolute right-2 bottom-1 text-[6px] text-muted-foreground font-black uppercase">HR</span>
-                                            </div>
-                                            <div className="flex-1 relative">
-                                                <Input type="number" min="0" max="59" value={chainedMinutes} onChange={(e) => setChainedMinutes(parseInt(e.target.value) || 0)} className="h-9 text-center font-mono pl-1" />
-                                                <span className="absolute right-2 bottom-1 text-[6px] text-muted-foreground font-black uppercase">MIN</span>
-                                            </div>
-                                            <div className="flex-1 relative">
-                                                <Input type="number" min="0" max="59" value={chainedSeconds} onChange={(e) => setChainedSeconds(parseInt(e.target.value) || 0)} className="h-9 text-center font-mono pl-1" />
-                                                <span className="absolute right-2 bottom-1 text-[6px] text-muted-foreground font-black uppercase">SEC</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Final Action */}
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-bold text-muted-foreground uppercase">{t.final_action}</label>
-                                        {showPwmToolsChained ? (
-                                            <div className="space-y-2">
-                                                <div className="flex justify-between items-center bg-background/50 p-1 rounded px-2">
-                                                    <span className="text-[8px] font-black text-muted-foreground">VALUE: {chainedValue}</span>
-                                                </div>
-                                                <Slider value={[chainedValue]} onValueChange={(val) => setChainedValue(val[0])} max={255} step={1} className="w-full" />
-                                            </div>
-                                        ) : (
-                                            <div className="grid grid-cols-3 gap-1">
-                                                {(['ON', 'OFF', 'TOGGLE'] as const).map(act => (
-                                                    <button
-                                                        key={act}
-                                                        onClick={() => setChainedAction(act)}
-                                                        className={cn(
-                                                            "h-8 border rounded text-[8px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
-                                                            chainedAction === act 
-                                                                ? "bg-primary text-black border-primary" 
-                                                                : "bg-background text-muted-foreground border-border hover:bg-secondary/10"
-                                                        )}
-                                                    >
-                                                        {act === 'ON' && <Check size={10} />}
-                                                        {act === 'OFF' && <X size={10} />}
-                                                        {act === 'TOGGLE' && <ArrowRight size={10} />}
-                                                        {act === 'ON' ? t.action_on : act === 'OFF' ? t.action_off : t.action_toggle}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </MotionDiv>
                             )}
                         </MotionDiv>
                     )}
@@ -515,7 +425,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                         <span className="text-[10px] font-black uppercase tracking-wider text-foreground">
                                             {getTargetName(sch.targetSegmentId)}
                                         </span>
-                                        <div className="flex gap-2 text-[9px] text-muted-foreground font-medium flex-wrap">
+                                        <div className="flex gap-2 text-[9px] text-muted-foreground font-medium">
                                             <span className="bg-muted/30 px-1.5 py-0.5 rounded">GP-{getTargetGpio(sch.targetSegmentId)}</span>
                                             
                                             {/* Repeat Badge */}
@@ -523,11 +433,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                             {sch.repeatMode === 'count' && <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1 rounded border border-blue-500/20">{sch.repeatCount} LEFT</span>}
                                             {(sch.repeatMode === 'daily' || !sch.repeatMode) && <span className="text-[8px] bg-green-500/10 text-green-500 px-1 rounded border border-green-500/20">LOOP</span>}
 
-                                            {sch.action === 'START_TIMER' ? (
-                                                <span className="px-1.5 py-0.5 rounded font-black text-purple-500 bg-purple-500/10 flex items-center gap-1 border border-purple-500/20">
-                                                    <Hourglass size={10} /> DELAY {sch.chainedDuration}s -> {sch.chainedAction}
-                                                </span>
-                                            ) : sch.action === 'SET_VALUE' ? (
+                                            {sch.action === 'SET_VALUE' ? (
                                                 <span className="px-1.5 py-0.5 rounded font-black text-orange-500 bg-orange-500/10 flex items-center gap-1">
                                                     <Fingerprint size={10} /> PWM: {sch.targetValue}
                                                 </span>
