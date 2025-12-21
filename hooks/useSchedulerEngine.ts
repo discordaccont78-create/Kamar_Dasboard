@@ -9,7 +9,7 @@ import { useConnection } from '../lib/store/connection';
 import { CMD, Segment } from '../types/index';
 
 export function useSchedulerEngine() {
-  const { schedules, updateLastRun } = useSchedulerStore();
+  const { schedules, updateLastRun, disableSchedule } = useSchedulerStore();
   const { segments, updateSegment } = useSegments(); 
   const { settings } = useSettingsStore();
   const { sendCommand } = useWebSocket();
@@ -27,14 +27,30 @@ export function useSchedulerEngine() {
         schedules.forEach(schedule => {
             if (!schedule.enabled) return;
 
-            // Check match
-            if (schedule.time === currentTimeString) {
-                // Check if already ran this minute (debounce)
-                const lastRun = schedule.lastRun || 0;
-                if (currentTimestamp - lastRun < 60000) {
-                    return;
-                }
+            let shouldRun = false;
 
+            // 1. Check Condition: Daily Time
+            if (schedule.type === 'daily' || !schedule.type) { // Fallback for old data
+                 if (schedule.time === currentTimeString) {
+                     // Debounce: Check if already ran this minute
+                     const lastRun = schedule.lastRun || 0;
+                     if (currentTimestamp - lastRun > 60000) {
+                         shouldRun = true;
+                     }
+                 }
+            } 
+            // 2. Check Condition: Countdown Timer
+            else if (schedule.type === 'countdown') {
+                const startTime = schedule.startedAt || 0;
+                const durationMs = (schedule.duration || 0) * 1000;
+                const finishTime = startTime + durationMs;
+
+                if (currentTimestamp >= finishTime) {
+                    shouldRun = true;
+                }
+            }
+
+            if (shouldRun) {
                 // Execute Logic
                 const segment = segments.find(s => s.num_of_node === schedule.targetSegmentId);
                 
@@ -87,8 +103,13 @@ export function useSchedulerEngine() {
 
                     // 4. Update Timestamp
                     updateLastRun(schedule.id, currentTimestamp);
+
+                    // 5. Special Handling for Timers: Disable after running (One-shot)
+                    if (schedule.type === 'countdown') {
+                        disableSchedule(schedule.id);
+                    }
                     
-                    // 5. Notification
+                    // 6. Notification
                     if (success) {
                         const msg = settings.language === 'fa'
                             ? `وظیفه خودکار: ${segment.name} -> ${actionLabel}`
@@ -102,14 +123,15 @@ export function useSchedulerEngine() {
                     }
 
                 } else {
-                    // Segment not found
+                    // Segment not found, but mark as run to prevent loops
                     updateLastRun(schedule.id, currentTimestamp);
+                    if (schedule.type === 'countdown') disableSchedule(schedule.id);
                 }
             }
         });
 
-    }, 3000); // Check every 3 seconds
+    }, 1000); // Check every 1 second (increased frequency for precise timers)
 
     return () => clearInterval(interval);
-  }, [schedules, segments, sendCommand, updateLastRun, updateSegment, addToast, settings.language, queryClient]);
+  }, [schedules, segments, sendCommand, updateLastRun, disableSchedule, updateSegment, addToast, settings.language, queryClient]);
 }

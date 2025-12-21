@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint } from 'lucide-react';
+import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, AlarmClock } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Slider } from '../ui/slider';
 import { Switch } from '../ui/switch';
-import { Segment, CMD } from '../../types/index';
+import { Segment, CMD, Schedule } from '../../types/index';
 import { useDeviceState, useDeviceControl } from '../../hooks/useDevice';
 import { useSegments } from '../../lib/store/segments';
+import { useSchedulerStore } from '../../lib/store/scheduler';
 import { cn } from '../../lib/utils';
 
 interface Props {
@@ -22,6 +23,7 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   const { data: deviceState } = useDeviceState(initialSegment.num_of_node);
   const { mutate: controlDevice } = useDeviceControl();
   const { clearSegmentTimer, updateSegment } = useSegments();
+  const { schedules } = useSchedulerStore();
   
   // Merge state securely
   const safeSegment = useMemo(() => ({
@@ -30,18 +32,78 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
     timerFinishAt: initialSegment.timerFinishAt
   }), [initialSegment, deviceState]);
 
-  // Local state for immediate slider feedback without network spam
+  // Local state
   const [localPwm, setLocalPwm] = useState(safeSegment.val_of_slide);
   const [code, setCode] = useState("");
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  
+  // Global "Now" state to trigger re-renders for countdowns without individual intervals
+  const [now, setNow] = useState(Date.now());
 
-  // Sync local PWM state when external update comes in (e.g. from another user)
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sync local PWM
   useEffect(() => {
     setLocalPwm(safeSegment.val_of_slide);
   }, [safeSegment.val_of_slide]);
 
   const isOn = safeSegment.is_led_on === 'on';
   const mode = safeSegment.onOffMode || 'toggle';
+
+  // --- Identify Active Schedules for this Segment ---
+  // Get ALL active schedules, not just one.
+  const activeSchedules = useMemo(() => 
+    schedules.filter(s => s.targetSegmentId === safeSegment.num_of_node && s.enabled),
+  [schedules, safeSegment.num_of_node]);
+
+  // --- Sorting Logic ---
+  // Sort schedules by "Time Remaining" (ascending).
+  const sortedSchedules = useMemo(() => {
+    return [...activeSchedules].sort((a, b) => {
+        const getNextExecutionTime = (s: Schedule) => {
+            if (s.type === 'countdown') {
+                return (s.startedAt || 0) + (s.duration || 0) * 1000;
+            } else if (s.type === 'daily') {
+                // Parse HH:MM[:SS]
+                if (!s.time) return Infinity;
+                const parts = s.time.split(':').map(Number);
+                const h = parts[0];
+                const m = parts[1];
+                const sec = parts[2] || 0;
+
+                const targetDate = new Date();
+                targetDate.setHours(h, m, sec, 0);
+                
+                // If time passed today, assume tomorrow
+                if (targetDate.getTime() < Date.now()) {
+                    targetDate.setDate(targetDate.getDate() + 1);
+                }
+                return targetDate.getTime();
+            }
+            return Infinity;
+        };
+
+        return getNextExecutionTime(a) - getNextExecutionTime(b);
+    });
+  }, [activeSchedules, now]); // Re-sort if 'now' changes significantly (though sort order usually stable unless wrap around)
+
+  // --- Helper to format countdown string ---
+  const getCountdownString = (schedule: Schedule) => {
+    if (schedule.type !== 'countdown') return null;
+    const finishTime = (schedule.startedAt || 0) + (schedule.duration || 0) * 1000;
+    const diff = finishTime - now;
+    if (diff <= 0) return "00:00";
+    
+    const totalSeconds = Math.ceil(diff / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+    const s = (totalSeconds % 60).toString().padStart(2, '0');
+    
+    if (h > 0) return `${h}:${m}:${s}`;
+    return `${m}:${s}`;
+  };
 
   // --- Toggle Handler (Latch) ---
   const handleToggle = useCallback(() => {
@@ -84,54 +146,9 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
      });
   };
 
-  // --- Timer Logic ---
-  useEffect(() => {
-    if (!safeSegment.timerFinishAt) {
-      if (timeLeft !== null) setTimeLeft(null);
-      return;
-    }
-
-    const now = Date.now();
-    const initialRemaining = safeSegment.timerFinishAt - now;
-    
-    if (initialRemaining <= 0) {
-        setTimeLeft(null);
-        return;
-    }
-    
-    setTimeLeft(initialRemaining);
-
-    const interval = setInterval(() => {
-      const currentNow = Date.now();
-      const remaining = safeSegment.timerFinishAt! - currentNow;
-      
-      if (remaining <= 0) {
-        clearInterval(interval);
-        setTimeLeft(null);
-        if (mode === 'toggle') handleToggle(); 
-        clearSegmentTimer(safeSegment.num_of_node);
-      } else {
-        setTimeLeft(remaining);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [safeSegment.timerFinishAt, safeSegment.num_of_node, handleToggle, clearSegmentTimer, mode]); 
-
-  // Timer Text Formatter
-  const timeString = useMemo(() => {
-    if (!timeLeft || timeLeft <= 0) return null;
-    const totalSeconds = Math.ceil(timeLeft / 1000);
-    const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
-    const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
-    const s = (totalSeconds % 60).toString().padStart(2, '0');
-    return { h, m, s };
-  }, [timeLeft]);
-
   const showToggle = safeSegment.segType === 'Digital' || safeSegment.segType === 'All';
   const showSlider = safeSegment.segType === 'PWM' || safeSegment.segType === 'All';
   const showCode = safeSegment.segType === 'Code' || safeSegment.segType === 'All';
-  const showTimer = safeSegment.segType !== 'Code'; 
 
   return (
     <MotionDiv initial={false} className="flex flex-col gap-4 md:gap-6">
@@ -141,17 +158,43 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
         <div className="relative">
            {/* Header Info */}
            <div className="flex justify-between items-center mb-1.5 md:mb-2 px-1">
+              {/* Left Side: Mode Label */}
               <label className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
                  {mode === 'toggle' ? <MousePointerClick size={10} /> : <Fingerprint size={10} />}
                  {mode === 'toggle' ? "Feshari (Toggle)" : "Push Mode"}
               </label>
-              <button 
-                onClick={cycleMode} 
-                className="text-[8px] md:text-[9px] text-primary opacity-60 hover:opacity-100 uppercase font-bold tracking-wider hover:underline flex items-center gap-1"
-                title="Change Button Mode"
-              >
-                <Settings2 size={10} /> Change
-              </button>
+
+              {/* Right Side: Container for Scheduler Info + Change Button */}
+              <div className="flex items-center gap-2">
+                 {/* Scheduler Indicators - Render ALL sorted schedules */}
+                 <div className="flex items-center gap-1.5">
+                    {sortedSchedules.map(sch => (
+                        <div key={sch.id} className="flex items-center gap-1.5 text-primary animate-in fade-in zoom-in duration-300 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                            {sch.type === 'countdown' ? (
+                                <>
+                                   <Hourglass size={10} className="animate-spin" />
+                                   <span className="font-mono text-[9px] font-bold">
+                                     {getCountdownString(sch)}
+                                   </span>
+                                </>
+                            ) : (
+                                <>
+                                   <Clock size={10} />
+                                   <span className="font-mono text-[9px] font-bold">{sch.time}</span>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                 </div>
+
+                 <button 
+                    onClick={cycleMode} 
+                    className="text-[8px] md:text-[9px] text-primary opacity-60 hover:opacity-100 uppercase font-bold tracking-wider hover:underline flex items-center gap-1 ml-1"
+                    title="Change Button Mode"
+                 >
+                    <Settings2 size={10} /> Change
+                 </button>
+              </div>
            </div>
 
            {/* The Button */}
@@ -239,38 +282,6 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
                 <Trash2 size={14} />
             </Button>
             </div>
-        </div>
-      )}
-
-      {/* Timer / Runtime Display */}
-      {showTimer && (
-        <div className={cn(
-            "flex items-center justify-between px-1 transition-all duration-300",
-            timeLeft !== null ? "bg-primary/10 p-1.5 md:p-2 rounded-lg border border-primary/30" : ""
-        )}>
-            <div className="flex items-center gap-2 text-muted-foreground">
-            {timeLeft !== null ? <Hourglass size={12} className="animate-spin text-primary" /> : <Clock size={12} />}
-            <span className={cn(
-                "text-[8px] md:text-[9px] font-black uppercase tracking-widest",
-                timeLeft !== null ? "text-primary" : ""
-            )}>
-                {timeLeft !== null ? "Auto-Action In" : "Runtime"}
-            </span>
-            </div>
-            
-            {timeString ? (
-            <div className="flex gap-1 font-mono text-[9px] md:text-[10px] font-bold items-center">
-                <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[20px] text-center shadow-sm">{timeString.h}</span>
-                <span className="text-primary animate-pulse">:</span>
-                <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[20px] text-center shadow-sm">{timeString.m}</span>
-                <span className="text-primary animate-pulse">:</span>
-                <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded min-w-[20px] text-center shadow-sm">{timeString.s}</span>
-            </div>
-            ) : (
-            <div className="flex gap-1 font-mono text-[9px] md:text-[10px] font-bold text-foreground/80 items-center opacity-50">
-                <span>00</span><span>:</span><span>00</span><span>:</span><span>00</span>
-            </div>
-            )}
         </div>
       )}
     </MotionDiv>

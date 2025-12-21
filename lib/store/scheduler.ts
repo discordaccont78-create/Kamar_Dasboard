@@ -9,6 +9,7 @@ interface SchedulerStore {
   addSchedule: (schedule: Schedule) => void;
   removeSchedule: (id: string) => void;
   toggleSchedule: (id: string) => void;
+  disableSchedule: (id: string) => void;
   updateLastRun: (id: string, timestamp: number) => void;
 }
 
@@ -39,8 +40,22 @@ export const useSchedulerStore = create<SchedulerStore>()(
       })),
       
       toggleSchedule: (id) => set((state) => ({
+        schedules: state.schedules.map(s => {
+          if (s.id === id) {
+            const isEnabling = !s.enabled;
+            // If we are enabling a countdown timer, reset the startedAt time
+            if (isEnabling && s.type === 'countdown') {
+                return { ...s, enabled: true, startedAt: Date.now() };
+            }
+            return { ...s, enabled: isEnabling };
+          }
+          return s;
+        })
+      })),
+
+      disableSchedule: (id) => set((state) => ({
         schedules: state.schedules.map(s => 
-          s.id === id ? { ...s, enabled: !s.enabled } : s
+          s.id === id ? { ...s, enabled: false } : s
         )
       })),
 

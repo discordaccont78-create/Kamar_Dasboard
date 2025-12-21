@@ -41,8 +41,8 @@ export interface Segment {
   // Digital Button Mode
   onOffMode?: 'toggle' | 'momentary'; // 'toggle' = Standard Click, 'momentary' = Push to Hold
 
-  // Timer Feature
-  timerFinishAt?: number; // Timestamp (ms) when timer expires
+  // Timer Feature (Local segment timer, separate from Scheduler)
+  timerFinishAt?: number; 
 
   // Shift Register Hardware Pins
   readonly regBitIndex?: number;
@@ -66,12 +66,15 @@ export interface Segment {
 
 export interface Schedule {
   id: string;
-  time: string; // HH:MM (24h format)
+  type: 'daily' | 'countdown'; // daily = HH:MM, countdown = X seconds duration
+  time?: string; // HH:MM (24h format) for 'daily'
+  duration?: number; // Seconds for 'countdown'
+  startedAt?: number; // Timestamp when countdown was enabled
   targetSegmentId: string;
   action: 'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE';
   targetValue?: number; // 0-255 for PWM
   enabled: boolean;
-  lastRun?: number; // Timestamp of last execution to prevent multi-trigger in same minute
+  lastRun?: number; // Timestamp of last execution
 }
 
 export interface AppSettings {

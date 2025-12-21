@@ -149,13 +149,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   // Extract unique group names for autocomplete
   const uniqueGroups = useMemo<string[]>(() => {
     const groups = new Set(segments.map(s => s.group).filter((g): g is string => !!g));
-    return Array.from(groups).sort();
+    return Array.from(groups).sort() as string[];
   }, [segments]);
 
   // Extract unique segment names for autocomplete
   const uniqueNames = useMemo<string[]>(() => {
     const names = new Set(segments.map(s => s.name).filter((n): n is string => !!n));
-    return Array.from(names).sort();
+    return Array.from(names).sort() as string[];
   }, [segments]);
 
 
@@ -474,57 +474,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   <TechButton onClick={handleAddOutput} icon={Plus}>
                     {t.add} Output Device
                   </TechButton>
-                </CardContent>
-              </Card>
-
-              {/* ... Timer Feature ... */}
-              <Card className="rounded-2xl border-border shadow-sm bg-gradient-to-br from-card to-secondary/5 overflow-hidden">
-                <CardHeader className="pb-3 border-b border-border/50 bg-secondary/5 py-4">
-                   <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
-                      <Clock size={14} className="animate-pulse" /> Automation Timer
-                   </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-5 space-y-4">
-                   <div className="flex gap-2 items-center justify-center">
-                      {['HH', 'MM', 'SS'].map((label, idx) => (
-                        <div key={label} className="flex flex-col gap-1 items-center">
-                            <Input 
-                                type="number" 
-                                min="0" 
-                                max={idx === 0 ? 23 : 59} 
-                                value={idx === 0 ? timerForm.hours : idx === 1 ? timerForm.minutes : timerForm.seconds} 
-                                onChange={e => {
-                                    const val = parseInt(e.target.value) || 0;
-                                    const newForm = {};
-                                    if(idx === 0) setTimerForm({ hours: val });
-                                    else if(idx === 1) setTimerForm({ minutes: val });
-                                    else setTimerForm({ seconds: val });
-                                }} 
-                                className="h-10 w-14 text-center text-lg" 
-                            />
-                            <span className="text-[8px] font-black text-muted-foreground uppercase tracking-wider">{label}</span>
-                        </div>
-                      ))}
-                   </div>
-                   
-                   <div className="space-y-2">
-                      <select 
-                        value={timerForm.targetSegmentId}
-                        onChange={e => setTimerForm({ targetSegmentId: e.target.value })}
-                        className="w-full h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
-                      >
-                         <option value="">Select Target Device...</option>
-                         {timerCapableSegments.map(s => (
-                           <option key={s.num_of_node} value={s.num_of_node}>
-                             {s.name} (GPIO {s.gpio})
-                           </option>
-                         ))}
-                      </select>
-                   </div>
-                   
-                   <TechButton variant="outline" onClick={handleSetTimer} icon={Play}>
-                     Initialize Timer
-                   </TechButton>
                 </CardContent>
               </Card>
             </MenuSection>

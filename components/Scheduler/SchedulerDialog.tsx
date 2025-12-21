@@ -1,15 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarClock, Power, Plus, Trash2, Clock, Check, ArrowRight, Sliders, ToggleLeft, ToggleRight, Fingerprint } from 'lucide-react';
+import { X, CalendarClock, Power, Plus, Trash2, Clock, Check, ArrowRight, Sliders, ToggleLeft, ToggleRight, Fingerprint, Hourglass, Timer } from 'lucide-react';
 import { useSegments } from '../../lib/store/segments';
 import { useSchedulerStore } from '../../lib/store/scheduler';
 import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-// Fix: Corrected import casing to match 'components/UI/Slider.tsx'
-import { Slider } from '../UI/Slider';
+import { Slider } from '../ui/slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 
@@ -31,8 +31,15 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   const { settings } = useSettingsStore();
   const t = translations[settings.language];
 
-  // Local Form State
+  // Condition Type State
+  const [conditionType, setConditionType] = useState<'daily' | 'countdown'>('daily');
+
+  // Time Inputs
   const [time, setTime] = useState("");
+  const [timerHours, setTimerHours] = useState(0);
+  const [timerMinutes, setTimerMinutes] = useState(30);
+
+  // Target & Action State
   const [targetId, setTargetId] = useState("");
   const [action, setAction] = useState<'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE'>('ON');
   const [pwmValue, setPwmValue] = useState(128); // Default half brightness
@@ -52,7 +59,6 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   const isPurePwm = selectedSegment?.segType === 'PWM';
   
   // Should we show PWM tools? 
-  // YES if it's a pure PWM device OR if it's a Hybrid device in PWM mode.
   const showPwmTools = isPurePwm || (isHybrid && hybridMode === 'pwm');
 
   // Reset states when target changes
@@ -60,7 +66,6 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
     if (isPurePwm) {
         setAction('SET_VALUE');
     } else if (isHybrid) {
-        // Default hybrid to digital mode initially
         setHybridMode('digital');
         setAction('ON');
     } else {
@@ -80,11 +85,19 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   }, [hybridMode, isHybrid]);
 
   const handleAdd = () => {
-    if (!time || !targetId) return;
+    if (!targetId) return;
+    if (conditionType === 'daily' && !time) return;
+    if (conditionType === 'countdown' && (timerHours === 0 && timerMinutes === 0)) return;
+
+    // Calculate duration for timer in seconds
+    const duration = (timerHours * 3600) + (timerMinutes * 60);
 
     addSchedule({
         id: Math.random().toString(36).substr(2, 9),
-        time,
+        type: conditionType,
+        time: conditionType === 'daily' ? time : undefined,
+        duration: conditionType === 'countdown' ? duration : undefined,
+        startedAt: conditionType === 'countdown' ? Date.now() : undefined,
         targetSegmentId: targetId,
         action: showPwmTools ? 'SET_VALUE' : action,
         targetValue: showPwmTools ? pwmValue : undefined,
@@ -100,6 +113,18 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
 
   const getTargetName = (id: string) => segments.find(s => s.num_of_node === id)?.name || "Unknown Device";
   const getTargetGpio = (id: string) => segments.find(s => s.num_of_node === id)?.gpio || "?";
+
+  // Helper to format remaining time
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return "0m";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m} min`;
+  };
+
+  // Filter schedules to only show DAILY ones in the list (Hide timers as requested)
+  const visibleSchedules = schedules.filter(s => s.type !== 'countdown');
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -137,16 +162,72 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                     <Plus size={12} /> {t.add_schedule}
                 </div>
 
+                {/* Condition Type Switcher */}
+                <div className="grid grid-cols-2 gap-3 mb-2">
+                    <button
+                        onClick={() => setConditionType('daily')}
+                        className={cn(
+                            "flex items-center justify-center gap-2 h-10 rounded-lg border transition-all text-[10px] font-black uppercase tracking-wider",
+                            conditionType === 'daily' 
+                                ? "bg-primary/20 border-primary text-primary shadow-sm" 
+                                : "bg-transparent border-white/10 text-muted-foreground hover:bg-secondary/10"
+                        )}
+                    >
+                        <Clock size={14} /> Specific Time
+                    </button>
+                    <button
+                        onClick={() => setConditionType('countdown')}
+                        className={cn(
+                            "flex items-center justify-center gap-2 h-10 rounded-lg border transition-all text-[10px] font-black uppercase tracking-wider",
+                            conditionType === 'countdown' 
+                                ? "bg-primary/20 border-primary text-primary shadow-sm" 
+                                : "bg-transparent border-white/10 text-muted-foreground hover:bg-secondary/10"
+                        )}
+                    >
+                        <Timer size={14} /> Timer Count
+                    </button>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
-                    {/* Time Input */}
+                    {/* Time Input based on Condition Type */}
                     <div className="space-y-2">
-                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{t.exec_time}</label>
-                        <Input 
-                            type="time" 
-                            value={time} 
-                            onChange={(e) => setTime(e.target.value)}
-                            className="h-12 text-lg text-center tracking-widest font-mono"
-                        />
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                            {conditionType === 'daily' ? t.exec_time : 'Duration'}
+                        </label>
+                        
+                        {conditionType === 'daily' ? (
+                            <Input 
+                                type="time" 
+                                step="1" // Enables seconds selection
+                                value={time} 
+                                onChange={(e) => setTime(e.target.value)}
+                                className="h-12 text-lg text-center tracking-widest font-mono"
+                            />
+                        ) : (
+                            <div className="flex gap-2">
+                                <div className="flex-1 relative">
+                                    <Input 
+                                        type="number" 
+                                        min="0"
+                                        value={timerHours} 
+                                        onChange={(e) => setTimerHours(parseInt(e.target.value) || 0)}
+                                        className="h-12 text-lg text-center font-mono pl-1"
+                                    />
+                                    <span className="absolute right-2 bottom-1 text-[8px] text-muted-foreground font-black uppercase">HR</span>
+                                </div>
+                                <div className="flex-1 relative">
+                                    <Input 
+                                        type="number" 
+                                        min="0"
+                                        max="59"
+                                        value={timerMinutes} 
+                                        onChange={(e) => setTimerMinutes(parseInt(e.target.value) || 0)}
+                                        className="h-12 text-lg text-center font-mono pl-1"
+                                    />
+                                    <span className="absolute right-2 bottom-1 text-[8px] text-muted-foreground font-black uppercase">MIN</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Segment Select */}
@@ -258,27 +339,27 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                     )}
                 </AnimatePresence>
 
-                <Button onClick={handleAdd} disabled={!time || !targetId} className="w-full font-black tracking-widest uppercase text-[10px] h-11">
+                <Button onClick={handleAdd} disabled={!targetId} className="w-full font-black tracking-widest uppercase text-[10px] h-11">
                     {t.add_schedule}
                 </Button>
              </div>
 
-             {/* Existing Schedules List */}
+             {/* Existing Schedules List - UPDATED: Hides Countdown timers */}
              <div className="space-y-4 pt-4 border-t border-border">
                 <div className="flex items-center gap-2 mb-2 text-muted-foreground font-black text-[10px] uppercase tracking-widest">
-                    <Clock size={12} /> Active Timeline
+                    <Clock size={12} /> Active Timeline (Daily)
                 </div>
 
-                {schedules.length === 0 ? (
+                {visibleSchedules.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground/40 text-[10px] uppercase tracking-widest border-2 border-dashed border-border/50 rounded-xl">
                         {t.no_schedules}
                     </div>
                 ) : (
                     <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
-                        {schedules.map(sch => (
+                        {visibleSchedules.map(sch => (
                             <div key={sch.id} className="group flex items-center justify-between p-3 bg-secondary/5 border border-border/50 rounded-xl hover:border-primary/30 transition-colors">
                                 <div className="flex items-center gap-4">
-                                    <div className="bg-background border border-border p-2 rounded-lg font-mono text-sm font-bold text-primary shadow-sm min-w-[60px] text-center">
+                                    <div className="bg-background border border-border p-2 rounded-lg font-mono text-sm font-bold text-primary shadow-sm min-w-[60px] text-center flex items-center justify-center gap-1">
                                         {sch.time}
                                     </div>
                                     <div className="flex flex-col gap-0.5">
