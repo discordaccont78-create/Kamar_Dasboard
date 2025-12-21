@@ -74,7 +74,9 @@ export const translations = {
     mode: "Mode",
     toggle_mode: "Toggle (Latch)",
     momentary_mode: "Push (Momentary)",
-    change: "Change"
+    change: "Change",
+    dashboard_font: "Dashboard Font",
+    bg_effect: "Background Effect"
   },
   fa: {
     system_time: "زمان سیستم",
@@ -150,6 +152,8 @@ export const translations = {
     mode: "حالت",
     toggle_mode: "فشاری (Toggle)",
     momentary_mode: "لحظه‌ای (Momentary)",
-    change: "تغییر"
+    change: "تغییر",
+    dashboard_font: "فونت داشبورد (لاتین)",
+    bg_effect: "جلوه پس‌زمینه"
   }
 };

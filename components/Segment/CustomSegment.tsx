@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-// Fix: Correct casing for import to match defined file structure and avoid casing clash
+// Fix: Use 'components/UI/Slider.tsx' casing to resolve duplicate file casing conflict in the compilation environment
 import { Slider } from '../UI/Slider';
 import { Switch } from '../ui/switch';
 import { Segment, CMD } from '../../types/index';
