@@ -52,8 +52,12 @@ export const translations = {
     action_off: "POWER OFF",
     action_toggle: "SWITCH STATE",
     action_set_value: "SET INTENSITY",
+    action_start_timer: "DELAYED EXECUTION (TIMER)",
     set_pwm_val: "Set Value (0-255)",
-    digital_only: "Currently limited to Digital (On/Off) devices."
+    digital_only: "Currently limited to Digital (On/Off) devices.",
+    delay_duration: "Delay Duration",
+    final_action: "Final Action (After Delay)",
+    timer_spawned: "Timer Spawned"
   },
   fa: {
     system_time: "زمان سیستم",
@@ -107,7 +111,11 @@ export const translations = {
     action_off: "خاموش کردن",
     action_toggle: "تغییر وضعیت",
     action_set_value: "تنظیم شدت",
+    action_start_timer: "اجرای با تاخیر (تایمر)",
     set_pwm_val: "مقدار خروجی (۰-۲۵۵)",
-    digital_only: "در حال حاضر محدود به دستگاه‌های دیجیتال (On/Off) است."
+    digital_only: "در حال حاضر محدود به دستگاه‌های دیجیتال (On/Off) است.",
+    delay_duration: "مدت زمان تاخیر",
+    final_action: "عملیات نهایی (پس از تاخیر)",
+    timer_spawned: "تایمر ایجاد شد"
   }
 };

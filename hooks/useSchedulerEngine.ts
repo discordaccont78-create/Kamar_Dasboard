@@ -9,7 +9,7 @@ import { useConnection } from '../lib/store/connection';
 import { CMD, Segment } from '../types/index';
 
 export function useSchedulerEngine() {
-  const { schedules, updateLastRun, disableSchedule, decrementRepeat } = useSchedulerStore();
+  const { schedules, updateLastRun, disableSchedule, decrementRepeat, addSchedule } = useSchedulerStore();
   const { segments, updateSegment } = useSegments(); 
   const { settings } = useSettingsStore();
   const { sendCommand } = useWebSocket();
@@ -51,7 +51,43 @@ export function useSchedulerEngine() {
             }
 
             if (shouldRun) {
-                // Execute Logic
+                // Determine if this is a "Start Timer" action (Chained execution)
+                if (schedule.action === 'START_TIMER') {
+                    // Logic to SPAWN a new countdown schedule
+                    addSchedule({
+                        id: Math.random().toString(36).substr(2, 9),
+                        type: 'countdown',
+                        targetSegmentId: schedule.targetSegmentId,
+                        duration: schedule.chainedDuration || 60, // Default 60s if missing
+                        startedAt: Date.now(),
+                        action: schedule.chainedAction || 'ON',
+                        targetValue: schedule.chainedValue,
+                        enabled: true,
+                        // Countdowns generated this way are single-use
+                        repeatMode: 'once' 
+                    });
+
+                    // Notification
+                    const segmentName = segments.find(s => s.num_of_node === schedule.targetSegmentId)?.name || "Device";
+                    const msg = settings.language === 'fa' 
+                        ? `تایمر خودکار برای ${segmentName} شروع شد (${schedule.chainedDuration}s)`
+                        : `Auto-Timer started for ${segmentName} (${schedule.chainedDuration}s)`;
+                    addToast(msg, 'info');
+
+                    // Mark Parent Schedule as Run
+                    updateLastRun(schedule.id, currentTimestamp);
+                    
+                    // Handle Repetition for Parent Schedule
+                    if (schedule.repeatMode === 'once') {
+                        disableSchedule(schedule.id);
+                    } else if (schedule.repeatMode === 'count') {
+                        decrementRepeat(schedule.id);
+                    }
+
+                    return; // EXIT HERE, do not execute hardware command
+                }
+
+                // --- Standard Hardware Execution Logic ---
                 const segment = segments.find(s => s.num_of_node === schedule.targetSegmentId);
                 
                 if (segment) {
@@ -141,5 +177,5 @@ export function useSchedulerEngine() {
     }, 1000); 
 
     return () => clearInterval(interval);
-  }, [schedules, segments, sendCommand, updateLastRun, disableSchedule, decrementRepeat, updateSegment, addToast, settings.language, queryClient]);
+  }, [schedules, segments, sendCommand, updateLastRun, disableSchedule, decrementRepeat, updateSegment, addToast, settings.language, queryClient, addSchedule]);
 }
