@@ -5,7 +5,8 @@ import {
   Droplets, Wifi, Activity, ChefHat, BedDouble, Armchair, Bath, 
   Trees, Car, Briefcase, Gamepad2, Speaker, Radio, Camera, 
   DoorOpen, Layers, Cpu, Server, Router, Phone, Box, Settings,
-  Utensils, Refrigerator, WashingMachine, Warehouse
+  Utensils, Refrigerator, WashingMachine, Warehouse, Coffee, 
+  LayoutTemplate, Flame, Music
 } from 'lucide-react';
 
 /**
@@ -20,53 +21,56 @@ export const getIconForName = (name: string, defaultType: 'group' | 'device' = '
 
   // --- Mappings (Priority Order) ---
 
-  // 1. Kitchen / Cooking
-  if (match(lowerName, ['kitchen', 'cook', 'oven', 'stove', 'آشپزخانه', 'غذا', 'اجاق'])) return ChefHat;
-  if (match(lowerName, ['fridge', 'refrigerator', 'یخچال'])) return Refrigerator;
-  if (match(lowerName, ['wash', 'laundry', 'لباسشویی', 'ظرفشویی'])) return WashingMachine;
-  if (match(lowerName, ['dining', 'food', 'ناهار', 'شام'])) return Utensils;
+  // 1. Kitchen / Cooking / Appliances
+  if (match(lowerName, ['coffee', 'espresso', 'maker', 'barista', 'قهوه', 'اسپرسو', 'چای', 'نوشیدنی'])) return Coffee;
+  if (match(lowerName, ['kitchen', 'cook', 'oven', 'stove', 'آشپزخانه', 'غذا', 'اجاق', 'مطبخ'])) return ChefHat;
+  if (match(lowerName, ['fridge', 'refrigerator', 'freezer', 'یخچال', 'فریزر', 'سردخانه'])) return Refrigerator;
+  if (match(lowerName, ['wash', 'laundry', 'dryer', 'لباسشویی', 'ظرفشویی', 'خشک کن'])) return WashingMachine;
+  if (match(lowerName, ['dining', 'food', 'ناهار', 'شام', 'سفره'])) return Utensils;
 
   // 2. Living Room / Relax
-  if (match(lowerName, ['living', 'sofa', 'lounge', 'hall', 'پذیرایی', 'هال', 'نشیمن', 'مبل'])) return Armchair;
-  if (match(lowerName, ['tv', 'television', 'netflix', 'تلویزیون', 'تی وی'])) return Tv;
-  if (match(lowerName, ['speaker', 'sound', 'music', 'audio', 'باند', 'اسپیکر', 'صوت'])) return Speaker;
+  if (match(lowerName, ['living', 'sofa', 'lounge', 'hall', 'پذیرایی', 'هال', 'نشیمن', 'مبل', 'راحتی'])) return Armchair;
+  if (match(lowerName, ['tv', 'television', 'netflix', 'cinema', 'تلویزیون', 'تی وی', 'سینما', 'نمایش'])) return Tv;
+  if (match(lowerName, ['speaker', 'sound', 'music', 'audio', 'باند', 'اسپیکر', 'صوت', 'موزیک', 'ضبط'])) return Speaker;
   if (match(lowerName, ['radio', 'رادیو'])) return Radio;
-  if (match(lowerName, ['game', 'ps5', 'xbox', 'playstation', 'کنسول', 'بازی'])) return Gamepad2;
+  if (match(lowerName, ['game', 'ps5', 'xbox', 'playstation', 'console', 'کنسول', 'بازی', 'گیم'])) return Gamepad2;
+  if (match(lowerName, ['fireplace', 'fire', 'heater', 'شومینه', 'آتش'])) return Flame;
 
-  // 3. Bedroom
-  if (match(lowerName, ['bed', 'sleep', 'rest', 'خواب', 'تخت'])) return BedDouble;
+  // 3. Bedroom / Personal Rooms
+  if (match(lowerName, ['bed', 'sleep', 'rest', 'master', 'خواب', 'تخت', 'استراحت'])) return BedDouble;
+  if (match(lowerName, ['room', 'chamber', 'area', 'zone', 'اتاق', 'فضا', 'محوطه'])) return LayoutTemplate;
 
   // 4. Bathroom / Water
-  if (match(lowerName, ['bath', 'toilet', 'wc', 'shower', 'restroom', 'حمام', 'دستشویی', 'توالت', 'دوش'])) return Bath;
-  if (match(lowerName, ['water', 'pump', 'pool', 'آب', 'پمپ', 'استخر'])) return Droplets;
+  if (match(lowerName, ['bath', 'toilet', 'wc', 'shower', 'restroom', 'jacuzzi', 'حمام', 'دستشویی', 'توالت', 'دوش', 'جکوزی', 'وان'])) return Bath;
+  if (match(lowerName, ['water', 'pump', 'pool', 'valve', 'irrigation', 'آب', 'پمپ', 'استخر', 'شیر', 'آبیاری'])) return Droplets;
 
   // 5. Outdoors / Garage
-  if (match(lowerName, ['garden', 'yard', 'patio', 'flower', 'plant', 'باغ', 'حیاط', 'گلخانه', 'درخت'])) return Trees;
+  if (match(lowerName, ['garden', 'yard', 'patio', 'flower', 'plant', 'baagh', 'باغ', 'حیاط', 'گلخانه', 'درخت', 'فضای سبز'])) return Trees;
   if (match(lowerName, ['garage', 'car', 'gate', 'parking', 'پارکینگ', 'گاراژ', 'ماشین', 'خودرو'])) return Car;
-  if (match(lowerName, ['warehouse', 'store', 'storage', 'انبار', 'سوله'])) return Warehouse;
+  if (match(lowerName, ['warehouse', 'store', 'storage', 'shed', 'انبار', 'سوله', 'مخزن'])) return Warehouse;
 
   // 6. Office / Work
-  if (match(lowerName, ['office', 'work', 'desk', 'study', 'دفتر', 'کار', 'میز', 'اداره'])) return Briefcase;
-  if (match(lowerName, ['pc', 'computer', 'mac', 'server', 'کامپیوتر', 'رایانه', 'سرور'])) return Monitor;
-  if (match(lowerName, ['printer', 'print', 'پرینتر', 'چاپگر'])) return Box;
+  if (match(lowerName, ['office', 'work', 'desk', 'study', 'دفتر', 'کار', 'میز', 'اداره', 'شرکت'])) return Briefcase;
+  if (match(lowerName, ['pc', 'computer', 'mac', 'server', 'کامپیوتر', 'رایانه', 'سرور', 'لپ تاپ'])) return Monitor;
+  if (match(lowerName, ['printer', 'print', 'scan', 'پرینتر', 'چاپگر', 'اسکنر'])) return Box;
 
   // 7. Lighting (Generic)
-  if (match(lowerName, ['light', 'lamp', 'led', 'bulb', 'dimmer', 'chandelier', 'lampe', 'روشنایی', 'لامپ', 'لوستر', 'مهتابی', 'چراغ'])) return Lightbulb;
+  if (match(lowerName, ['light', 'lamp', 'led', 'bulb', 'dimmer', 'chandelier', 'lampe', 'loster', 'روشنایی', 'لامپ', 'لوستر', 'مهتابی', 'چراغ', 'هالوژن', 'نور'])) return Lightbulb;
 
   // 8. Climate / HVAC
-  if (match(lowerName, ['fan', 'cool', 'wind', 'ventilator', 'پنکه', 'فن', 'تهویه'])) return Fan;
-  if (match(lowerName, ['temp', 'heat', 'thermo', 'boiler', 'ac', 'air', 'condition', 'دما', 'حرارت', 'پکیج', 'کولر', 'بخاری', 'شوفاژ'])) return Thermometer;
+  if (match(lowerName, ['fan', 'cool', 'wind', 'ventilator', 'blow', 'پنکه', 'فن', 'تهویه', 'باد'])) return Fan;
+  if (match(lowerName, ['temp', 'heat', 'thermo', 'boiler', 'ac', 'air', 'condition', 'cooler', 'دما', 'حرارت', 'پکیج', 'کولر', 'بخاری', 'شوفاژ', 'اسپیلت'])) return Thermometer;
 
   // 9. Security / Entry
-  if (match(lowerName, ['door', 'entry', 'exit', 'در', 'درب', 'ورودی', 'خروجی'])) return DoorOpen;
-  if (match(lowerName, ['lock', 'secure', 'safe', 'قفل', 'گاوصندوق'])) return Lock;
-  if (match(lowerName, ['cam', 'camera', 'cctv', 'video', 'دوربین', 'نظارت'])) return Camera;
+  if (match(lowerName, ['door', 'entry', 'exit', 'open', 'close', 'در', 'درب', 'ورودی', 'خروجی', 'دروازه'])) return DoorOpen;
+  if (match(lowerName, ['lock', 'secure', 'safe', 'قفل', 'گاوصندوق', 'امنیت'])) return Lock;
+  if (match(lowerName, ['cam', 'camera', 'cctv', 'video', 'record', 'دوربین', 'نظارت', 'ضبط'])) return Camera;
 
-  // 10. Generic Electronics
-  if (match(lowerName, ['wifi', 'net', 'router', 'modem', 'اینترنت', 'مودم', 'وای فای'])) return Router;
+  // 10. Generic Electronics / Network
+  if (match(lowerName, ['wifi', 'net', 'router', 'modem', 'access point', 'اینترنت', 'مودم', 'وای فای', 'شبکه'])) return Router;
   if (match(lowerName, ['phone', 'mobile', 'cell', 'گوشی', 'موبایل', 'تلفن'])) return Phone;
-  if (match(lowerName, ['power', 'outlet', 'plug', 'socket', 'switch', 'relay', 'برق', 'پریز', 'سوئیچ', 'رله'])) return Zap;
-  if (match(lowerName, ['sensor', 'motion', 'pir', 'detect', 'سنسور', 'حسگر'])) return Activity;
+  if (match(lowerName, ['power', 'outlet', 'plug', 'socket', 'switch', 'relay', 'mains', 'برق', 'پریز', 'سوئیچ', 'رله', 'کنتاکتور'])) return Zap;
+  if (match(lowerName, ['sensor', 'motion', 'pir', 'detect', 'alarm', 'سنسور', 'حسگر', 'دزدگیر', 'آلارم'])) return Activity;
 
   // Defaults based on type
   return defaultType === 'group' ? Layers : Cpu;

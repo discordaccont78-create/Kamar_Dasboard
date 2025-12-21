@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as SliderPrimitive from "@radix-ui/react-slider";
@@ -145,6 +144,20 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   const handleSectionToggle = (id: string) => {
     setActiveSection(activeSection === id ? null : id);
   };
+
+  // --- Suggestion Logic ---
+  // Extract unique group names for autocomplete
+  const uniqueGroups = useMemo<string[]>(() => {
+    const groups = new Set(segments.map(s => s.group).filter((g): g is string => !!g));
+    return Array.from(groups).sort();
+  }, [segments]);
+
+  // Extract unique segment names for autocomplete
+  const uniqueNames = useMemo<string[]>(() => {
+    const names = new Set(segments.map(s => s.name).filter((n): n is string => !!n));
+    return Array.from(names).sort();
+  }, [segments]);
+
 
   // --- Validation Helpers ---
   const isGpioUsed = (pin: number) => {
@@ -370,6 +383,14 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             </DialogClose>
           </div>
 
+          {/* Autocomplete Datalists */}
+          <datalist id="group-suggestions">
+            {uniqueGroups.map(g => <option key={g} value={g} />)}
+          </datalist>
+          <datalist id="name-suggestions">
+            {uniqueNames.map(n => <option key={n} value={n} />)}
+          </datalist>
+
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-20 no-scrollbar">
             
@@ -390,7 +411,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
-                     <Input value={outputForm.name} onChange={e => setOutputForm({ name: e.target.value })} className="col-span-3 h-9" placeholder={t.dev_name} />
+                     <Input 
+                        value={outputForm.name} 
+                        onChange={e => setOutputForm({ name: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder={t.dev_name}
+                        list="name-suggestions" 
+                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.type}</label>
@@ -435,7 +462,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
 
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input value={outputForm.group} onChange={e => setOutputForm({ group: e.target.value })} className="col-span-3 h-9" placeholder="Optional Group" />
+                     <Input 
+                        value={outputForm.group} 
+                        onChange={e => setOutputForm({ group: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Optional Group" 
+                        list="group-suggestions"
+                     />
                   </div>
                   
                   <TechButton onClick={handleAddOutput} icon={Plus}>
@@ -589,7 +622,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 <CardContent className="space-y-4 pt-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input value={regForm.group} onChange={e => setRegForm({ group: e.target.value })} className="col-span-3 h-9" placeholder="Register Name (e.g. Relays)" />
+                     <Input 
+                        value={regForm.group} 
+                        onChange={e => setRegForm({ group: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Register Name (e.g. Relays)"
+                        list="group-suggestions" 
+                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">DS</label>
@@ -624,11 +663,23 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
-                     <Input value={dhtForm.name} onChange={e => setDhtForm({ name: e.target.value })} className="col-span-3 h-9" placeholder="Sensor Name" />
+                     <Input 
+                        value={dhtForm.name} 
+                        onChange={e => setDhtForm({ name: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Sensor Name" 
+                        list="name-suggestions"
+                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input value={dhtForm.group} onChange={e => setDhtForm({ group: e.target.value })} className="col-span-3 h-9" placeholder="Weather Group" />
+                     <Input 
+                        value={dhtForm.group} 
+                        onChange={e => setDhtForm({ group: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Weather Group" 
+                        list="group-suggestions"
+                     />
                   </div>
                   
                   <TechButton onClick={handleAddDHT} icon={Plus} variant="outline">
@@ -654,7 +705,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
-                     <Input value={inputForm.name} onChange={e => setInputForm({ name: e.target.value })} className="col-span-3 h-9" placeholder="Sensor Name" />
+                     <Input 
+                        value={inputForm.name} 
+                        onChange={e => setInputForm({ name: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Sensor Name"
+                        list="name-suggestions" 
+                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Trigger</label>
@@ -667,7 +724,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input value={inputForm.group} onChange={e => setInputForm({ group: e.target.value })} className="col-span-3 h-9" placeholder="Optional" />
+                     <Input 
+                        value={inputForm.group} 
+                        onChange={e => setInputForm({ group: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Optional" 
+                        list="group-suggestions"
+                     />
                   </div>
                   
                   <TechButton onClick={handleAddInput} icon={Plus}>
