@@ -9,6 +9,7 @@ interface ExtendedAppSettings extends AppSettings {
   title: string;
   enableNotifications: boolean;
   primaryColor: string;
+  cursorColor: string; // New Third Color for Cursor
   language: 'en' | 'fa';
   backgroundEffect: 'grid' | 'dots';
 }
@@ -46,6 +47,7 @@ export const useSettingsStore = create<SettingsStore>()(
         currentTrackIndex: 0,
         enableNotifications: true,
         primaryColor: "#daa520", // Default Gold
+        cursorColor: "#daa520", // Default Cursor Color (Matches Gold initially)
         language: 'en',
         dashboardFont: 'Inter',
         backgroundEffect: 'grid'

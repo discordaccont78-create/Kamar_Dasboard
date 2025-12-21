@@ -5,6 +5,7 @@ import { Header } from '../components/Header/Header';
 import { SideMenu } from '../components/UI/SideMenu';
 import { SegmentGroup } from '../components/Group/SegmentGroup';
 import { ToastContainer } from '../components/UI/Toast';
+import { CursorGlobalStyle } from '../components/UI/CursorGlobalStyle'; // Import Cursor Styles
 import { useSegments } from '../lib/store/segments';
 import { useSettingsStore } from '../lib/store/settings';
 import { useConnection } from '../lib/store/connection';
@@ -303,6 +304,9 @@ export default function DashboardPage(): React.JSX.Element {
 
   return (
     <MotionConfig reducedMotion={settings.animations ? "never" : "always"}>
+      {/* Inject Global Cursor Styles Here */}
+      <CursorGlobalStyle />
+
       <div className={cn(
           "min-h-screen transition-colors duration-500 flex flex-col overflow-x-hidden",
           bgClass,

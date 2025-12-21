@@ -12,7 +12,7 @@ import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
   Settings as SettingsIcon, X, Zap, Play, Activity, Monitor, 
   SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type, TableProperties,
-  Grid3X3, CircleDot
+  Grid3X3, CircleDot, MousePointer2
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -841,21 +841,44 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                       )}
                     </AnimatePresence>
 
-                    {/* Theme Accent */}
-                    <div className="space-y-2 pt-2 border-t border-border/50">
-                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.accent_color}</label>
-                       <div className="flex gap-2 flex-wrap">
-                          {["#daa520", "#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"].map(color => (
-                            <button
-                              key={color}
-                              onClick={() => updateSettings({ primaryColor: color })}
-                              className={cn(
-                                "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
-                                settings.primaryColor === color ? "border-foreground scale-110 shadow-sm" : "border-transparent opacity-70 hover:opacity-100"
-                              )}
-                              style={{ backgroundColor: color }}
-                            />
-                          ))}
+                    {/* Theme Colors */}
+                    <div className="space-y-4 pt-2 border-t border-border/50">
+                       {/* Primary Accent Color */}
+                       <div className="space-y-2">
+                           <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.accent_color}</label>
+                           <div className="flex gap-2 flex-wrap">
+                              {["#daa520", "#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"].map(color => (
+                                <button
+                                  key={color}
+                                  onClick={() => updateSettings({ primaryColor: color })}
+                                  className={cn(
+                                    "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
+                                    settings.primaryColor === color ? "border-foreground scale-110 shadow-sm" : "border-transparent opacity-70 hover:opacity-100"
+                                  )}
+                                  style={{ backgroundColor: color }}
+                                />
+                              ))}
+                           </div>
+                       </div>
+                       
+                       {/* NEW: Cursor Accent Color (Third Color) */}
+                       <div className="space-y-2">
+                           <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                               <MousePointer2 size={12} /> Cursor Highlight
+                           </label>
+                           <div className="flex gap-2 flex-wrap">
+                              {["#daa520", "#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899", "#ffffff"].map(color => (
+                                <button
+                                  key={color}
+                                  onClick={() => updateSettings({ cursorColor: color })}
+                                  className={cn(
+                                    "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
+                                    settings.cursorColor === color ? "border-foreground scale-110 shadow-sm" : "border-transparent opacity-70 hover:opacity-100"
+                                  )}
+                                  style={{ backgroundColor: color }}
+                                />
+                              ))}
+                           </div>
                        </div>
                     </div>
                   </CardContent>

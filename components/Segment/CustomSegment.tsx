@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Slider } from '../ui/slider';
+import { Slider } from '../UI/Slider';
 import { Segment, CMD, Schedule } from '../../types/index';
 import { useDeviceState, useDeviceControl } from '../../hooks/useDevice';
 import { useSegments } from '../../lib/store/segments';

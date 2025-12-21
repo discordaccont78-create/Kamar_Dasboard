@@ -90,7 +90,7 @@
         color: #1a1c1e;
         margin: 0;
         overflow-x: hidden;
-        cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23daa520' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3' fill='%23daa520'/%3E%3C/svg%3E") 12 12, auto;
+        /* Dynamic Cursor removed from here, handled by React */
       }
 
       /* Font Classes for Dynamic Switching */
@@ -137,9 +137,7 @@
         color: #e0e0e0;
       }
 
-      button, a, [role="button"] {
-        cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%23daa520' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ccircle cx='12' cy='12' r='2' fill='%23daa520'/%3E%3C/svg%3E") 16 16, pointer !important;
-      }
+      /* Old button cursor override removed */
 
       *:focus-visible {
         outline: 2px solid var(--primary);
