@@ -8,7 +8,6 @@ import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-// Fix: Corrected import casing to match 'components/UI/Slider.tsx'
 import { Slider } from '../UI/Slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
