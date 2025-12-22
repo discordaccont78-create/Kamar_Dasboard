@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Cable } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Slider } from '../ui/slider';
+import { Slider } from '../UI/Slider';
 import { Segment, CMD, Schedule } from '../../types/index';
 import { useDeviceState, useDeviceControl } from '../../hooks/useDevice';
 import { useSegments } from '../../lib/store/segments';
@@ -30,6 +30,8 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   const safeSegment = useMemo(() => ({
     ...initialSegment,
     ...(deviceState || {}),
+    // FORCE overrides for config that might be stale in deviceState cache
+    onOffMode: initialSegment.onOffMode,
     timerFinishAt: initialSegment.timerFinishAt
   }), [initialSegment, deviceState]);
 
@@ -289,10 +291,7 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
     </MotionDiv>
   );
 };
-
-// Export as a named constant to satisfy parser and React Fast Refresh
 const CustomSegment = React.memo(CustomSegmentInternal);
 CustomSegment.displayName = 'CustomSegment';
-
 export { CustomSegment };
     

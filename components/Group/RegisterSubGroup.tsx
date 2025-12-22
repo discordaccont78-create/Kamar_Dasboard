@@ -102,7 +102,7 @@ export const RegisterSubGroup: React.FC<Props> = ({ segments, onToggle, dragHand
                     <Cpu size={10} /> 8-Bit Register
                 </span>
                 <span className="text-[8px] font-mono font-bold opacity-50 bg-secondary/10 px-1.5 py-0.5 rounded text-foreground/70">
-                   DS:{masterSegment.dsPin} | CP:{masterSegment.shcpPin}
+                   DS:{masterSegment.dsPin} | SH:{masterSegment.shcpPin} | ST:{masterSegment.stcpPin}
                 </span>
             </div>
             
