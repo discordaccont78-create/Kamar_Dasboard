@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,7 +8,7 @@ import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-import { Slider } from '../UI/Slider';
+import { Slider } from '../ui/slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import { ButtonTrigger } from '../../types/index';
@@ -569,4 +568,3 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
     </Dialog.Root>
   );
 };
-    
