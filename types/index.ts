@@ -25,7 +25,7 @@ export enum CMD {
 
 export type SegmentType = 'All' | 'PWM' | 'Digital' | 'Code' | 'Input-0-1';
 export type GroupType = 'custom' | 'register' | 'weather' | 'input';
-export type ButtonTrigger = 0 | 1 | 2 | 3; // Hold, Toggle, High, Low
+export type ButtonTrigger = 0 | 1 | 2 | 3; // 0=Hold, 1=Toggle, 2=High, 3=Low
 export type ButtonAction = 0 | 1 | 2 | 3; // None, ON, OFF, Toggle
 
 export interface Segment {
@@ -66,17 +66,25 @@ export interface Segment {
 
 export interface Schedule {
   id: string;
-  type: 'daily' | 'countdown'; // daily = HH:MM, countdown = X seconds duration
+  type: 'daily' | 'countdown' | 'input'; 
+  
+  // Time specific
   time?: string; // HH:MM (24h format) for 'daily'
   duration?: number; // Seconds for 'countdown'
   startedAt?: number; // Timestamp when countdown was enabled
+  
+  // Input specific
+  sourceGpio?: number; // The Input Pin
+  inputTrigger?: ButtonTrigger; // 0=Hold, 1=Toggle, 2=High, 3=Low
+
+  // Target & Action
   targetSegmentId: string;
   action: 'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE';
   targetValue?: number; // 0-255 for PWM
   enabled: boolean;
   lastRun?: number; // Timestamp of last execution
   
-  // New Repetition Logic
+  // Repetition Logic
   repeatMode?: 'daily' | 'once' | 'count'; // 'daily' = infinite, 'once' = run once & disable, 'count' = run N times
   repeatCount?: number; // Remaining runs if mode is 'count'
 }

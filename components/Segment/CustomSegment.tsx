@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight } from 'lucide-react';
+import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Cable } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Slider } from '../UI/Slider';
+import { Slider } from '../ui/slider';
 import { Segment, CMD, Schedule } from '../../types/index';
 import { useDeviceState, useDeviceControl } from '../../hooks/useDevice';
 import { useSegments } from '../../lib/store/segments';
@@ -62,7 +61,9 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   const sortedSchedules = useMemo(() => {
     return [...activeSchedules].sort((a, b) => {
         const getNextExecutionTime = (s: Schedule) => {
-            if (s.type === 'countdown') {
+            if (s.type === 'input') {
+                return Infinity; // Inputs don't have a time, push to end
+            } else if (s.type === 'countdown') {
                 return (s.startedAt || 0) + (s.duration || 0) * 1000;
             } else if (s.type === 'daily') {
                 if (!s.time) return Infinity;
@@ -177,11 +178,13 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
                         <div key={sch.id} className="flex items-center gap-1.5 text-primary animate-in fade-in zoom-in duration-300 bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20 shrink-0 whitespace-nowrap">
                             {sch.type === 'countdown' ? (
                                <Hourglass size={8} className="animate-pulse" />
+                            ) : sch.type === 'input' ? (
+                               <Cable size={8} />
                             ) : (
                                <Clock size={8} />
                             )}
                             <span className="font-mono text-[8px] font-bold leading-none">
-                                {sch.type === 'countdown' ? getCountdownString(sch) : sch.time}
+                                {sch.type === 'countdown' ? getCountdownString(sch) : sch.type === 'input' ? `GP${sch.sourceGpio}` : sch.time}
                             </span>
                             <div className="pl-1 border-l border-primary/20 flex items-center">
                                 {getActionIndicator(sch)}

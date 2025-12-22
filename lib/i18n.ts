@@ -53,7 +53,11 @@ export const translations = {
     action_toggle: "SWITCH STATE",
     action_set_value: "SET INTENSITY",
     set_pwm_val: "Set Value (0-255)",
-    digital_only: "Currently limited to Digital (On/Off) devices."
+    digital_only: "Currently limited to Digital (On/Off) devices.",
+    condition_time: "Time Condition",
+    condition_timer: "Timer Condition",
+    condition_input: "Input Condition",
+    input_config: "Input Configuration"
   },
   fa: {
     system_time: "زمان سیستم",
@@ -108,6 +112,10 @@ export const translations = {
     action_toggle: "تغییر وضعیت",
     action_set_value: "تنظیم شدت",
     set_pwm_val: "مقدار خروجی (۰-۲۵۵)",
-    digital_only: "در حال حاضر محدود به دستگاه‌های دیجیتال (On/Off) است."
+    digital_only: "در حال حاضر محدود به دستگاه‌های دیجیتال (On/Off) است.",
+    condition_time: "شرط زمانی",
+    condition_timer: "شرط تایمر",
+    condition_input: "شرط ورودی",
+    input_config: "پیکربندی ورودی"
   }
 };

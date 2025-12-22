@@ -149,7 +149,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   const { 
     activeSection, setActiveSection,
     outputForm, setOutputForm,
-    inputForm, setInputForm,
     regForm, setRegForm,
     dhtForm, setDhtForm,
     timerForm, setTimerForm
@@ -233,40 +232,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     });
     setOutputForm({ gpio: '', name: '', type: 'Digital', group: '', onOffMode: 'toggle' });
     addToast("Output segment added successfully", "success");
-  };
-
-  const handleAddInput = () => {
-    const pin = parseInt(inputForm.gpio);
-    const groupName = inputForm.group.trim() || "sensors";
-
-    if (!inputForm.gpio || !inputForm.name) return;
-    if (isNaN(pin)) { addToast("Invalid GPIO", "error"); return; }
-
-    if (isGpioUsed(pin)) {
-        addToast(`GPIO ${pin} is already in use!`, "error");
-        return;
-    }
-
-    if (isGroupTakenByTemplate(groupName)) {
-        addToast(`Group '${groupName}' is reserved for a hardware module.`, "error");
-        return;
-    }
-
-    addSegment({
-      num_of_node: Math.random().toString(36).substr(2, 9),
-      name: inputForm.name.trim(),
-      group: groupName,
-      groupType: 'input',
-      segType: 'Input-0-1',
-      gpio: pin,
-      is_led_on: 'off',
-      val_of_slide: 0,
-      inputCondition: parseInt(inputForm.trigger) as any,
-      inputActive: false,
-      usePullup: true
-    });
-    setInputForm({ gpio: '', name: '', group: '', trigger: '1' });
-    addToast("Input segment added successfully", "success");
   };
 
   const handleAddRegister = () => {
@@ -640,58 +605,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   
                   <TechButton onClick={handleAddDHT} icon={Plus} variant="outline">
                     Add DHT Module
-                  </TechButton>
-                </CardContent>
-              </Card>
-            </MenuSection>
-
-            <MenuSection 
-                id="inputs" 
-                title="Input Sensors" 
-                icon={Monitor} 
-                activeId={activeSection} 
-                onToggle={handleSectionToggle}
-                animations={settings.animations}
-            >
-              {/* ... Input Card ... */}
-              <Card className="rounded-2xl border-border shadow-sm bg-card/50">
-                <CardContent className="space-y-5 pt-6">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.gpio}</label>
-                     <Input type="number" value={inputForm.gpio} onChange={e => setInputForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="PIN #" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
-                     <Input 
-                        value={inputForm.name} 
-                        onChange={e => setInputForm({ name: e.target.value })} 
-                        className="col-span-3 h-9" 
-                        placeholder="Sensor Name"
-                        list="name-suggestions" 
-                     />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Trigger</label>
-                     <select value={inputForm.trigger} onChange={e => setInputForm({ trigger: e.target.value })} className="col-span-3 h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
-                        <option value="2">High (1)</option>
-                        <option value="3">Low (0)</option>
-                        <option value="1">Toggle</option>
-                        <option value="0">Hold</option>
-                      </select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input 
-                        value={inputForm.group} 
-                        onChange={e => setInputForm({ group: e.target.value })} 
-                        className="col-span-3 h-9" 
-                        placeholder="Optional" 
-                        list="group-suggestions"
-                     />
-                  </div>
-                  
-                  <TechButton onClick={handleAddInput} icon={Plus}>
-                    {t.add} Sensor Input
                   </TechButton>
                 </CardContent>
               </Card>

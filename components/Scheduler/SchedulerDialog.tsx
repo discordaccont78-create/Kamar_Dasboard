@@ -1,17 +1,17 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarClock, Power, Plus, Trash2, Clock, Check, ArrowRight, Sliders, ToggleLeft, ToggleRight, Fingerprint, Hourglass, Timer, Repeat, Infinity, Hash } from 'lucide-react';
+import { X, CalendarClock, Power, Plus, Trash2, Clock, Check, ArrowRight, Sliders, ToggleLeft, ToggleRight, Fingerprint, Hourglass, Timer, Repeat, Infinity, Hash, Cable, Activity } from 'lucide-react';
 import { useSegments } from '../../lib/store/segments';
 import { useSchedulerStore } from '../../lib/store/scheduler';
 import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-import { Slider } from '../UI/Slider';
+import { Slider } from '../ui/slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
+import { ButtonTrigger } from '../../types/index';
 
 const MotionDiv = motion.div as any;
 
@@ -25,6 +25,13 @@ interface SchedulerDialogProps {
   onClose: () => void;
 }
 
+const TRIGGER_OPTIONS = [
+  { value: 2, label: "HIGH (1)" },
+  { value: 3, label: "LOW (0)" },
+  { value: 1, label: "TOGGLE" },
+  { value: 0, label: "HOLD" }
+];
+
 export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClose }) => {
   const { segments } = useSegments();
   const { schedules, addSchedule, removeSchedule, toggleSchedule } = useSchedulerStore();
@@ -32,13 +39,17 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   const t = translations[settings.language];
 
   // Condition Type State
-  const [conditionType, setConditionType] = useState<'daily' | 'countdown'>('daily');
+  const [conditionType, setConditionType] = useState<'daily' | 'countdown' | 'input'>('daily');
 
   // Time Inputs
   const [time, setTime] = useState("");
   const [timerHours, setTimerHours] = useState(0);
   const [timerMinutes, setTimerMinutes] = useState(30);
   const [timerSeconds, setTimerSeconds] = useState(0); 
+  
+  // Input Condition Inputs
+  const [sourceGpio, setSourceGpio] = useState("");
+  const [inputTrigger, setInputTrigger] = useState<ButtonTrigger>(2); // Default to High (2)
 
   // New: Repetition State
   const [repeatMode, setRepeatMode] = useState<'daily' | 'once' | 'count'>('daily');
@@ -61,6 +72,30 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   const isHybrid = selectedSegment?.segType === 'All';
   const isPurePwm = selectedSegment?.segType === 'PWM';
   const showPwmTools = isPurePwm || (isHybrid && hybridMode === 'pwm');
+
+  // --- Input Trigger Validation Logic ---
+  const takenTriggers = useMemo(() => {
+    if (conditionType !== 'input' || !sourceGpio) return [];
+    
+    const gpio = parseInt(sourceGpio);
+    if (isNaN(gpio)) return [];
+
+    // Filter existing active schedules for this specific GPIO
+    return schedules
+        .filter(s => s.type === 'input' && s.sourceGpio === gpio)
+        .map(s => s.inputTrigger); // Extract the trigger type
+  }, [schedules, sourceGpio, conditionType]);
+
+  // Auto-switch trigger if the selected one becomes taken when changing GPIO
+  useEffect(() => {
+    if (conditionType === 'input' && takenTriggers.includes(inputTrigger)) {
+        // Find the first option that isn't taken
+        const availableOption = TRIGGER_OPTIONS.find(opt => !takenTriggers.includes(opt.value));
+        if (availableOption) {
+            setInputTrigger(availableOption.value as ButtonTrigger);
+        }
+    }
+  }, [takenTriggers, inputTrigger, conditionType]);
 
   useEffect(() => {
     if (isPurePwm) {
@@ -87,6 +122,11 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
     if (!targetId) return;
     if (conditionType === 'daily' && !time) return;
     if (conditionType === 'countdown' && (timerHours === 0 && timerMinutes === 0 && timerSeconds === 0)) return;
+    if (conditionType === 'input') {
+        if (!sourceGpio) return;
+        // Final check to prevent submitting a taken trigger via brute force or lag
+        if (takenTriggers.includes(inputTrigger)) return;
+    }
 
     const duration = (timerHours * 3600) + (timerMinutes * 60) + timerSeconds;
 
@@ -96,6 +136,8 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
         time: conditionType === 'daily' ? time : undefined,
         duration: conditionType === 'countdown' ? duration : undefined,
         startedAt: conditionType === 'countdown' ? Date.now() : undefined,
+        sourceGpio: conditionType === 'input' ? parseInt(sourceGpio) : undefined,
+        inputTrigger: conditionType === 'input' ? inputTrigger : undefined,
         targetSegmentId: targetId,
         action: showPwmTools ? 'SET_VALUE' : action,
         targetValue: showPwmTools ? pwmValue : undefined,
@@ -111,6 +153,8 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
     setTimerHours(0);
     setTimerMinutes(30);
     setTimerSeconds(0);
+    // Don't reset sourceGpio immediately if they want to add another condition for same pin
+    setInputTrigger(2);
     setHybridMode('digital');
     setRepeatMode('daily');
     setRepeatCount(1);
@@ -118,6 +162,8 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
 
   const getTargetName = (id: string) => segments.find(s => s.num_of_node === id)?.name || "Unknown Device";
   const getTargetGpio = (id: string) => segments.find(s => s.num_of_node === id)?.gpio || "?";
+  
+  // Only show active schedules that are NOT countdowns (timers are transient)
   const visibleSchedules = schedules.filter(s => s.type !== 'countdown');
 
   return (
@@ -157,39 +203,50 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                 </div>
 
                 {/* Condition Type Switcher */}
-                <div className="grid grid-cols-2 gap-3 mb-2">
+                <div className="grid grid-cols-3 gap-2 mb-2">
                     <button
                         onClick={() => setConditionType('daily')}
                         className={cn(
-                            "flex items-center justify-center gap-2 h-10 rounded-lg border transition-all text-[10px] font-black uppercase tracking-wider",
+                            "flex items-center justify-center gap-1.5 h-10 rounded-lg border transition-all text-[9px] font-black uppercase tracking-wider",
                             conditionType === 'daily' 
                                 ? "bg-primary/20 border-primary text-primary shadow-sm" 
                                 : "bg-transparent border-white/10 text-muted-foreground hover:bg-secondary/10"
                         )}
                     >
-                        <Clock size={14} /> Specific Time
+                        <Clock size={12} /> {t.condition_time || "Time"}
                     </button>
                     <button
                         onClick={() => setConditionType('countdown')}
                         className={cn(
-                            "flex items-center justify-center gap-2 h-10 rounded-lg border transition-all text-[10px] font-black uppercase tracking-wider",
+                            "flex items-center justify-center gap-1.5 h-10 rounded-lg border transition-all text-[9px] font-black uppercase tracking-wider",
                             conditionType === 'countdown' 
                                 ? "bg-primary/20 border-primary text-primary shadow-sm" 
                                 : "bg-transparent border-white/10 text-muted-foreground hover:bg-secondary/10"
                         )}
                     >
-                        <Timer size={14} /> Timer Count
+                        <Timer size={12} /> {t.condition_timer || "Timer"}
+                    </button>
+                    <button
+                        onClick={() => setConditionType('input')}
+                        className={cn(
+                            "flex items-center justify-center gap-1.5 h-10 rounded-lg border transition-all text-[9px] font-black uppercase tracking-wider",
+                            conditionType === 'input' 
+                                ? "bg-primary/20 border-primary text-primary shadow-sm" 
+                                : "bg-transparent border-white/10 text-muted-foreground hover:bg-secondary/10"
+                        )}
+                    >
+                        <Cable size={12} /> {t.condition_input || "Input"}
                     </button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                    {/* Time Input */}
+                    {/* Dynamic Left Input: Time, Timer, or Input */}
                     <div className="space-y-2">
                         <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
-                            {conditionType === 'daily' ? t.exec_time : 'Duration'}
+                            {conditionType === 'daily' ? t.exec_time : conditionType === 'countdown' ? 'Duration' : t.input_config || "Input Config"}
                         </label>
                         
-                        {conditionType === 'daily' ? (
+                        {conditionType === 'daily' && (
                             <Input 
                                 type="time" 
                                 step="1" 
@@ -197,7 +254,9 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                 onChange={(e) => setTime(e.target.value)}
                                 className="h-12 text-lg text-center tracking-widest font-mono"
                             />
-                        ) : (
+                        )}
+
+                        {conditionType === 'countdown' && (
                             <div className="flex gap-1">
                                 <div className="flex-1 relative">
                                     <Input 
@@ -233,6 +292,43 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                 </div>
                             </div>
                         )}
+
+                        {conditionType === 'input' && (
+                            <div className="flex gap-2">
+                                <div className="flex-[0.4] relative">
+                                    <Input 
+                                        type="number" 
+                                        placeholder="PIN"
+                                        value={sourceGpio} 
+                                        onChange={(e) => setSourceGpio(e.target.value)}
+                                        className="h-12 text-center font-mono font-bold"
+                                    />
+                                    <span className="absolute left-2 bottom-1 text-[6px] text-muted-foreground font-black uppercase">GPIO</span>
+                                </div>
+                                <div className="flex-1 relative">
+                                    <select
+                                        value={inputTrigger}
+                                        onChange={(e) => setInputTrigger(parseInt(e.target.value) as ButtonTrigger)}
+                                        className="w-full h-12 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all appearance-none text-center"
+                                    >
+                                        {TRIGGER_OPTIONS.map(opt => {
+                                            const isTaken = takenTriggers.includes(opt.value);
+                                            return (
+                                                <option 
+                                                    key={opt.value} 
+                                                    value={opt.value} 
+                                                    disabled={isTaken}
+                                                    className={isTaken ? "text-red-500 bg-red-500/10 italic" : ""}
+                                                >
+                                                    {opt.label} {isTaken ? '(Active)' : ''}
+                                                </option>
+                                            )
+                                        })}
+                                    </select>
+                                    <span className="absolute right-2 bottom-1 text-[6px] text-muted-foreground font-black uppercase">TRIGGER</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Target Segment */}
@@ -253,7 +349,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                     </div>
                 </div>
 
-                {/* Repetition Protocol Section */}
+                {/* Repetition Protocol Section - Only for Daily (Time) conditions */}
                 {conditionType === 'daily' && (
                     <div className="bg-secondary/5 rounded-xl p-3 border border-border/50">
                         <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 mb-2">
@@ -290,178 +386,178 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                         </div>
                         {repeatMode === 'count' && (
                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-2">
-                                <div className="flex items-center gap-2">
-                                    <Input 
-                                        type="number" 
-                                        min="1" 
-                                        max="99" 
-                                        value={repeatCount} 
-                                        onChange={(e) => setRepeatCount(parseInt(e.target.value) || 1)} 
-                                        className="h-9 text-center" 
-                                    />
-                                    <span className="text-[9px] font-bold uppercase text-muted-foreground">Times</span>
-                                </div>
+                                <Input 
+                                    type="number" 
+                                    placeholder="Count" 
+                                    value={repeatCount}
+                                    onChange={(e) => setRepeatCount(parseInt(e.target.value))}
+                                    className="h-8 text-center"
+                                />
                             </motion.div>
                         )}
                     </div>
                 )}
 
-                {/* Intelligent Suggestions Area */}
-                <AnimatePresence mode="wait">
-                    {targetId && (
+                {/* Hybrid Mode Selector */}
+                <AnimatePresence>
+                    {isHybrid && targetId && (
                         <MotionDiv 
-                            key={showPwmTools ? 'pwm-tools' : 'dig-tools'}
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3"
+                            initial={{ height: 0, opacity: 0 }} 
+                            animate={{ height: "auto", opacity: 1 }} 
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
                         >
-                            {/* ... existing PWM/Digital UI ... */}
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
-                                    {showPwmTools ? <Sliders size={12} /> : <Power size={12} />} 
-                                    {t.suggested_tool}: {showPwmTools ? 'PWM Dimmer' : 'On/Off Switch'}
-                                </span>
-                                
-                                {isHybrid ? (
-                                    <div className="flex bg-background/50 rounded-lg p-0.5 border border-white/10">
-                                        <button 
-                                            onClick={() => setHybridMode('digital')}
-                                            className={cn(
-                                                "px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider transition-all flex items-center gap-1",
-                                                hybridMode === 'digital' ? "bg-primary text-black shadow-sm" : "text-muted-foreground hover:text-foreground"
-                                            )}
-                                        >
-                                            <ToggleLeft size={10} /> Digital
-                                        </button>
-                                        <button 
-                                            onClick={() => setHybridMode('pwm')}
-                                            className={cn(
-                                                "px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider transition-all flex items-center gap-1",
-                                                hybridMode === 'pwm' ? "bg-primary text-black shadow-sm" : "text-muted-foreground hover:text-foreground"
-                                            )}
-                                        >
-                                            <ToggleRight size={10} /> Analog
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <span className="text-[8px] text-muted-foreground bg-background px-2 py-0.5 rounded border border-border font-bold">
-                                        {showPwmTools ? 'ANALOG ONLY' : 'DIGITAL ONLY'}
-                                    </span>
-                                )}
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{t.suggested_tool}</label>
+                                <div className="flex gap-2 p-1 bg-secondary/10 rounded-lg">
+                                    <button 
+                                        onClick={() => setHybridMode('digital')}
+                                        className={cn(
+                                            "flex-1 h-8 rounded-md text-[9px] font-black uppercase tracking-wider transition-all",
+                                            hybridMode === 'digital' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        Digital Mode
+                                    </button>
+                                    <button 
+                                        onClick={() => setHybridMode('pwm')}
+                                        className={cn(
+                                            "flex-1 h-8 rounded-md text-[9px] font-black uppercase tracking-wider transition-all",
+                                            hybridMode === 'pwm' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        PWM Mode
+                                    </button>
+                                </div>
                             </div>
+                        </MotionDiv>
+                    )}
+                </AnimatePresence>
 
+                {/* Action Logic - Only visible when Target is selected */}
+                <AnimatePresence>
+                    {targetId && (
+                        <MotionDiv
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden space-y-2"
+                        >
+                            <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{t.action_type}</label>
+                            
                             {showPwmTools ? (
-                                /* PWM UI */
-                                <div className="space-y-4 pt-2">
+                                <div className="space-y-4 p-3 bg-secondary/5 rounded-xl border border-border/50">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{t.set_pwm_val}</label>
-                                        <span className="font-mono text-sm font-bold text-primary bg-primary/10 px-2 rounded">{pwmValue}</span>
+                                        <span className="text-[9px] font-bold text-muted-foreground">{t.set_pwm_val}</span>
+                                        <span className="text-xs font-mono font-bold text-primary">{pwmValue}</span>
                                     </div>
-                                    <Slider 
+                                    <Slider
                                         value={[pwmValue]}
                                         onValueChange={(val) => setPwmValue(val[0])}
                                         max={255}
                                         step={1}
-                                        className="w-full"
                                     />
-                                    <div className="flex justify-between text-[8px] text-muted-foreground font-mono opacity-50">
-                                        <span>0 (OFF)</span>
-                                        <span>128 (50%)</span>
-                                        <span>255 (MAX)</span>
-                                    </div>
                                 </div>
                             ) : (
-                                /* Digital UI */
                                 <div className="grid grid-cols-3 gap-2">
-                                    {(['ON', 'OFF', 'TOGGLE'] as const).map(act => (
-                                        <button
-                                            key={act}
-                                            onClick={() => setAction(act)}
-                                            className={cn(
-                                                "h-10 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
-                                                action === act 
-                                                    ? "bg-primary text-black border-primary shadow-md scale-[1.02]" 
-                                                    : "bg-background text-muted-foreground border-border hover:bg-secondary/10"
-                                            )}
-                                        >
-                                            {act === 'ON' && <Check size={12} />}
-                                            {act === 'OFF' && <X size={12} />}
-                                            {act === 'TOGGLE' && <ArrowRight size={12} />}
-                                            {act === 'ON' ? t.action_on : act === 'OFF' ? t.action_off : t.action_toggle}
-                                        </button>
-                                    ))}
+                                    <button
+                                        onClick={() => setAction('ON')}
+                                        className={cn(
+                                            "h-10 rounded-lg border transition-all flex flex-col items-center justify-center",
+                                            action === 'ON' ? "bg-green-500/20 border-green-500 text-green-500 shadow-sm" : "bg-transparent border-white/10 text-muted-foreground hover:bg-green-500/5"
+                                        )}
+                                    >
+                                        <Power size={14} className="mb-0.5" />
+                                        <span className="text-[8px] font-black uppercase tracking-wider">{t.action_on}</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setAction('OFF')}
+                                        className={cn(
+                                            "h-10 rounded-lg border transition-all flex flex-col items-center justify-center",
+                                            action === 'OFF' ? "bg-red-500/20 border-red-500 text-red-500 shadow-sm" : "bg-transparent border-white/10 text-muted-foreground hover:bg-red-500/5"
+                                        )}
+                                    >
+                                        <Power size={14} className="mb-0.5" />
+                                        <span className="text-[8px] font-black uppercase tracking-wider">{t.action_off}</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setAction('TOGGLE')}
+                                        className={cn(
+                                            "h-10 rounded-lg border transition-all flex flex-col items-center justify-center",
+                                            action === 'TOGGLE' ? "bg-blue-500/20 border-blue-500 text-blue-500 shadow-sm" : "bg-transparent border-white/10 text-muted-foreground hover:bg-blue-500/5"
+                                        )}
+                                    >
+                                        <ToggleLeft size={14} className="mb-0.5" />
+                                        <span className="text-[8px] font-black uppercase tracking-wider">{t.action_toggle}</span>
+                                    </button>
                                 </div>
                             )}
                         </MotionDiv>
                     )}
                 </AnimatePresence>
 
-                <Button onClick={handleAdd} disabled={!targetId} className="w-full font-black tracking-widest uppercase text-[10px] h-11">
-                    {t.add_schedule}
+                <Button onClick={handleAdd} className="w-full gap-2 font-black text-[10px] uppercase tracking-[0.2em]">
+                    <Plus size={14} /> {t.add_schedule}
                 </Button>
              </div>
 
              {/* Existing Schedules List */}
-             <div className="space-y-4 pt-4 border-t border-border">
-                <div className="flex items-center gap-2 mb-2 text-muted-foreground font-black text-[10px] uppercase tracking-widest">
-                    <Clock size={12} /> Active Timeline (Daily)
+             <div className="space-y-4 pt-4 border-t border-border/40">
+                <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                    <Activity size={12} /> Active Routines
                 </div>
-
                 {visibleSchedules.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground/40 text-[10px] uppercase tracking-widest border-2 border-dashed border-border/50 rounded-xl">
+                    <div className="text-center py-8 text-muted-foreground/40 text-xs italic">
                         {t.no_schedules}
                     </div>
                 ) : (
-                    <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
-                        {visibleSchedules.map(sch => (
-                            <div key={sch.id} className="group flex items-center justify-between p-3 bg-secondary/5 border border-border/50 rounded-xl hover:border-primary/30 transition-colors">
-                                {/* ... existing list item ... */}
-                                <div className="flex items-center gap-4">
-                                    <div className="bg-background border border-border p-2 rounded-lg font-mono text-sm font-bold text-primary shadow-sm min-w-[60px] text-center flex items-center justify-center gap-1">
-                                        {sch.time}
+                    <div className="space-y-3">
+                        {visibleSchedules.map(schedule => {
+                            const target = segments.find(s => s.num_of_node === schedule.targetSegmentId);
+                            return (
+                                <div key={schedule.id} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-secondary/5 hover:border-primary/20 transition-all group">
+                                    <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center text-primary shadow-sm shrink-0 border border-white/5">
+                                        {schedule.type === 'input' ? <Cable size={18} /> : <Clock size={18} />}
                                     </div>
-                                    <div className="flex flex-col gap-0.5">
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-foreground">
-                                            {getTargetName(sch.targetSegmentId)}
-                                        </span>
-                                        <div className="flex gap-2 text-[9px] text-muted-foreground font-medium">
-                                            <span className="bg-muted/30 px-1.5 py-0.5 rounded">GP-{getTargetGpio(sch.targetSegmentId)}</span>
-                                            
-                                            {/* Repeat Badge */}
-                                            {sch.repeatMode === 'once' && <span className="text-[8px] bg-red-500/10 text-red-500 px-1 rounded border border-red-500/20">1x RUN</span>}
-                                            {sch.repeatMode === 'count' && <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1 rounded border border-blue-500/20">{sch.repeatCount} LEFT</span>}
-                                            {(sch.repeatMode === 'daily' || !sch.repeatMode) && <span className="text-[8px] bg-green-500/10 text-green-500 px-1 rounded border border-green-500/20">LOOP</span>}
-
-                                            {sch.action === 'SET_VALUE' ? (
-                                                <span className="px-1.5 py-0.5 rounded font-black text-orange-500 bg-orange-500/10 flex items-center gap-1">
-                                                    <Fingerprint size={10} /> PWM: {sch.targetValue}
-                                                </span>
-                                            ) : (
-                                                <span className={cn(
-                                                    "px-1.5 py-0.5 rounded font-black flex items-center gap-1",
-                                                    sch.action === 'ON' ? 'text-green-500 bg-green-500/10' : 
-                                                    sch.action === 'OFF' ? 'text-red-500 bg-red-500/10' : 'text-blue-500 bg-blue-500/10'
-                                                )}>
-                                                    <Power size={10} /> {sch.action}
-                                                </span>
-                                            )}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-foreground truncate">
+                                                {target?.name || "Unknown"}
+                                            </span>
+                                            <ArrowRight size={10} className="text-muted-foreground" />
+                                            <span className={cn(
+                                                "text-[9px] font-black uppercase px-1.5 py-0.5 rounded",
+                                                schedule.action === 'ON' ? "bg-green-500/20 text-green-500" :
+                                                schedule.action === 'OFF' ? "bg-red-500/20 text-red-500" :
+                                                schedule.action === 'TOGGLE' ? "bg-blue-500/20 text-blue-500" :
+                                                "bg-orange-500/20 text-orange-500"
+                                            )}>
+                                                {schedule.action === 'SET_VALUE' ? `PWM ${schedule.targetValue}` : schedule.action}
+                                            </span>
+                                        </div>
+                                        <div className="text-[9px] text-muted-foreground font-mono mt-0.5">
+                                            {schedule.type === 'input' 
+                                                ? `GPIO: ${schedule.sourceGpio} | TRIG: ${TRIGGER_OPTIONS.find(t => t.value === schedule.inputTrigger)?.label || schedule.inputTrigger}`
+                                                : `${t.exec_time}: ${schedule.time}`
+                                            }
                                         </div>
                                     </div>
+                                    <div className="flex items-center gap-1">
+                                        <Switch 
+                                            checked={schedule.enabled} 
+                                            onCheckedChange={() => toggleSchedule(schedule.id)} 
+                                            className="scale-75"
+                                        />
+                                        <button 
+                                            onClick={() => removeSchedule(schedule.id)}
+                                            className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <Switch checked={sch.enabled} onCheckedChange={() => toggleSchedule(sch.id)} />
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        onClick={() => removeSchedule(sch.id)}
-                                        className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <Trash2 size={14} />
-                                    </Button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
              </div>
