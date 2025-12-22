@@ -1,11 +1,11 @@
-
 import React, { useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { GripVertical, Power } from 'lucide-react';
+import { GripVertical } from 'lucide-react';
 import { SegmentCard } from '../Segment/SegmentCard';
 import { CustomSegment } from '../Segment/CustomSegment';
 import { WeatherSegment } from '../Segment/WeatherSegment';
 import { InputSegment } from '../Segment/InputSegment';
+import { RegisterSubGroup } from './RegisterSubGroup';
 import { Segment } from '../../types/index';
 import { GroupHeader } from './GroupHeader';
 import { cn, isPersian, getFontClass } from '../../lib/utils';
@@ -25,78 +25,34 @@ interface Props {
 }
 
 const MotionDiv = motion.div as any;
-const MotionButton = motion.button as any;
 
-/**
- * Specialized Simple Button for Register Bits
- * Must be small, simple, but draggable.
- */
-const RegisterButton = React.memo(({ 
-  segment, 
-  onToggle, 
-  dragHandle 
-}: { 
-  segment: Segment; 
-  onToggle: () => void; 
-  dragHandle: React.ReactNode 
-}) => {
-    const isOn = segment.is_led_on === 'on';
-
-    return (
-        <div className="flex h-12 md:h-14 bg-card border border-border rounded-lg md:rounded-xl overflow-hidden shadow-sm hover:border-primary/50 transition-colors group">
-            {/* Drag Handle Area */}
-            <div className="w-6 md:w-8 bg-secondary/10 flex items-center justify-center cursor-grab active:cursor-grabbing border-r border-border/50">
-                {dragHandle}
-            </div>
-            
-            {/* Interactive Button Area */}
-            <button 
-                onClick={onToggle}
-                className={cn(
-                    "flex-1 flex items-center justify-between px-2 md:px-4 transition-all duration-200 active:scale-[0.98]",
-                    isOn ? "bg-primary/10" : "bg-transparent hover:bg-secondary/5"
-                )}
-            >
-                <div className="flex flex-col items-start gap-0 md:gap-0.5 overflow-hidden">
-                    <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate w-full text-left">{segment.name}</span>
-                    <span className="text-[7px] md:text-[8px] font-mono font-bold opacity-50">IDX {segment.regBitIndex}</span>
-                </div>
-
-                {/* LED Indicator */}
-                <div className={cn(
-                    "w-2 h-2 md:w-3 md:h-3 rounded-full border shadow-inner transition-all duration-300 shrink-0",
-                    isOn 
-                        ? "bg-primary border-primary shadow-[0_0_8px_rgba(218,165,32,0.6)]" 
-                        : "bg-black/20 dark:bg-white/10 border-transparent"
-                )} />
-            </button>
-        </div>
-    );
-});
+// Define a Display Item which can be a single segment or a Sub-Group
+type DisplayItem = 
+  | { type: 'single'; id: string; segment: Segment }
+  | { type: 'register_group'; id: string; segments: Segment[] }
+  | { type: 'weather_group'; id: string; segments: Segment[] }; // Future extensibility
 
 // Wrapper component to handle individual drag controls - Memoized
-const DraggableSegmentItem = React.memo(({ 
-  segment, 
+const DraggableDisplayItem = React.memo(({ 
+  item, 
   index, 
   containerRef, 
   moveItem, 
   onRemove,
   onToggle,
   onPWMChange,
-  onToggleBit,
   onDragStart,
   onDragEnd,
   lastReorderTime,
   className
 }: {
-  segment: Segment,
+  item: DisplayItem,
   index: number,
   containerRef: React.RefObject<HTMLDivElement>,
   moveItem: (fromIndex: number, toIndex: number) => void,
   onRemove: (id: string) => void,
   onToggle: (id: string) => void,
   onPWMChange: (id: string, val: number) => void,
-  onToggleBit: (id: string, bit: number) => void,
   onDragStart?: () => void,
   onDragEnd?: () => void,
   lastReorderTime: React.MutableRefObject<number>,
@@ -120,10 +76,10 @@ const DraggableSegmentItem = React.memo(({
     let targetIndex = -1;
 
     // Check overlap
-    items.forEach((item, idx) => {
+    items.forEach((element, idx) => {
       if (idx === index) return; // Don't check against self
 
-      const rect = item.getBoundingClientRect();
+      const rect = element.getBoundingClientRect();
       
       // Strict boundary check: Mouse must be strictly inside the target box
       const isOver = 
@@ -143,11 +99,61 @@ const DraggableSegmentItem = React.memo(({
     }
   };
 
-  const isRegister = segment.groupType === 'register';
+  // Shared Drag Handle Props
+  const dragHandleProps = {
+    className: "cursor-grab active:cursor-grabbing p-1 hover:bg-black/10 dark:hover:bg-white/20 rounded transition-colors",
+    onPointerDown: (e: any) => controls.start(e),
+    style: { touchAction: 'none' } as React.CSSProperties
+  };
+
+  const DragIcon = <GripVertical className="text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white transition-colors" size={16} />;
+
+  // Render logic based on type
+  let content = null;
+  const uniqueId = item.id;
+
+  if (item.type === 'register_group') {
+      content = (
+          <RegisterSubGroup 
+              segments={item.segments} 
+              onToggle={onToggle}
+              dragHandle={<div {...dragHandleProps}>{DragIcon}</div>}
+          />
+      );
+  } else if (item.type === 'single') {
+      const seg = item.segment;
+      content = (
+        <SegmentCard 
+            gpio={seg.gpio || 0} 
+            label={seg.name}
+            dragHandle={<div {...dragHandleProps}>{DragIcon}</div>}
+        >
+            {seg.groupType === 'custom' && (
+              <CustomSegment 
+                segment={seg} 
+                onToggle={() => onToggle(seg.num_of_node)} 
+                onPWMChange={(val) => onPWMChange(seg.num_of_node, val)} 
+              />
+            )}
+            {seg.groupType === 'input' && <InputSegment segment={seg} />}
+            {seg.groupType === 'weather' && <WeatherSegment segment={seg} />}
+        </SegmentCard>
+      );
+  }
+
+  // Handle Removal Logic
+  const handleRemove = () => {
+     if (item.type === 'single') {
+         onRemove(item.id);
+     } else {
+         // Remove all segments in the sub-group
+         item.segments.forEach(s => onRemove(s.num_of_node));
+     }
+  };
 
   return (
     <MotionDiv 
-      key={segment.num_of_node}
+      key={uniqueId}
       layout="position" // Optimize layout animation
       drag
       dragListener={false} // IMPORTANT: Disables dragging by clicking anywhere
@@ -163,58 +169,16 @@ const DraggableSegmentItem = React.memo(({
         const thresholdY = window.innerHeight - 110;
         // Check for deletion zone
         if (info.point.y > thresholdY) {
-          onRemove(segment.num_of_node);
+          handleRemove();
         }
       }}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-      className={cn("segment_area z-0 hover:z-10 relative", className)}
+      className={cn("segment_area z-0 hover:z-10 relative h-full", className)}
       style={{ touchAction: 'none' }}
     >
-      {/* Conditional Rendering: Simple Button vs Full Card */}
-      {isRegister ? (
-          <RegisterButton 
-            segment={segment} 
-            onToggle={() => onToggle(segment.num_of_node)}
-            dragHandle={
-                <div 
-                  className="cursor-grab active:cursor-grabbing p-1 opacity-50 hover:opacity-100 transition-opacity"
-                  onPointerDown={(e) => controls.start(e)}
-                  style={{ touchAction: 'none' }}
-                >
-                  <GripVertical size={14} />
-                </div>
-            }
-          />
-      ) : (
-          <SegmentCard 
-            gpio={segment.gpio || 0} 
-            label={segment.name}
-            dragHandle={
-              <div 
-                className="cursor-grab active:cursor-grabbing p-1 hover:bg-black/10 dark:hover:bg-white/20 rounded transition-colors"
-                onPointerDown={(e) => controls.start(e)}
-                style={{ touchAction: 'none' }}
-              >
-                <GripVertical 
-                  className="text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white transition-colors" 
-                  size={16} 
-                />
-              </div>
-            }
-          >
-            {segment.groupType === 'custom' && (
-              <CustomSegment 
-                segment={segment} 
-                onToggle={() => onToggle(segment.num_of_node)} 
-                onPWMChange={(val) => onPWMChange(segment.num_of_node, val)} 
-              />
-            )}
-            {segment.groupType === 'input' && <InputSegment segment={segment} />}
-            {segment.groupType === 'weather' && <WeatherSegment segment={segment} />}
-          </SegmentCard>
-      )}
+      {content}
     </MotionDiv>
   );
 });
@@ -226,7 +190,6 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
   onRemove, 
   onToggle, 
   onPWMChange, 
-  onToggleBit,
   onDragStart,
   onDragEnd,
   dragHandle
@@ -237,11 +200,53 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
   // This ref persists across renders to track the last time a swap occurred
   const lastReorderTime = useRef<number>(0);
 
+  // --- Grouping Logic: Transform raw segments into DisplayItems (Modules) ---
+  const displayItems = useMemo(() => {
+    const items: DisplayItem[] = [];
+    const processedIds = new Set<string>();
+
+    segments.forEach(seg => {
+        if (processedIds.has(seg.num_of_node)) return;
+
+        if (seg.groupType === 'register') {
+            // Find all segments that belong to this register (Same Latch/STCP PIN)
+            const siblings = segments.filter(s => s.groupType === 'register' && s.gpio === seg.gpio);
+            siblings.forEach(s => processedIds.add(s.num_of_node));
+            
+            items.push({ 
+                type: 'register_group', 
+                id: `reg-${seg.gpio}`, // Unique ID for the container
+                segments: siblings 
+            });
+        } 
+        // Note: Weather is essentially a single segment in current data structure, so treated as single
+        else {
+            processedIds.add(seg.num_of_node);
+            items.push({ type: 'single', id: seg.num_of_node, segment: seg });
+        }
+    });
+
+    return items;
+  }, [segments]);
+
+
   const moveItem = (fromIndex: number, toIndex: number) => {
-    const newSegments = [...segments];
-    const [movedItem] = newSegments.splice(fromIndex, 1);
-    newSegments.splice(toIndex, 0, movedItem);
-    onReorder(newSegments);
+    // 1. Reorder the DisplayItems
+    const newItems = [...displayItems];
+    const [movedItem] = newItems.splice(fromIndex, 1);
+    newItems.splice(toIndex, 0, movedItem);
+
+    // 2. Flatten back to Segments Array for Storage
+    const flattenedSegments: Segment[] = [];
+    newItems.forEach(item => {
+        if (item.type === 'single') {
+            flattenedSegments.push(item.segment);
+        } else {
+            flattenedSegments.push(...item.segments);
+        }
+    });
+
+    onReorder(flattenedSegments);
   };
 
   // Memoize style to prevent object creation on render
@@ -257,11 +262,11 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
     backgroundColor: `${settings.primaryColor}15`
   }), [settings.primaryColor]);
 
-  // Determine Grid Layout based on content type
-  const isRegisterGroup = segments.some(s => s.groupType === 'register');
-  const gridClass = isRegisterGroup 
-    ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-2 md:gap-3" 
-    : (segments.length === 2 ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6");
+  // Determine Grid Layout based on Item count
+  // Registers take up full space (col-span-2) usually, but we keep generic grid for now
+  const gridClass = displayItems.length === 2 
+    ? "grid-cols-1" 
+    : "grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6";
     
   // Smart Font Class for Zone Name
   const zoneFontClass = isPersian(name) ? "font-persian" : getFontClass(settings.dashboardFont);
@@ -288,7 +293,7 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
       </div>
 
       <div className="-mt-1 mb-3 md:-mt-2 md:mb-6">
-         <GroupHeader name={name} count={segments.length} />
+         <GroupHeader name={name} count={displayItems.length} />
       </div>
       
       <div 
@@ -299,20 +304,19 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
         )}
       >
         <AnimatePresence mode="popLayout">
-          {segments.map((seg, index) => {
-            const isLastAndOdd = !isRegisterGroup && segments.length % 2 !== 0 && index === segments.length - 1;
+          {displayItems.map((item, index) => {
+            const isLastAndOdd = displayItems.length % 2 !== 0 && index === displayItems.length - 1;
             
             return (
-              <DraggableSegmentItem 
-                key={seg.num_of_node}
-                segment={seg}
+              <DraggableDisplayItem 
+                key={item.id}
+                item={item}
                 index={index}
                 containerRef={containerRef}
                 moveItem={moveItem}
                 onRemove={onRemove}
                 onToggle={onToggle}
                 onPWMChange={onPWMChange}
-                onToggleBit={onToggleBit}
                 onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
                 lastReorderTime={lastReorderTime}

@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as SliderPrimitive from "@radix-ui/react-slider";
@@ -184,13 +183,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     );
   };
 
-  const isGroupTakenByTemplate = (groupName: string) => {
-    return segments.some(s => 
-        (s.group || "basic") === groupName && 
-        (s.regBitIndex !== undefined || s.groupType === 'weather')
-    );
-  };
-
   // --- Sorting & Data Preparation for Status Table ---
   const sortedSegments = useMemo(() => {
     return [...segments].sort((a, b) => {
@@ -211,11 +203,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     
     if (isGpioUsed(pin)) {
         addToast(`GPIO ${pin} is already in use!`, "error");
-        return;
-    }
-
-    if (isGroupTakenByTemplate(groupName)) {
-        addToast(`Group '${groupName}' is reserved for a hardware module.`, "error");
         return;
     }
 
@@ -249,12 +236,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     if (isGpioUsed(shcp)) { addToast(`SHCP Pin ${shcp} is in use`, "error"); return; }
     if (isGpioUsed(stcp)) { addToast(`STCP Pin ${stcp} is in use`, "error"); return; }
 
-    const existingGroup = segments.find(s => s.group === groupName);
-    if (existingGroup && existingGroup.groupType !== 'register') {
-         addToast(`Group '${groupName}' is taken by non-register devices.`, "error");
-         return;
-    }
-
     for(let i = 0; i < 8; i++) {
         addSegment({
             num_of_node: Math.random().toString(36).substr(2, 9),
@@ -273,7 +254,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     }
 
     setRegForm({ ds: '', shcp: '', stcp: '', group: '' });
-    addToast(`Register Group '${groupName}' created`, "success");
+    addToast(`Register Sub-Group added to '${groupName}'`, "success");
   };
 
   const handleAddDHT = () => {
@@ -300,7 +281,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
         humidity: 0
     });
     setDhtForm({ gpio: '', name: '', group: '' });
-    addToast("Weather station added", "success");
+    addToast("Weather module added", "success");
   };
 
   const handleNextTrack = () => {
@@ -527,7 +508,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             
             <MenuSection 
                 id="hardware" 
-                title="Hardware Templates" 
+                title="Hardware Modules" 
                 icon={Cpu} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
@@ -565,7 +546,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   </div>
                   
                   <TechButton onClick={handleAddRegister} icon={Plus} variant="outline">
-                    Add 74HC595 Group
+                    Add 74HC595 Sub-Group
                   </TechButton>
                 </CardContent>
               </Card>
