@@ -69,7 +69,7 @@ export interface Segment {
 
 export interface Schedule {
   id: string;
-  type: 'daily' | 'countdown' | 'input'; 
+  type: 'daily' | 'countdown' | 'input' | 'weather'; 
   
   // Time specific
   time?: string; // HH:MM (24h format) for 'daily'
@@ -79,6 +79,12 @@ export interface Schedule {
   // Input specific
   sourceGpio?: number; // The Input Pin
   inputTrigger?: ButtonTrigger; // 0=Hold, 1=Toggle, 2=High, 3=Low
+
+  // Weather Specific
+  sourceSegmentId?: string; // ID of the DHT Segment
+  conditionMetric?: 'temp' | 'hum';
+  conditionOperator?: '>' | '<' | '=';
+  conditionValue?: number;
 
   // Target & Action
   targetSegmentId: string;

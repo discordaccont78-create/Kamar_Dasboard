@@ -1,16 +1,14 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarClock, Power, Plus, Trash2, Clock, Check, ArrowRight, Sliders, ToggleLeft, ToggleRight, Fingerprint, Hourglass, Timer, Repeat, Infinity, Hash, Cable, Activity } from 'lucide-react';
+import { X, CalendarClock, Power, Plus, Trash2, Clock, Check, ArrowRight, Sliders, ToggleLeft, ToggleRight, Fingerprint, Hourglass, Timer, Repeat, Infinity, Hash, Cable, Activity, CloudFog, Thermometer, Droplets } from 'lucide-react';
 import { useSegments } from '../../lib/store/segments';
 import { useSchedulerStore } from '../../lib/store/scheduler';
 import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-// Ensure correct import casing for the slider component by using explicit path
-import { Slider } from '../../components/ui/slider';
+import { Slider } from '../ui/slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import { ButtonTrigger } from '../../types/index';
@@ -41,7 +39,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   const t = translations[settings.language];
 
   // Condition Type State
-  const [conditionType, setConditionType] = useState<'daily' | 'countdown' | 'input'>('daily');
+  const [conditionType, setConditionType] = useState<'daily' | 'countdown' | 'input' | 'weather'>('daily');
 
   // Time Inputs
   const [time, setTime] = useState("");
@@ -52,6 +50,12 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   // Input Condition Inputs
   const [sourceGpio, setSourceGpio] = useState("");
   const [inputTrigger, setInputTrigger] = useState<ButtonTrigger>(2); // Default to High (2)
+
+  // Weather Condition Inputs
+  const [weatherSourceId, setWeatherSourceId] = useState("");
+  const [weatherMetric, setWeatherMetric] = useState<'temp' | 'hum'>('temp');
+  const [weatherOperator, setWeatherOperator] = useState<'>' | '<' | '='>('>');
+  const [weatherValue, setWeatherValue] = useState(25);
 
   // New: Repetition State
   const [repeatMode, setRepeatMode] = useState<'daily' | 'once' | 'count'>('daily');
@@ -65,10 +69,13 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
   // New State for 'All' type segments: 'digital' or 'pwm'
   const [hybridMode, setHybridMode] = useState<'digital' | 'pwm'>('digital');
 
-  // Filter for allowed segments
+  // Filter for allowed segments (Targets)
   const allowedSegments = segments.filter(s => 
     s.segType === 'Digital' || s.segType === 'All' || s.groupType === 'register' || s.segType === 'PWM'
   );
+
+  // Filter for Weather segments (Source)
+  const weatherSegments = segments.filter(s => s.groupType === 'weather');
 
   const selectedSegment = segments.find(s => s.num_of_node === targetId);
   const isHybrid = selectedSegment?.segType === 'All';
@@ -99,6 +106,13 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
     }
   }, [takenTriggers, inputTrigger, conditionType]);
 
+  // Auto-select first weather source
+  useEffect(() => {
+    if (conditionType === 'weather' && !weatherSourceId && weatherSegments.length > 0) {
+        setWeatherSourceId(weatherSegments[0].num_of_node);
+    }
+  }, [conditionType, weatherSegments, weatherSourceId]);
+
   useEffect(() => {
     if (isPurePwm) {
         setAction('SET_VALUE');
@@ -126,8 +140,11 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
     if (conditionType === 'countdown' && (timerHours === 0 && timerMinutes === 0 && timerSeconds === 0)) return;
     if (conditionType === 'input') {
         if (!sourceGpio) return;
-        // Final check to prevent submitting a taken trigger via brute force or lag
         if (takenTriggers.includes(inputTrigger)) return;
+    }
+    if (conditionType === 'weather') {
+        if (!weatherSourceId) return;
+        if (isNaN(weatherValue)) return;
     }
 
     const duration = (timerHours * 3600) + (timerMinutes * 60) + timerSeconds;
@@ -138,8 +155,17 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
         time: conditionType === 'daily' ? time : undefined,
         duration: conditionType === 'countdown' ? duration : undefined,
         startedAt: conditionType === 'countdown' ? Date.now() : undefined,
+        
+        // Input Props
         sourceGpio: conditionType === 'input' ? parseInt(sourceGpio) : undefined,
         inputTrigger: conditionType === 'input' ? inputTrigger : undefined,
+
+        // Weather Props
+        sourceSegmentId: conditionType === 'weather' ? weatherSourceId : undefined,
+        conditionMetric: conditionType === 'weather' ? weatherMetric : undefined,
+        conditionOperator: conditionType === 'weather' ? weatherOperator : undefined,
+        conditionValue: conditionType === 'weather' ? weatherValue : undefined,
+
         targetSegmentId: targetId,
         action: showPwmTools ? 'SET_VALUE' : action,
         targetValue: showPwmTools ? pwmValue : undefined,
@@ -155,18 +181,28 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
     setTimerHours(0);
     setTimerMinutes(30);
     setTimerSeconds(0);
-    // Don't reset sourceGpio immediately if they want to add another condition for same pin
-    setInputTrigger(2);
-    setHybridMode('digital');
+    // Keep input/weather state partially for convenience
     setRepeatMode('daily');
     setRepeatCount(1);
   };
 
-  const getTargetName = (id: string) => segments.find(s => s.num_of_node === id)?.name || "Unknown Device";
-  const getTargetGpio = (id: string) => segments.find(s => s.num_of_node === id)?.gpio || "?";
-  
-  // Only show active schedules that are NOT countdowns (timers are transient)
+  // Helper to render readable conditions
+  const renderConditionText = (s: any) => {
+    if (s.type === 'input') {
+       return `GPIO: ${s.sourceGpio} | TRIG: ${TRIGGER_OPTIONS.find(t => t.value === s.inputTrigger)?.label || s.inputTrigger}`;
+    }
+    if (s.type === 'weather') {
+       const source = segments.find(seg => seg.num_of_node === s.sourceSegmentId);
+       const unit = s.conditionMetric === 'temp' ? '°C' : '%';
+       const op = s.conditionOperator === '>' ? 'Higher than' : s.conditionOperator === '<' ? 'Lower than' : 'Equals';
+       const metric = s.conditionMetric === 'temp' ? 'Temp' : 'Humidity';
+       return `${source?.name || 'Unknown'} (${metric}) ${op} ${s.conditionValue}${unit}`;
+    }
+    return `${t.exec_time}: ${s.time}`;
+  };
+
   const visibleSchedules = schedules.filter(s => s.type !== 'countdown');
+  const hasWeatherSensors = weatherSegments.length > 0;
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -205,7 +241,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                 </div>
 
                 {/* Condition Type Switcher */}
-                <div className="grid grid-cols-3 gap-2 mb-2">
+                <div className={cn("grid gap-2 mb-2", hasWeatherSensors ? "grid-cols-4" : "grid-cols-3")}>
                     <button
                         onClick={() => setConditionType('daily')}
                         className={cn(
@@ -239,13 +275,28 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                     >
                         <Cable size={12} /> {t.condition_input || "Input"}
                     </button>
+                    {hasWeatherSensors && (
+                        <button
+                            onClick={() => setConditionType('weather')}
+                            className={cn(
+                                "flex items-center justify-center gap-1.5 h-10 rounded-lg border transition-all text-[9px] font-black uppercase tracking-wider",
+                                conditionType === 'weather' 
+                                    ? "bg-primary/20 border-primary text-primary shadow-sm" 
+                                    : "bg-transparent border-white/10 text-muted-foreground hover:bg-secondary/10"
+                            )}
+                        >
+                            <CloudFog size={12} /> Weather
+                        </button>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                    {/* Dynamic Left Input: Time, Timer, or Input */}
+                    {/* Dynamic Left Input: Time, Timer, Input, or Weather */}
                     <div className="space-y-2">
                         <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
-                            {conditionType === 'daily' ? t.exec_time : conditionType === 'countdown' ? 'Duration' : t.input_config || "Input Config"}
+                            {conditionType === 'daily' ? t.exec_time : 
+                             conditionType === 'countdown' ? 'Duration' : 
+                             conditionType === 'input' ? t.input_config || "Input Config" : "Sensor Condition"}
                         </label>
                         
                         {conditionType === 'daily' && (
@@ -328,6 +379,54 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                         })}
                                     </select>
                                     <span className="absolute right-2 bottom-1 text-[6px] text-muted-foreground font-black uppercase">TRIGGER</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {conditionType === 'weather' && (
+                            <div className="space-y-2">
+                                <select 
+                                    value={weatherSourceId}
+                                    onChange={(e) => setWeatherSourceId(e.target.value)}
+                                    className="w-full h-8 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-2 text-[10px] font-bold outline-none mb-1"
+                                >
+                                    {weatherSegments.map(s => (
+                                        <option key={s.num_of_node} value={s.num_of_node}>{s.name} (GPIO {s.dhtPin})</option>
+                                    ))}
+                                </select>
+                                <div className="flex gap-2">
+                                     {/* Metric Toggle */}
+                                    <button 
+                                        onClick={() => setWeatherMetric(weatherMetric === 'temp' ? 'hum' : 'temp')}
+                                        className="w-8 h-8 rounded-md bg-secondary/20 flex items-center justify-center border border-white/10 text-primary"
+                                        title={weatherMetric === 'temp' ? 'Temperature' : 'Humidity'}
+                                    >
+                                        {weatherMetric === 'temp' ? <Thermometer size={14} /> : <Droplets size={14} />}
+                                    </button>
+
+                                    {/* Operator */}
+                                    <select 
+                                        value={weatherOperator}
+                                        onChange={(e) => setWeatherOperator(e.target.value as any)}
+                                        className="w-10 h-8 rounded-md bg-secondary/20 border border-white/10 text-center font-mono font-bold text-xs"
+                                    >
+                                        <option value=">">&gt;</option>
+                                        <option value="<">&lt;</option>
+                                        <option value="=">=</option>
+                                    </select>
+
+                                    {/* Value */}
+                                    <div className="flex-1 relative">
+                                        <Input 
+                                            type="number" 
+                                            value={weatherValue} 
+                                            onChange={(e) => setWeatherValue(parseInt(e.target.value))}
+                                            className="h-8 text-center font-mono pr-5"
+                                        />
+                                        <span className="absolute right-1.5 top-1.5 text-[8px] text-muted-foreground font-black">
+                                            {weatherMetric === 'temp' ? '°C' : '%'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -519,7 +618,8 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                             return (
                                 <div key={schedule.id} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-secondary/5 hover:border-primary/20 transition-all group">
                                     <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center text-primary shadow-sm shrink-0 border border-white/5">
-                                        {schedule.type === 'input' ? <Cable size={18} /> : <Clock size={18} />}
+                                        {schedule.type === 'input' ? <Cable size={18} /> : 
+                                         schedule.type === 'weather' ? <CloudFog size={18} /> : <Clock size={18} />}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
@@ -538,10 +638,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                             </span>
                                         </div>
                                         <div className="text-[9px] text-muted-foreground font-mono mt-0.5">
-                                            {schedule.type === 'input' 
-                                                ? `GPIO: ${schedule.sourceGpio} | TRIG: ${TRIGGER_OPTIONS.find(t => t.value === schedule.inputTrigger)?.label || schedule.inputTrigger}`
-                                                : `${t.exec_time}: ${schedule.time}`
-                                            }
+                                            {renderConditionText(schedule)}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1">

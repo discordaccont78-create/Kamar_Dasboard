@@ -49,6 +49,19 @@ export function useSchedulerEngine() {
                     shouldRun = true;
                 }
             }
+            // 3. Check Condition: Weather
+            else if (schedule.type === 'weather') {
+                const source = segments.find(s => s.num_of_node === schedule.sourceSegmentId);
+                if (source) {
+                    const currentVal = schedule.conditionMetric === 'temp' ? (source.temperature || 0) : (source.humidity || 0);
+                    const threshold = schedule.conditionValue || 0;
+                    const op = schedule.conditionOperator;
+
+                    if (op === '>' && currentVal > threshold) shouldRun = true;
+                    if (op === '<' && currentVal < threshold) shouldRun = true;
+                    if (op === '=' && currentVal === threshold) shouldRun = true;
+                }
+            }
 
             if (shouldRun) {
                 // Execute Logic
@@ -57,6 +70,7 @@ export function useSchedulerEngine() {
                 if (segment) {
                     let cmdToSend = CMD.LED_OFF;
                     let targetValForCmd = 0; // Default 0 for OFF
+                    let skipExecution = false;
                     
                     // State updates for UI
                     const updates: Partial<Segment> = {};
@@ -64,14 +78,24 @@ export function useSchedulerEngine() {
 
                     // Determine Command & Target State
                     if (schedule.action === 'ON') {
-                        cmdToSend = CMD.LED_ON;
-                        updates.is_led_on = 'on';
-                        actionLabel = settings.language === 'fa' ? 'روشن' : 'ON';
+                        // Prevent Spam: If already ON, do nothing for Weather types
+                        if (schedule.type === 'weather' && segment.is_led_on === 'on') {
+                            skipExecution = true;
+                        } else {
+                            cmdToSend = CMD.LED_ON;
+                            updates.is_led_on = 'on';
+                            actionLabel = settings.language === 'fa' ? 'روشن' : 'ON';
+                        }
 
                     } else if (schedule.action === 'OFF') {
-                        cmdToSend = CMD.LED_OFF;
-                        updates.is_led_on = 'off';
-                        actionLabel = settings.language === 'fa' ? 'خاموش' : 'OFF';
+                        // Prevent Spam: If already OFF, do nothing for Weather types
+                        if (schedule.type === 'weather' && segment.is_led_on === 'off') {
+                            skipExecution = true;
+                        } else {
+                            cmdToSend = CMD.LED_OFF;
+                            updates.is_led_on = 'off';
+                            actionLabel = settings.language === 'fa' ? 'خاموش' : 'OFF';
+                        }
 
                     } else if (schedule.action === 'TOGGLE') {
                         const newState = segment.is_led_on === 'on' ? 'off' : 'on';
@@ -83,52 +107,57 @@ export function useSchedulerEngine() {
 
                     } else if (schedule.action === 'SET_VALUE') {
                         // PWM Logic
-                        cmdToSend = CMD.LED_PWM;
-                        targetValForCmd = schedule.targetValue || 0;
-                        updates.val_of_slide = targetValForCmd;
-                        actionLabel = `PWM: ${targetValForCmd}`;
+                         if (schedule.type === 'weather' && segment.val_of_slide === schedule.targetValue) {
+                             skipExecution = true;
+                         } else {
+                            cmdToSend = CMD.LED_PWM;
+                            targetValForCmd = schedule.targetValue || 0;
+                            updates.val_of_slide = targetValForCmd;
+                            actionLabel = `PWM: ${targetValForCmd}`;
+                         }
                     }
 
-                    // 1. Send Hardware Command
-                    const success = sendCommand(cmdToSend, segment.gpio || 0, targetValForCmd);
-                    
-                    // 2. Update UI Source of Truth (React Query Cache)
-                    queryClient.setQueryData(['device', segment.num_of_node], (old: Segment | undefined) => {
-                        if (!old) return undefined;
-                        return { ...old, ...updates };
-                    });
+                    if (!skipExecution) {
+                        // 1. Send Hardware Command
+                        const success = sendCommand(cmdToSend, segment.gpio || 0, targetValForCmd);
+                        
+                        // 2. Update UI Source of Truth (React Query Cache)
+                        queryClient.setQueryData(['device', segment.num_of_node], (old: Segment | undefined) => {
+                            if (!old) return undefined;
+                            return { ...old, ...updates };
+                        });
 
-                    // 3. Update Global Store (Zustand)
-                    updateSegment(segment.num_of_node, updates);
+                        // 3. Update Global Store (Zustand)
+                        updateSegment(segment.num_of_node, updates);
+                        
+                        // 4. Notification (Only show once per state change for weather)
+                        if (success) {
+                            const msg = settings.language === 'fa'
+                                ? `وظیفه خودکار: ${segment.name} -> ${actionLabel}`
+                                : `Auto-Task: ${segment.name} set to ${actionLabel}`;
+                            addToast(msg, 'info');
+                        } else {
+                            const msg = settings.language === 'fa'
+                                ? `خطا: دستگاه ${segment.name} پاسخ نمی‌دهد`
+                                : `Task Failed: Device ${segment.name} unreachable`;
+                            addToast(msg, 'error');
+                        }
+                    }
 
-                    // 4. Update Timestamp
+                    // 5. Update Timestamp (Always update timestamp even if skipped, to know it "checked")
                     updateLastRun(schedule.id, currentTimestamp);
 
-                    // 5. Handle Repetition & Countdown Logic
+                    // 6. Handle Repetition & Countdown Logic
                     if (schedule.type === 'countdown') {
-                        // Timers are always one-shot unless re-enabled manually
                         disableSchedule(schedule.id);
-                    } else {
-                        // Daily Schedule Logic
+                    } else if (schedule.type === 'daily') {
                         if (schedule.repeatMode === 'once') {
                             disableSchedule(schedule.id);
                         } else if (schedule.repeatMode === 'count') {
                             decrementRepeat(schedule.id);
                         }
                     }
-                    
-                    // 6. Notification
-                    if (success) {
-                        const msg = settings.language === 'fa'
-                            ? `وظیفه خودکار: ${segment.name} -> ${actionLabel}`
-                            : `Auto-Task: ${segment.name} set to ${actionLabel}`;
-                        addToast(msg, 'info');
-                    } else {
-                        const msg = settings.language === 'fa'
-                            ? `خطا: دستگاه ${segment.name} پاسخ نمی‌دهد`
-                            : `Task Failed: Device ${segment.name} unreachable`;
-                        addToast(msg, 'error');
-                    }
+                    // Weather type runs continuously until disabled by user, essentially acts like a thermostat.
 
                 } else {
                     // Segment not found, but mark as run to prevent loops
