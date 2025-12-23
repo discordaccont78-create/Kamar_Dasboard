@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Cable } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Cable, Timer, X } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Slider } from '../ui/slider';
@@ -23,7 +24,7 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   const { data: deviceState } = useDeviceState(initialSegment.num_of_node);
   const { mutate: controlDevice } = useDeviceControl();
   const { updateSegment } = useSegments();
-  const { schedules } = useSchedulerStore();
+  const { schedules, addSchedule } = useSchedulerStore();
   
   // Merge state securely
   const safeSegment = useMemo(() => ({
@@ -31,12 +32,14 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
     ...(deviceState || {}),
     // FORCE overrides for config that might be stale in deviceState cache
     onOffMode: initialSegment.onOffMode,
-    timerFinishAt: initialSegment.timerFinishAt
+    timerFinishAt: initialSegment.timerFinishAt,
+    pulseDuration: initialSegment.pulseDuration || 0
   }), [initialSegment, deviceState]);
 
   // Local state
   const [localPwm, setLocalPwm] = useState(safeSegment.val_of_slide);
   const [code, setCode] = useState("");
+  const [showPulseConfig, setShowPulseConfig] = useState(false);
   
   // Global "Now" state to trigger re-renders for countdowns without individual intervals
   const [now, setNow] = useState(Date.now());
@@ -122,13 +125,29 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
 
   const handleToggle = useCallback(() => {
     const cmd = isOn ? CMD.LED_OFF : CMD.LED_ON;
+    
+    // Auto-Off Pulse Logic
+    // If we are turning it ON, and pulseDuration is > 0, create a countdown schedule
+    if (!isOn && safeSegment.pulseDuration && safeSegment.pulseDuration > 0 && mode === 'toggle') {
+        addSchedule({
+            id: Math.random().toString(36).substr(2, 9),
+            type: 'countdown',
+            duration: safeSegment.pulseDuration,
+            startedAt: Date.now(),
+            targetSegmentId: safeSegment.num_of_node,
+            action: 'OFF',
+            enabled: true,
+            repeatMode: 'once'
+        });
+    }
+
     controlDevice({ 
         cmd, 
         gpio: safeSegment.gpio || 0, 
         value: 0, 
         nodeId: safeSegment.num_of_node 
     });
-  }, [isOn, safeSegment.gpio, safeSegment.num_of_node, controlDevice]);
+  }, [isOn, safeSegment, mode, controlDevice, addSchedule]);
 
   const handlePressStart = useCallback(() => {
      if (mode !== 'momentary') return;
@@ -143,6 +162,11 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   const cycleMode = () => {
     const newMode = mode === 'toggle' ? 'momentary' : 'toggle';
     updateSegment(safeSegment.num_of_node, { onOffMode: newMode });
+  };
+
+  const updatePulseDuration = (val: string) => {
+      const seconds = parseInt(val) || 0;
+      updateSegment(safeSegment.num_of_node, { pulseDuration: seconds });
   };
 
   const handleSliderChange = (vals: number[]) => {
@@ -161,6 +185,7 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   const showToggle = safeSegment.segType === 'Digital' || safeSegment.segType === 'All';
   const showSlider = safeSegment.segType === 'PWM' || safeSegment.segType === 'All';
   const showCode = safeSegment.segType === 'Code' || safeSegment.segType === 'All';
+  const hasPulse = safeSegment.pulseDuration && safeSegment.pulseDuration > 0;
 
   return (
     <MotionDiv initial={false} className="flex flex-col gap-4 md:gap-6">
@@ -194,6 +219,21 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
                         </div>
                     ))}
                  </div>
+                 
+                 {/* Auto-Off / Pulse Configuration Button */}
+                 {mode === 'toggle' && (
+                    <button 
+                        onClick={() => setShowPulseConfig(!showPulseConfig)}
+                        className={cn(
+                            "text-[8px] md:text-[9px] uppercase font-bold tracking-wider hover:underline flex items-center gap-1 ml-1 shrink-0 transition-colors",
+                            (hasPulse || showPulseConfig) ? "text-primary opacity-100" : "text-muted-foreground opacity-50 hover:opacity-100"
+                        )}
+                        title="Auto-Off Timer (Pulse)"
+                    >
+                        <Timer size={10} /> <span className="hidden sm:inline">Pulse</span>
+                        {hasPulse && !showPulseConfig && <span className="font-mono text-[7px] bg-primary/20 px-1 rounded">{safeSegment.pulseDuration}s</span>}
+                    </button>
+                 )}
 
                  <button 
                     onClick={cycleMode} 
@@ -204,6 +244,41 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
                  </button>
               </div>
            </div>
+
+           {/* Pulse Configuration Popover/Area */}
+           <AnimatePresence>
+                {showPulseConfig && mode === 'toggle' && (
+                    <MotionDiv
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden mb-2 bg-secondary/5 rounded-lg border border-border/50"
+                    >
+                        <div className="p-2 flex items-center gap-2">
+                             <div className="flex flex-col gap-0.5 flex-1">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-primary flex items-center gap-1">
+                                    <Timer size={10} /> Auto-Off Timer
+                                </span>
+                                <span className="text-[8px] text-muted-foreground">Turn OFF automatically after X seconds</span>
+                             </div>
+                             <div className="flex items-center gap-2">
+                                <Input 
+                                    type="number"
+                                    min="0"
+                                    placeholder="0 (Disabled)"
+                                    className="h-7 w-20 text-center text-[10px]"
+                                    value={safeSegment.pulseDuration || ''}
+                                    onChange={(e) => updatePulseDuration(e.target.value)}
+                                />
+                                <span className="text-[9px] font-mono font-bold text-muted-foreground">SEC</span>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setShowPulseConfig(false)}>
+                                    <X size={12} />
+                                </Button>
+                             </div>
+                        </div>
+                    </MotionDiv>
+                )}
+           </AnimatePresence>
 
            <button
              onPointerDown={mode === 'momentary' ? handlePressStart : undefined}
@@ -235,6 +310,14 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
                  )}>
                     {isOn ? "ACTIVE" : "OFFLINE"}
                  </span>
+                 
+                 {/* Small Pulse Indicator on the button itself if active and running */}
+                 {isOn && hasPulse && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-60">
+                         <Timer size={10} className="animate-pulse text-primary" />
+                         <span className="text-[8px] font-mono font-bold text-primary">AUTO-OFF</span>
+                    </div>
+                 )}
               </div>
               
               <div className={cn(

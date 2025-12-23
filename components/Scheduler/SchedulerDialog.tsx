@@ -9,8 +9,8 @@ import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-// Ensure correct import casing for the slider component
-import { Slider } from '../ui/slider';
+// Ensure correct import casing for the slider component by using explicit path
+import { Slider } from '../../components/ui/slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import { ButtonTrigger } from '../../types/index';
