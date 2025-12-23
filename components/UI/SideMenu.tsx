@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -179,9 +180,11 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
       gpio: pin,
       is_led_on: 'off',
       val_of_slide: 0,
-      onOffMode: outputForm.onOffMode
+      onOffMode: outputForm.onOffMode,
+      onLabel: outputForm.onLabel.trim(),
+      offLabel: outputForm.offLabel.trim()
     });
-    setOutputForm({ gpio: '', name: '', type: 'Digital', group: '', onOffMode: 'toggle' });
+    setOutputForm({ gpio: '', name: '', type: 'Digital', group: '', onOffMode: 'toggle', onLabel: '', offLabel: '' });
     addToast("Output segment added successfully", "success");
   };
 
@@ -338,33 +341,56 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   </div>
                   
                   {(outputForm.type === 'Digital' || outputForm.type === 'All') && (
-                     <div className="grid grid-cols-4 items-center gap-4">
-                        <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Mode</label>
-                        <div className="col-span-3 flex gap-2">
-                           <button 
-                             onClick={() => setOutputForm({ onOffMode: 'toggle' })}
-                             className={cn(
-                               "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all",
-                               outputForm.onOffMode === 'toggle' 
-                                 ? "bg-primary/20 border-primary text-primary shadow-sm" 
-                                 : "bg-transparent border-input text-muted-foreground hover:bg-accent"
-                             )}
-                           >
-                             Feshari (Toggle)
-                           </button>
-                           <button 
-                             onClick={() => setOutputForm({ onOffMode: 'momentary' })}
-                             className={cn(
-                               "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all",
-                               outputForm.onOffMode === 'momentary' 
-                                 ? "bg-primary/20 border-primary text-primary shadow-sm" 
-                                 : "bg-transparent border-input text-muted-foreground hover:bg-accent"
-                             )}
-                           >
-                             Switch (Push)
-                           </button>
+                     <>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Mode</label>
+                            <div className="col-span-3 flex gap-2">
+                            <button 
+                                onClick={() => setOutputForm({ onOffMode: 'toggle' })}
+                                className={cn(
+                                "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all",
+                                outputForm.onOffMode === 'toggle' 
+                                    ? "bg-primary/20 border-primary text-primary shadow-sm" 
+                                    : "bg-transparent border-input text-muted-foreground hover:bg-accent"
+                                )}
+                            >
+                                Feshari (Toggle)
+                            </button>
+                            <button 
+                                onClick={() => setOutputForm({ onOffMode: 'momentary' })}
+                                className={cn(
+                                "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all",
+                                outputForm.onOffMode === 'momentary' 
+                                    ? "bg-primary/20 border-primary text-primary shadow-sm" 
+                                    : "bg-transparent border-input text-muted-foreground hover:bg-accent"
+                                )}
+                            >
+                                Switch (Push)
+                            </button>
+                            </div>
                         </div>
-                     </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-1.5">
+                               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.label_on || "On Label"}</label>
+                               <Input 
+                                  value={outputForm.onLabel} 
+                                  onChange={e => setOutputForm({ onLabel: e.target.value })} 
+                                  className="h-8" 
+                                  placeholder="Default: ON"
+                               />
+                           </div>
+                           <div className="space-y-1.5">
+                               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.label_off || "Off Label"}</label>
+                               <Input 
+                                  value={outputForm.offLabel} 
+                                  onChange={e => setOutputForm({ offLabel: e.target.value })} 
+                                  className="h-8" 
+                                  placeholder="Default: OFF"
+                               />
+                           </div>
+                        </div>
+                     </>
                   )}
 
                   <div className="grid grid-cols-4 items-center gap-4">

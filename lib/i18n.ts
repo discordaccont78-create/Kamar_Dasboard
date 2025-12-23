@@ -57,7 +57,9 @@ export const translations = {
     condition_time: "Time Condition",
     condition_timer: "Timer Condition",
     condition_input: "Input Condition",
-    input_config: "Input Configuration"
+    input_config: "Input Configuration",
+    label_on: "On Label",
+    label_off: "Off Label"
   },
   fa: {
     system_time: "زمان سیستم",
@@ -116,6 +118,8 @@ export const translations = {
     condition_time: "شرط زمانی",
     condition_timer: "شرط تایمر",
     condition_input: "شرط ورودی",
-    input_config: "پیکربندی ورودی"
+    input_config: "پیکربندی ورودی",
+    label_on: "متن روشن",
+    label_off: "متن خاموش"
   }
 };

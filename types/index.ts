@@ -38,6 +38,10 @@ export interface Segment {
   is_led_on: 'on' | 'off';
   val_of_slide: number;
   
+  // Custom Labels
+  onLabel?: string;
+  offLabel?: string;
+  
   // Digital Button Mode
   onOffMode?: 'toggle' | 'momentary'; // 'toggle' = Standard Click, 'momentary' = Push to Hold
   

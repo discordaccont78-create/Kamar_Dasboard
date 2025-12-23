@@ -33,7 +33,9 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
     // FORCE overrides for config that might be stale in deviceState cache
     onOffMode: initialSegment.onOffMode,
     timerFinishAt: initialSegment.timerFinishAt,
-    pulseDuration: initialSegment.pulseDuration || 0
+    pulseDuration: initialSegment.pulseDuration || 0,
+    onLabel: initialSegment.onLabel,
+    offLabel: initialSegment.offLabel
   }), [initialSegment, deviceState]);
 
   // Local state
@@ -308,7 +310,7 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
                     "text-base md:text-xl font-black uppercase tracking-[0.2em] transition-colors duration-300",
                     isOn ? "text-foreground" : "text-muted-foreground opacity-50"
                  )}>
-                    {isOn ? "ACTIVE" : "OFFLINE"}
+                    {isOn ? (safeSegment.onLabel || "ON") : (safeSegment.offLabel || "OFF")}
                  </span>
                  
                  {/* Small Pulse Indicator on the button itself if active and running */}
