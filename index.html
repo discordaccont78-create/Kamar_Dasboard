@@ -12,57 +12,47 @@
         theme: {
           extend: {
             colors: {
+              border: "hsl(var(--border))",
+              input: "hsl(var(--input))",
+              ring: "hsl(var(--ring))",
+              background: "hsl(var(--background))",
+              foreground: "hsl(var(--foreground))",
               primary: {
-                DEFAULT: 'var(--primary)',
-                foreground: '#000000',
+                DEFAULT: "hsl(var(--primary))",
+                foreground: "hsl(var(--primary-foreground))",
               },
               secondary: {
-                DEFAULT: '#b8860b',    // Dark Gold fallback
-                foreground: '#ffffff',
+                DEFAULT: "hsl(var(--secondary))",
+                foreground: "hsl(var(--secondary-foreground))",
               },
-              background: {
-                light: '#f4f7f9',
-                dark: '#09090b',
-                DEFAULT: '#f4f7f9'
-              },
-              foreground: {
-                light: '#1a1c1e',
-                dark: '#e0e0e0',
-                DEFAULT: '#1a1c1e'
-              },
-              card: {
-                light: '#ffffff',
-                dark: '#18181b',       // Shadcn Zinc-900
-                DEFAULT: '#ffffff',
-                foreground: '#1a1c1e',
-              },
-              border: {
-                light: '#e4e4e7',      // Shadcn Zinc-200
-                dark: '#27272a',       // Shadcn Zinc-800
-                DEFAULT: '#e4e4e7',
-              },
-              input: '#e4e4e7',
-              ring: 'var(--primary)',
               destructive: {
-                DEFAULT: '#ef4444',
-                foreground: '#ffffff',
+                DEFAULT: "hsl(var(--destructive))",
+                foreground: "hsl(var(--destructive-foreground))",
               },
               muted: {
-                DEFAULT: '#f4f4f5',
-                foreground: '#71717a',
+                DEFAULT: "hsl(var(--muted))",
+                foreground: "hsl(var(--muted-foreground))",
               },
               accent: {
-                DEFAULT: '#f4f4f5',
-                foreground: '#18181b',
+                DEFAULT: "hsl(var(--accent))",
+                foreground: "hsl(var(--accent-foreground))",
+              },
+              popover: {
+                DEFAULT: "hsl(var(--popover))",
+                foreground: "hsl(var(--popover-foreground))",
+              },
+              card: {
+                DEFAULT: "hsl(var(--card))",
+                foreground: "hsl(var(--card-foreground))",
               },
             },
             borderRadius: {
               'bevel': '16px 16px 3px 3px',
               'chip': '6px 6px 2px 2px',
-              'lg': '0.5rem',
-              'xl': '0.75rem',
-              '2xl': '1rem',
-              '3xl': '1.5rem',
+              'lg': 'var(--radius)',
+              'xl': 'calc(var(--radius) + 4px)',
+              '2xl': 'calc(var(--radius) + 8px)',
+              '3xl': 'calc(var(--radius) + 16px)',
             },
             fontFamily: {
               mono: ['JetBrains Mono', 'monospace'],
@@ -81,16 +71,73 @@
       @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@400;500;600;700&family=Vazirmatn:wght@100;400;700;900&family=Oswald:wght@400;700&family=Lato:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Share+Tech+Mono&family=Silkscreen:wght@400;700&display=swap');
       
       :root {
-        --primary: #daa520;
+        --background: 210 20% 98%; /* #f4f7f9 */
+        --foreground: 222 47% 11%; /* #1a1c1e */
+        
+        --card: 0 0% 100%;
+        --card-foreground: 222 47% 11%;
+        
+        --popover: 0 0% 100%;
+        --popover-foreground: 222 47% 11%;
+        
+        --primary: 43 74% 49%; /* #daa520 */
+        --primary-foreground: 210 40% 98%;
+        
+        --secondary: 210 40% 96.1%;
+        --secondary-foreground: 222 47% 11%;
+        
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215 16% 47%;
+        
+        --accent: 210 40% 96.1%;
+        --accent-foreground: 222 47% 11%;
+        
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 214 32% 91%;
+        --input: 214 32% 91%;
+        --ring: 222 84% 4.9%;
+        
+        --radius: 0.5rem;
+      }
+    
+      .dark {
+        --background: 240 10% 3.9%; /* #09090b - Deepest Zinc */
+        --foreground: 0 0% 98%;
+        
+        --card: 240 10% 3.9%; /* Same as bg for seamless feel, or slightly lighter 240 10% 5% */
+        --card-foreground: 0 0% 98%;
+        
+        --popover: 240 10% 3.9%;
+        --popover-foreground: 0 0% 98%;
+        
+        --primary: 43 74% 49%;
+        --primary-foreground: 240 5.9% 10%;
+        
+        --secondary: 240 3.7% 15.9%;
+        --secondary-foreground: 0 0% 98%;
+        
+        --muted: 240 3.7% 15.9%;
+        --muted-foreground: 240 5% 64.9%;
+        
+        --accent: 240 3.7% 15.9%;
+        --accent-foreground: 0 0% 98%;
+        
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 0 0% 98%;
+        
+        --border: 240 3.7% 15.9%; /* More visible border for dark mode definition */
+        --input: 240 3.7% 15.9%;
+        --ring: 240 4.9% 83.9%;
       }
 
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #f4f7f9;
-        color: #1a1c1e;
+        background-color: hsl(var(--background));
+        color: hsl(var(--foreground));
         margin: 0;
         overflow-x: hidden;
-        /* Dynamic Cursor removed from here, handled by React */
       }
 
       /* Font Classes for Dynamic Switching */
@@ -101,13 +148,11 @@
       .font-dina { font-family: 'Share Tech Mono', monospace; letter-spacing: 0.05em; }
       .font-proggy { font-family: 'Silkscreen', cursive; font-size: 0.95em; }
       
-      /* Priority Persian Font */
       .font-persian { 
         font-family: 'Vazirmatn', sans-serif !important; 
         letter-spacing: 0 !important;
       }
 
-      /* Performance Optimizations */
       .segment_area, .group_area {
         will-change: transform, opacity;
         transform: translateZ(0);
@@ -132,26 +177,11 @@
         font-family: 'JetBrains Mono', monospace;
       }
 
-      .dark body {
-        background-color: #09090b; 
-        color: #e0e0e0;
-      }
-
-      /* Old button cursor override removed */
-
       *:focus-visible {
-        outline: 2px solid var(--primary);
+        outline: 2px solid hsl(var(--primary));
         outline-offset: 2px;
       }
       
-      .dark .border-border {
-        border-color: #27272a;
-      }
-      
-      .dark .bg-card {
-        background-color: #18181b;
-      }
-
       .no-scrollbar::-webkit-scrollbar {
         display: none;
       }
@@ -161,10 +191,8 @@
       }
 
       /* === BACKGROUND EFFECTS === */
-
-      /* 1. Grid (Graph Paper) */
       .graph-paper {
-        background-color: #fdfdfd; 
+        background-color: hsl(var(--background));
         background-image: 
             linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px),
             linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px);
@@ -174,15 +202,13 @@
       }
 
       .dark .graph-paper {
-        background-color: #09090b; 
         background-image: 
-            linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+            linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px);
       }
 
-      /* 2. Dots (Matrix Array) */
       .dot-matrix {
-        background-color: #fdfdfd;
+        background-color: hsl(var(--background));
         background-image: radial-gradient(rgba(0,0,0,0.15) 1.5px, transparent 1.5px);
         background-size: 24px 24px;
         background-position: center top;
@@ -190,8 +216,7 @@
       }
 
       .dark .dot-matrix {
-        background-color: #09090b;
-        background-image: radial-gradient(rgba(255,255,255,0.15) 1.5px, transparent 1.5px);
+        background-image: radial-gradient(rgba(255,255,255,0.08) 1.5px, transparent 1.5px);
       }
 
       @keyframes bgScroll {
@@ -211,9 +236,9 @@
       .text-shimmer {
         background: linear-gradient(
           to right, 
-          var(--primary) 20%, 
+          hsl(var(--primary)) 20%, 
           #ffeebb 50%, 
-          var(--primary) 80%
+          hsl(var(--primary)) 80%
         );
         background-size: 200% auto;
         color: transparent;
@@ -225,9 +250,9 @@
       .dark .text-shimmer {
          background: linear-gradient(
           to right, 
-          var(--primary) 20%, 
+          hsl(var(--primary)) 20%, 
           #ffffff 50%, 
-          var(--primary) 80%
+          hsl(var(--primary)) 80%
         );
         background-size: 200% auto;
         color: transparent;

@@ -40,11 +40,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
 
   return (
     <header className="sticky top-2 md:top-4 z-50 px-2 md:px-6 transition-all duration-500">
-      <div className="bg-card/85 backdrop-blur-xl backdrop-saturate-150 text-foreground px-4 py-3 md:px-8 md:py-4 rounded-xl md:rounded-2xl border border-white/20 dark:border-white/10 shadow-2xl mx-auto flex items-center justify-between relative max-w-7xl">
+      <div className="bg-background/70 dark:bg-background/50 backdrop-blur-xl backdrop-saturate-150 text-foreground px-4 py-3 md:px-8 md:py-4 rounded-xl md:rounded-2xl border border-border/50 dark:border-white/5 shadow-2xl mx-auto flex items-center justify-between relative max-w-7xl">
         
         {/* Left: Branding */}
         <div className="flex items-center gap-3 md:gap-4 z-10">
-          <div className="bg-card/50 border border-primary/20 p-1.5 md:p-2.5 rounded-lg md:rounded-xl shadow-sm backdrop-blur-md transition-all duration-300">
+          <div className="bg-background/50 border border-primary/20 p-1.5 md:p-2.5 rounded-lg md:rounded-xl shadow-sm backdrop-blur-md transition-all duration-300">
             <Zap className="text-primary w-4 h-4 md:w-6 md:h-6" fill="currentColor" />
           </div>
           <div className="flex flex-col">
@@ -65,7 +65,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden lg:flex flex-col items-center justify-center opacity-80">
             <div className={cn(
                 "clock-display font-mono text-xl font-black tracking-widest flex items-center gap-2",
-                settings.animations ? "text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]" : "text-foreground"
+                settings.animations ? "text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]" : "text-foreground"
             )}>
                {time || "00:00:00"}
             </div>

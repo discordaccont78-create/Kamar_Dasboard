@@ -1,11 +1,10 @@
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import * as SliderPrimitive from "@radix-ui/react-slider";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSegments } from '../../lib/store/segments';
 import { useSettingsStore } from '../../lib/store/settings';
 import { useConnection } from '../../lib/store/connection';
-import { useUIStore } from '../../lib/store/uiState'; // Imported UI Store
+import { useUIStore } from '../../lib/store/uiState';
 import { SegmentType } from '../../types/index';
 import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
@@ -16,6 +15,7 @@ import {
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
+import { Slider } from '../ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
@@ -24,42 +24,19 @@ import { translations } from '../../lib/i18n';
 const MotionDiv = motion.div as any;
 const MotionSpan = motion.span as any;
 
-// Wrapper for Radix components to bypass strict type checking if needed
 const DialogOverlay = Dialog.Overlay as any;
 const DialogContent = Dialog.Content as any;
 const DialogTitle = Dialog.Title as any;
 const DialogClose = Dialog.Close as any;
 
-// Inlined Slider component with fixed types
-const Slider = React.forwardRef<
-  React.ElementRef<typeof SliderPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <SliderPrimitive.Root
-    ref={ref}
-    className={cn(
-      "relative flex w-full touch-none select-none items-center",
-      className
-    )}
-    {...(props as any)}
-  >
-    <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-secondary/20">
-      <SliderPrimitive.Range className="absolute h-full bg-primary" />
-    </SliderPrimitive.Track>
-    <SliderPrimitive.Thumb className="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:scale-110 duration-100 cursor-grab active:cursor-grabbing" />
-  </SliderPrimitive.Root>
-))
-Slider.displayName = SliderPrimitive.Root.displayName
-
 interface SideMenuProps { isOpen: boolean; onClose: () => void; }
 
-// Custom "Tech" Button Component
 const TechButton = ({ children, onClick, className, variant = 'primary', icon: Icon }: any) => {
     const baseClass = "relative w-full h-10 font-black uppercase tracking-[0.2em] text-[10px] transition-all duration-300 flex items-center justify-center gap-2 rounded-lg group overflow-hidden";
     
     const variants = {
-        primary: "bg-primary text-black hover:bg-primary/90 shadow-[0_4px_14px_0_rgba(var(--primary),0.39)] hover:shadow-[0_6px_20px_rgba(var(--primary),0.23)] hover:-translate-y-0.5 border border-white/20",
-        outline: "bg-transparent border border-primary/30 text-primary hover:bg-primary/10 hover:border-primary hover:text-primary hover:shadow-[0_0_15px_rgba(var(--primary),0.3)]",
+        primary: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md hover:-translate-y-0.5 border border-white/10",
+        outline: "bg-transparent border border-primary/30 text-primary hover:bg-primary/10 hover:border-primary hover:text-primary hover:shadow-sm",
         ghost: "bg-secondary/10 hover:bg-secondary/20 text-muted-foreground hover:text-foreground"
     };
 
@@ -71,7 +48,6 @@ const TechButton = ({ children, onClick, className, variant = 'primary', icon: I
     );
 };
 
-// Collapsible Menu Section Component (Controlled)
 const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle, animations }: any) => {
   const isOpen = id === activeId;
   
@@ -81,10 +57,9 @@ const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle, anim
         onClick={() => onToggle(id)}
         className={cn(
             "w-full flex items-center gap-3 group outline-none relative overflow-hidden transition-all duration-300 select-none",
-            // Revised Active State: No shadow, Industrial Left Border, Gradient Background
             isOpen 
-                ? "py-4 px-4 bg-gradient-to-r from-primary/10 to-transparent border-l-4 border-primary" 
-                : "py-3 px-2 border-l-4 border-transparent hover:bg-white/5 hover:pl-3"
+                ? "py-4 px-4 bg-primary/10 border-l-4 border-primary" 
+                : "py-3 px-2 border-l-4 border-transparent hover:bg-accent/50 hover:pl-3"
         )}
       >
         <div className={cn(
@@ -94,7 +69,6 @@ const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle, anim
             <Icon size={isOpen ? 18 : 16} strokeWidth={isOpen ? 2.5 : 2} />
         </div>
         
-        {/* Animated Title */}
         <MotionSpan 
             initial={false}
             animate={animations ? { x: isOpen ? 4 : 0 } : {}}
@@ -106,12 +80,10 @@ const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle, anim
             {title}
         </MotionSpan>
 
-        {/* Connecting Line (Only visible when closed or hovering) */}
         {!isOpen && (
             <div className="h-px flex-1 bg-border/40 group-hover:bg-primary/30 transition-colors ml-2" />
         )}
 
-        {/* Chevron */}
         <div className={cn(
           "text-muted-foreground transition-all duration-300 ml-auto z-10",
           isOpen ? "-rotate-180 text-primary" : "rotate-0"
@@ -129,7 +101,7 @@ const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle, anim
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-             <div className="pb-4 pt-1 space-y-4 px-2 border-l border-white/5 ml-4">
+             <div className="pb-4 pt-1 space-y-4 px-2 border-l border-border/20 ml-4">
                 {children}
              </div>
           </MotionDiv>
@@ -144,7 +116,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   const { addSegment, segments, setSegmentTimer } = useSegments();
   const { addToast } = useConnection();
   
-  // Use Persistent UI Store
   const { 
     activeSection, setActiveSection,
     outputForm, setOutputForm,
@@ -155,12 +126,10 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   
   const t = translations[settings.language];
 
-  // Accordion Toggle Handler
   const handleSectionToggle = (id: string) => {
     setActiveSection(activeSection === id ? null : id);
   };
 
-  // --- Suggestion Logic ---
   const uniqueGroups = useMemo<string[]>(() => {
     const groups = new Set(segments.map(s => s.group).filter((g): g is string => !!g));
     return Array.from(groups).sort() as string[];
@@ -171,8 +140,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     return Array.from(names).sort() as string[];
   }, [segments]);
 
-
-  // --- Validation Helpers ---
   const isGpioUsed = (pin: number) => {
     return segments.some(s => 
       s.gpio === pin || 
@@ -183,7 +150,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     );
   };
 
-  // --- Sorting & Data Preparation for Status Table ---
   const sortedSegments = useMemo(() => {
     return [...segments].sort((a, b) => {
         const pinA = a.gpio || a.dhtPin || a.dsPin || 0;
@@ -191,8 +157,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
         return pinA - pinB;
     });
   }, [segments]);
-
-  // --- Handlers ---
 
   const handleAddOutput = () => {
     const pin = parseInt(outputForm.gpio);
@@ -294,26 +258,22 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     updateSettings({ currentTrackIndex: prevIndex });
   };
 
-  // Dynamic Background Class for Header
   const headerBgClass = settings.backgroundEffect === 'dots' ? 'dot-matrix' : 'graph-paper';
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <DialogOverlay className="DialogOverlay fixed inset-0 bg-[#daa520]/10 backdrop-blur-md z-[150]" />
+        <DialogOverlay className="DialogOverlay fixed inset-0 bg-background/50 backdrop-blur-sm z-[150]" />
         
         <DialogContent 
           className={cn(
-            "DialogContent fixed top-4 bottom-4 w-full max-w-[420px] bg-background/95 backdrop-blur-2xl border border-white/10 rounded-3xl z-[200] shadow-2xl flex flex-col focus:outline-none overflow-hidden ring-1 ring-white/5",
+            "DialogContent fixed top-4 bottom-4 w-full max-w-[420px] bg-background dark:bg-card/95 backdrop-blur-2xl border border-border rounded-3xl z-[200] shadow-2xl flex flex-col focus:outline-none overflow-hidden ring-1 ring-border/20",
             settings.language === 'fa' ? 'left-4' : 'right-4'
           )}
         >
-          {/* Enhanced Header with Animation and better styling */}
           <div className="relative overflow-hidden shrink-0 border-b border-border">
-             {/* Background Pattern Layer */}
              <div className={cn("absolute inset-0 opacity-10", headerBgClass, settings.animations && "animate-grid")} />
              
-             {/* Gradient Overlay */}
              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background/90" />
 
              <div className="relative z-10 p-6 flex justify-between items-center">
@@ -334,7 +294,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
              </div>
           </div>
 
-          {/* Autocomplete Datalists */}
           <datalist id="group-suggestions">
             {uniqueGroups.map(g => <option key={g} value={g} />)}
           </datalist>
@@ -342,10 +301,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             {uniqueNames.map(n => <option key={n} value={n} />)}
           </datalist>
 
-          {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 no-scrollbar">
             
-            {/* === OUTPUT SEGMENTS SECTION === */}
             <MenuSection 
                 id="output" 
                 title="Output Segments" 
@@ -372,7 +329,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.type}</label>
-                     <select value={outputForm.type} onChange={e => setOutputForm({ type: e.target.value as SegmentType })} className="col-span-3 h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
+                     <select value={outputForm.type} onChange={e => setOutputForm({ type: e.target.value as SegmentType })} className="col-span-3 h-9 rounded-md border border-input bg-background px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-foreground">
                         <option value="Digital">On/Off (Relay)</option>
                         <option value="PWM">PWM (Dimmer)</option>
                         <option value="Code">Protocol (Code)</option>
@@ -380,7 +337,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                       </select>
                   </div>
                   
-                  {/* Button Mode Selector - Only visible for Digital/All */}
                   {(outputForm.type === 'Digital' || outputForm.type === 'All') && (
                      <div className="grid grid-cols-4 items-center gap-4">
                         <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Mode</label>
@@ -390,8 +346,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                              className={cn(
                                "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all",
                                outputForm.onOffMode === 'toggle' 
-                                 ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
-                                 : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                 ? "bg-primary/20 border-primary text-primary shadow-sm" 
+                                 : "bg-transparent border-input text-muted-foreground hover:bg-accent"
                              )}
                            >
                              Feshari (Toggle)
@@ -401,8 +357,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                              className={cn(
                                "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all",
                                outputForm.onOffMode === 'momentary' 
-                                 ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
-                                 : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                 ? "bg-primary/20 border-primary text-primary shadow-sm" 
+                                 : "bg-transparent border-input text-muted-foreground hover:bg-accent"
                              )}
                            >
                              Switch (Push)
@@ -429,7 +385,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </Card>
             </MenuSection>
 
-            {/* === STATUS OF YOUR DASHBOARD SECTION === */}
             <MenuSection 
                 id="status" 
                 title={t.dash_status || "Dashboard Status"} 
@@ -459,7 +414,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                     ) : (
                        <div className="max-h-[300px] overflow-y-auto no-scrollbar">
                           {sortedSegments.map(seg => {
-                             // Determine display state based on type
                              let displayState = "-";
                              let stateColor = "text-muted-foreground";
 
@@ -477,7 +431,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                 stateColor = seg.is_led_on === 'on' ? "text-green-500" : "text-red-500";
                              }
 
-                             // Font Logic for Names
                              const nameFont = isPersian(seg.name) ? "font-persian" : "";
                              const groupFont = isPersian(seg.group) ? "font-persian" : "";
 
@@ -504,8 +457,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </Card>
             </MenuSection>
 
-            {/* ... Hardware Templates ... */}
-            
             <MenuSection 
                 id="hardware" 
                 title="Hardware Modules" 
@@ -514,7 +465,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 onToggle={handleSectionToggle}
                 animations={settings.animations}
             >
-               {/* Shift Register Card */}
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
@@ -551,7 +501,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 </CardContent>
               </Card>
 
-              {/* DHT Weather Card */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-blue-500">
@@ -601,7 +550,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             >
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                   <CardContent className="space-y-6 pt-6">
-                    {/* Dashboard Title */}
                     <div className="space-y-2">
                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.dash_title}</label>
                        <Input 
@@ -611,7 +559,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                        />
                     </div>
 
-                    {/* Network Domain */}
                     <div className="space-y-2">
                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.net_domain}</label>
                        <Input 
@@ -621,7 +568,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                        />
                     </div>
 
-                    {/* NEW: Background Effect Selector */}
                     <div className="space-y-2 pt-2 border-t border-border/50">
                         <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                             Background Effect
@@ -632,8 +578,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                 className={cn(
                                     "h-10 border rounded-lg flex items-center justify-center gap-2 transition-all",
                                     settings.backgroundEffect === 'grid' 
-                                        ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
-                                        : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                        ? "bg-primary/20 border-primary text-primary shadow-sm" 
+                                        : "bg-transparent border-input text-muted-foreground hover:bg-accent"
                                 )}
                             >
                                 <Grid3X3 size={14} />
@@ -644,8 +590,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                 className={cn(
                                     "h-10 border rounded-lg flex items-center justify-center gap-2 transition-all",
                                     settings.backgroundEffect === 'dots' 
-                                        ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
-                                        : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                        ? "bg-primary/20 border-primary text-primary shadow-sm" 
+                                        : "bg-transparent border-input text-muted-foreground hover:bg-accent"
                                 )}
                             >
                                 <CircleDot size={14} />
@@ -654,7 +600,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                         </div>
                     </div>
 
-                    {/* Dashboard Font Selector */}
                     <div className="space-y-2 pt-2 border-t border-border/50">
                          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                             <Type size={12} /> Dashboard Font
@@ -675,7 +620,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                         onClick={() => updateSettings({ dashboardFont: fontName as any })}
                                         className={cn(
                                             "h-12 border rounded-lg flex flex-col items-center justify-center transition-all hover:bg-secondary/10",
-                                            isSelected ? "border-primary bg-primary/10 text-primary shadow-[0_0_10px_-4px_var(--primary)]" : "border-white/10 text-muted-foreground"
+                                            isSelected ? "border-primary bg-primary/10 text-primary shadow-sm" : "border-input text-muted-foreground"
                                         )}
                                     >
                                         <span className={cn("text-xs font-bold", fontClass)}>{fontName}</span>
@@ -686,7 +631,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                          </div>
                     </div>
 
-                    {/* Toggles */}
                     <div className="space-y-4 pt-2 border-t border-border/50">
                       <div className="flex items-center justify-between">
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.ui_anim}</label>
@@ -702,7 +646,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                       </div>
                     </div>
 
-                    {/* Audio Controls */}
                     <AnimatePresence>
                       {settings.bgMusic && (
                         <MotionDiv
@@ -735,9 +678,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                       )}
                     </AnimatePresence>
 
-                    {/* Theme Colors */}
                     <div className="space-y-4 pt-2 border-t border-border/50">
-                       {/* Primary Accent Color */}
                        <div className="space-y-2">
                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.accent_color}</label>
                            <div className="flex gap-2 flex-wrap">
@@ -755,7 +696,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                            </div>
                        </div>
                        
-                       {/* NEW: Cursor Accent Color (Third Color) */}
                        <div className="space-y-2">
                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                                <MousePointer2 size={12} /> Cursor Highlight
