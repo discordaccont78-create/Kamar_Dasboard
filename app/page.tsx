@@ -5,23 +5,21 @@ import { Header } from '../components/Header/Header';
 import { SideMenu } from '../components/UI/SideMenu';
 import { SegmentGroup } from '../components/Group/SegmentGroup';
 import { ToastContainer } from '../components/UI/Toast';
-import { CursorGlobalStyle } from '../components/UI/CursorGlobalStyle';
+import { CursorGlobalStyle } from '../components/UI/CursorGlobalStyle'; // Import Cursor Styles
 import { useSegments } from '../lib/store/segments';
 import { useSettingsStore } from '../lib/store/settings';
 import { useConnection } from '../lib/store/connection';
 import { useSchedulerStore } from '../lib/store/scheduler';
-import { useUIStore } from '../lib/store/uiState'; // Import UI Store for Drag State
 import { CMD, Segment } from '../types/index';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useSchedulerEngine } from '../hooks/useSchedulerEngine';
-import { Zap, Trash2, Hexagon, Cpu, Laptop, Smartphone, GripHorizontal, AlertOctagon } from 'lucide-react';
+import { Zap, Trash2, Hexagon, Cpu, Laptop, Smartphone, GripHorizontal } from 'lucide-react';
 import { cn, getFontClass } from '../lib/utils';
 import { translations } from '../lib/i18n';
 import { MUSIC_TRACKS } from '../lib/constants';
 
 // Workaround for Framer Motion types in this specific ESM environment
 const MotionDiv = motion.div as any;
-const MotionFooter = motion.footer as any;
 
 const CoreEmblem: React.FC = React.memo(() => (
   <div className="relative flex items-center justify-center">
@@ -79,38 +77,33 @@ const DraggableGroupItem = React.memo(({
   onDragEnd: () => void
 }) => {
   const controls = useDragControls();
-  const { setDraggingId, setIsOverTrash } = useUIStore();
 
   const handleDrag = (event: any, info: any) => {
-    // 1. Check Delete Zone Collision (Precise)
-    const deleteZone = document.getElementById('delete-zone');
-    if (deleteZone) {
-        const rect = deleteZone.getBoundingClientRect();
-        // Check if cursor is strictly inside the box
-        const isOver = 
-            info.point.y >= rect.top && 
-            info.point.y <= rect.bottom && 
-            info.point.x >= rect.left && 
-            info.point.x <= rect.right;
-        
-        setIsOverTrash(isOver);
-    }
-
-    // 2. Reordering Logic
     if (!containerRef.current) return;
+    
     const now = Date.now();
     if (now - lastReorderTime.current < 400) return;
 
     const dragX = info.point.x;
     const dragY = info.point.y;
+    
     const items = Array.from(containerRef.current.querySelectorAll('.group_area')) as HTMLElement[];
+    
     let targetIndex = -1;
 
     items.forEach((item, idx) => {
       if (idx === index) return; 
+
       const rect = item.getBoundingClientRect();
-      const isOver = dragX > rect.left && dragX < rect.right && dragY > rect.top && dragY < rect.bottom;
-      if (isOver) targetIndex = idx;
+      const isOver = 
+        dragX > rect.left && 
+        dragX < rect.right && 
+        dragY > rect.top && 
+        dragY < rect.bottom;
+
+      if (isOver) {
+        targetIndex = idx;
+      }
     });
 
     if (targetIndex !== -1 && targetIndex !== index) {
@@ -119,6 +112,32 @@ const DraggableGroupItem = React.memo(({
     }
   };
 
+  // Callback to handle toggling with WS command
+  const handleToggle = useCallback((id: string) => {
+    const seg = segments.find(s => s.num_of_node === id);
+    if (!seg) return;
+
+    // Check if this is a Shift Register Segment (has regBitIndex)
+    if (seg.regBitIndex !== undefined) {
+        toggleSegment(id);
+        const allRegisterSegments = segments.filter(s => s.gpio === seg.gpio && s.regBitIndex !== undefined);
+        let newByteValue = 0;
+        allRegisterSegments.forEach(s => {
+            let isOn = s.is_led_on === 'on';
+            if (s.num_of_node === id) {
+                 isOn = !isOn; 
+            }
+            if (isOn) {
+                newByteValue |= (1 << (s.regBitIndex || 0));
+            }
+        });
+        sendCommand(CMD.SR_STATE, seg.gpio || 0, newByteValue);
+    } else {
+        toggleSegment(id);
+        sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
+    }
+  }, [toggleSegment, segments, sendCommand]);
+
   const handleInternalReorder = useCallback((newNodes: Segment[]) => {
     const otherGroupsSegments = segments.filter(s => (s.group || "basic") !== groupName);
     setSegments([...otherGroupsSegments, ...newNodes]);
@@ -126,35 +145,19 @@ const DraggableGroupItem = React.memo(({
 
   return (
     <MotionDiv
-      layout="position"
+      layout="position" // Optimized layout
       drag
-      dragListener={false}
+      dragListener={false} // Only drag from handle
       dragControls={controls}
       dragSnapToOrigin
       dragElastic={0.1}
-      onDragStart={() => {
-        setDraggingId(groupName); // Track that we are dragging THIS group
-        onDragStart();
-      }}
+      onDragStart={onDragStart}
       onDrag={handleDrag}
       onDragEnd={(event: any, info: any) => {
-        setDraggingId(null);
-        setIsOverTrash(false);
         onDragEnd(); 
-        
-        // Final Check for Deletion
-        const deleteZone = document.getElementById('delete-zone');
-        if (deleteZone) {
-            const rect = deleteZone.getBoundingClientRect();
-            const isOver = 
-                info.point.y >= rect.top && 
-                info.point.y <= rect.bottom && 
-                info.point.x >= rect.left && 
-                info.point.x <= rect.right;
-            
-            if (isOver) {
-                removeGroup(groupName);
-            }
+        const thresholdY = window.innerHeight - 110;
+        if (info.point.y > thresholdY) {
+          removeGroup(groupName);
         }
       }}
       initial={{ opacity: 0, scale: 0.98 }}
@@ -175,28 +178,7 @@ const DraggableGroupItem = React.memo(({
         }
         onReorder={handleInternalReorder}
         onRemove={removeSegment}
-        onToggle={useCallback((id: string) => {
-            // Simplified Toggle Wrapper Logic inside Group
-            const seg = segments.find(s => s.num_of_node === id);
-            if (!seg) return;
-            if (seg.regBitIndex !== undefined) {
-                toggleSegment(id);
-                // logic for reg byte recalc...
-                const allRegisterSegments = segments.filter(s => s.gpio === seg.gpio && s.regBitIndex !== undefined);
-                setTimeout(() => { // Small tick to allow store update
-                   const updatedSegs = useSegments.getState().segments;
-                   const targetSegs = updatedSegs.filter(s => s.gpio === seg.gpio && s.groupType === 'register');
-                   let newByteValue = 0;
-                   targetSegs.forEach(s => {
-                      if (s.is_led_on === 'on') newByteValue |= (1 << (s.regBitIndex || 0));
-                   });
-                   sendCommand(CMD.SR_STATE, seg.gpio || 0, newByteValue);
-                }, 0);
-            } else {
-                toggleSegment(id);
-                sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
-            }
-        }, [segments, toggleSegment, sendCommand])}
+        onToggle={handleToggle}
         onPWMChange={setPWM}
         onToggleBit={() => {}} 
         onDragStart={onDragStart}
@@ -211,11 +193,8 @@ export default function DashboardPage(): React.JSX.Element {
   const { segments, setSegments, removeSegment, removeGroup, toggleSegment, setPWM } = useSegments();
   const { removeSchedulesByTarget } = useSchedulerStore();
   const { settings } = useSettingsStore();
-  
-  // Consuming the Drag State
-  const { draggingId, isOverTrash } = useUIStore();
-
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   const [deviceType, setDeviceType] = useState<string>("DETECTING");
   
   // Init Scheduler Engine
@@ -230,12 +209,14 @@ export default function DashboardPage(): React.JSX.Element {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { sendCommand } = useWebSocket();
 
+  // Smart Remove Handlers: Remove Segment + Associated Schedules
   const handleRemoveSegment = useCallback((id: string) => {
     removeSchedulesByTarget(id);
     removeSegment(id);
   }, [removeSchedulesByTarget, removeSegment]);
 
   const handleRemoveGroup = useCallback((groupName: string) => {
+    // Find all segment IDs in this group to clean their schedules
     const targetIds = segments.filter(s => (s.group || "basic") === groupName).map(s => s.num_of_node);
     targetIds.forEach(id => removeSchedulesByTarget(id));
     removeGroup(groupName);
@@ -250,6 +231,7 @@ export default function DashboardPage(): React.JSX.Element {
   }, [settings.language]);
 
   useEffect(() => {
+    // Basic User Agent detection
     const ua = navigator.userAgent;
     if (/Mobi|Android/i.test(ua)) {
         setDeviceType("MOBILE");
@@ -317,10 +299,12 @@ export default function DashboardPage(): React.JSX.Element {
     });
   }, []);
 
+  // Determine Background Class
   const bgClass = settings.backgroundEffect === 'dots' ? 'dot-matrix' : 'graph-paper';
 
   return (
     <MotionConfig reducedMotion={settings.animations ? "never" : "always"}>
+      {/* Inject Global Cursor Styles Here */}
       <CursorGlobalStyle />
 
       <div className={cn(
@@ -331,7 +315,9 @@ export default function DashboardPage(): React.JSX.Element {
       )}>
         <Header onOpenMenu={() => setIsMenuOpen(true)} />
         
+        {/* Main Content: Reduced padding on mobile */}
         <main className="max-w-7xl mx-auto px-3 md:px-6 pt-6 md:pt-12 flex-1 pb-32 md:pb-40 w-full relative">
+          
           {segments.length === 0 ? (
             <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-12 md:py-16 min-h-[60vh]">
               <MotionDiv onClick={() => setIsMenuOpen(true)} className="relative z-20 cursor-pointer flex flex-col items-center gap-6 md:gap-8">
@@ -377,8 +363,8 @@ export default function DashboardPage(): React.JSX.Element {
                        setPWM={setPWM}
                        lastReorderTime={lastGroupReorderTime}
                        className={spanClass}
-                       onDragStart={() => {}}
-                       onDragEnd={() => {}}
+                       onDragStart={() => setIsDragging(true)}
+                       onDragEnd={() => setIsDragging(false)}
                      />
                    );
                 })}
@@ -387,102 +373,34 @@ export default function DashboardPage(): React.JSX.Element {
           )}
         </main>
 
-        {/* Footer / Smart Delete Zone */}
-        <MotionFooter 
-          id="delete-zone"
-          layout
-          initial={false}
-          animate={
-            // 1. If dragging and over trash -> Scale up, Red, Shake (if anims on)
-            draggingId && isOverTrash ? { 
-                scale: 1.05, 
-                backgroundColor: "#ef4444", 
-                borderColor: "#ef4444",
-                y: settings.animations ? [0, -4, 0, 4, 0] : 0 
-            } : 
-            // 2. If just dragging -> Use Cursor Color, slight lift
-            draggingId ? { 
-                scale: 1.02, 
-                backgroundColor: settings.cursorColor || "#daa520",
-                borderColor: settings.cursorColor || "#daa520",
-                y: -10
-            } : 
-            // 3. Default -> Normal style with Dark Mode awareness (Zinc 900 @ 60%)
-            { 
-                scale: 1, 
-                // Light Mode: White 85% with subtle BLACK border for definition
-                // Dark Mode: Zinc 900 60% with subtle WHITE border
-                backgroundColor: settings.theme === 'dark' ? "rgba(24, 24, 27, 0.6)" : "rgba(255, 255, 255, 0.85)", 
-                borderColor: settings.theme === 'dark' ? "rgba(255, 255, 255, 0.1)" : "rgba(0,0,0,0.08)",
-                y: 0
-            }
-          }
-          transition={{ 
-            type: "spring", stiffness: 400, damping: 25,
-            y: { duration: 0.2, repeat: (draggingId && isOverTrash && settings.animations) ? Infinity : 0 } // Repeat shake only when over trash
-          }}
-          className={cn(
-            "fixed bottom-2 md:bottom-4 left-0 w-full px-2 md:px-6 z-[40] transition-colors duration-300",
-            // If dragging, pointer events work for detection. If not, footer allows clicks on version/links
-            draggingId ? "pointer-events-auto" : "pointer-events-auto"
-          )}
-        >
-          <div className={cn(
-            "rounded-xl md:rounded-2xl shadow-2xl py-2 px-4 md:py-4 md:px-10 flex items-center justify-between h-14 md:h-20 max-w-7xl mx-auto backdrop-blur-xl backdrop-saturate-150 border",
-            // Text color logic
-            draggingId ? "text-white" : "text-foreground"
-          )}>
-            
-            {/* Left Content */}
-            <div className="flex items-center gap-2 md:gap-3 font-black text-[8px] md:text-[9px] uppercase tracking-[0.1em] md:tracking-[0.2em]">
-               {draggingId ? (
-                   isOverTrash ? <AlertOctagon className="w-4 h-4 md:w-5 md:h-5 animate-pulse" /> : <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
-               ) : (
-                   <Cpu className="w-3 h-3 md:w-4 md:h-4 text-primary" />
-               )}
-               <span className={cn("opacity-80", draggingId ? "font-bold" : "opacity-60")}>
-                  {draggingId 
-                    ? (isOverTrash ? "CONFIRM DELETION" : "DROP ZONE ACTIVE") 
-                    : "ESP32-NODE-PRO"
-                  }
-               </span>
+        {/* Footer: Compact on mobile */}
+        <footer className="fixed bottom-2 md:bottom-4 left-0 w-full px-2 md:px-6 z-[40] transition-colors duration-500 pointer-events-none">
+          <div className="bg-card/85 backdrop-blur-xl backdrop-saturate-150 border border-white/20 dark:border-white/10 rounded-xl md:rounded-2xl shadow-2xl py-2 px-4 md:py-4 md:px-10 flex items-center justify-between h-14 md:h-20 max-w-7xl mx-auto pointer-events-auto">
+            <div className="flex items-center gap-2 md:gap-3 font-black text-[8px] md:text-[9px] uppercase tracking-[0.1em] md:tracking-[0.2em] text-primary">
+              <Cpu className="w-3 h-3 md:w-4 md:h-4" /> 
+              <span className="opacity-60">ESP32-NODE-PRO</span>
             </div>
 
-            {/* Center / Action Message */}
             <AnimatePresence>
-              {draggingId && (
+              {isDragging && (
                 <MotionDiv 
-                  initial={{ opacity: 0, scale: 0.5 }} 
-                  animate={{ opacity: 1, scale: 1 }} 
-                  exit={{ opacity: 0 }}
-                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-black uppercase tracking-[0.2em] md:tracking-[0.3em] flex items-center gap-2 text-white"
+                  initial={{ opacity: 0, y: 80 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 80 }}
+                  className="absolute inset-0 flex items-center justify-center bg-red-600/95 text-white font-black uppercase tracking-[0.2em] md:tracking-[0.3em] gap-2 md:gap-3 z-50 pointer-events-none rounded-xl md:rounded-2xl"
                 >
-                  {isOverTrash ? (
-                    <>
-                        <Trash2 className="w-5 h-5 md:w-6 md:h-6" /> 
-                        <span className="text-[10px] md:text-xs">RELEASE TO DESTROY</span>
-                    </>
-                  ) : (
-                    <span className="text-[9px] md:text-[10px] opacity-80">{t.release_delete}</span>
-                  )}
+                  <Trash2 className="w-4 h-4 md:w-5 md:h-5" /> <span className="text-[9px] md:text-[10px]">{t.release_delete}</span>
                 </MotionDiv>
               )}
             </AnimatePresence>
 
-            {/* Right Content */}
             <div className="flex flex-col items-end">
-               {!draggingId && (
-                 <>
-                    <div className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] md:tracking-[0.4em] opacity-40 hidden sm:block">Secure Link V3.1</div>
-                    <div className="text-[8px] md:text-[9px] font-bold text-primary mt-0.5 md:mt-1 flex items-center gap-1 md:gap-1.5 opacity-80">
-                        {deviceType === 'MOBILE' ? <Smartphone size={10} /> : <Laptop size={10} />}
-                        <span className="hidden xs:inline">{t.footer_ver} =</span> {deviceType} VER
-                    </div>
-                 </>
-               )}
+               <div className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] md:tracking-[0.4em] opacity-40 hidden sm:block">Secure Link V3.1</div>
+               <div className="text-[8px] md:text-[9px] font-bold text-primary mt-0.5 md:mt-1 flex items-center gap-1 md:gap-1.5 opacity-80">
+                  {deviceType === 'MOBILE' ? <Smartphone size={10} /> : <Laptop size={10} />}
+                  <span className="hidden xs:inline">{t.footer_ver} =</span> {deviceType} VER
+               </div>
             </div>
           </div>
-        </MotionFooter>
+        </footer>
 
         <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
         <ToastContainer />

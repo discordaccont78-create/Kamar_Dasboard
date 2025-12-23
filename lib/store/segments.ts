@@ -12,8 +12,7 @@ interface SegmentsStore {
   updateSegment: (id: string, data: Partial<Segment>) => void;
   toggleSegment: (id: string) => void;
   setPWM: (id: string, value: number) => void;
-  setSegmentTimer: (id: string, durationSeconds: number) => void; // Sets active running timer
-  setSegmentAutoOff: (id: string, durationSeconds: number) => void; // Sets configuration
+  setSegmentTimer: (id: string, durationSeconds: number) => void;
   clearSegmentTimer: (id: string) => void;
   setSegments: (segments: Segment[]) => void;
 }
@@ -33,6 +32,8 @@ const debouncedRedisStorage: StateStorage = {
     const value = await redis.get(name);
     return value ? JSON.stringify(value) : null;
   },
+  // Debounce writes to IDB to 1000ms. 
+  // State updates in memory (Zustand) are instant, but disk writes are throttled.
   setItem: debounce(async (name: string, value: string): Promise<void> => {
     await redis.set(name, JSON.parse(value));
   }, 1000),
@@ -78,7 +79,6 @@ export const useSegments = create<SegmentsStore>()(
         )
       })),
 
-      // Sets the Timestamp when the timer will finish (Active State)
       setSegmentTimer: (id, durationSeconds) => set((state) => ({
         segments: state.segments.map(s => 
           s.num_of_node === id 
@@ -86,22 +86,12 @@ export const useSegments = create<SegmentsStore>()(
             : s
         )
       })),
-      
-      // Persist the configuration for Auto-Off (Config State)
-      setSegmentAutoOff: (id, durationSeconds) => set((state) => ({
-        segments: state.segments.map(s => 
-          s.num_of_node === id 
-            ? { ...s, autoOffDuration: durationSeconds } 
-            : s
-        )
-      })),
 
       clearSegmentTimer: (id) => set((state) => ({
         segments: state.segments.map(s => {
           if (s.num_of_node === id) {
-            // Remove the finish timestamp, effectively stopping the timer logic
             const { timerFinishAt, ...rest } = s;
-            return { ...rest, timerFinishAt: undefined } as Segment;
+            return rest as Segment;
           }
           return s;
         })
