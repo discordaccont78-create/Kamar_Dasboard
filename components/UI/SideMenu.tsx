@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as SliderPrimitive from "@radix-ui/react-slider";
@@ -84,7 +85,7 @@ const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle, anim
             // Revised Active State: No shadow, Industrial Left Border, Gradient Background
             isOpen 
                 ? "py-4 px-4 bg-gradient-to-r from-primary/10 to-transparent border-l-4 border-primary" 
-                : "py-3 px-2 border-l-4 border-transparent hover:bg-white/5 hover:pl-3"
+                : "py-3 px-2 border-l-4 border-transparent hover:bg-black/5 dark:hover:bg-white/5 hover:pl-3"
         )}
       >
         <div className={cn(
@@ -129,7 +130,7 @@ const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle, anim
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-             <div className="pb-4 pt-1 space-y-4 px-2 border-l border-white/5 ml-4">
+             <div className="pb-4 pt-1 space-y-4 px-2 border-l border-border/20 ml-4">
                 {children}
              </div>
           </MotionDiv>
@@ -300,16 +301,17 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <DialogOverlay className="DialogOverlay fixed inset-0 bg-[#daa520]/10 backdrop-blur-md z-[150]" />
+        {/* Dark Mode Overlay fix: darker in dark mode */}
+        <DialogOverlay className="DialogOverlay fixed inset-0 bg-[#daa520]/10 dark:bg-black/80 backdrop-blur-md z-[150]" />
         
         <DialogContent 
           className={cn(
-            "DialogContent fixed top-4 bottom-4 w-full max-w-[420px] bg-background/95 backdrop-blur-2xl border border-white/10 rounded-3xl z-[200] shadow-2xl flex flex-col focus:outline-none overflow-hidden ring-1 ring-white/5",
+            "DialogContent fixed top-4 bottom-4 w-full max-w-[420px] bg-background/95 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/20 dark:border-white/5 rounded-3xl z-[200] shadow-2xl flex flex-col focus:outline-none overflow-hidden ring-1 ring-black/5 dark:ring-white/5",
             settings.language === 'fa' ? 'left-4' : 'right-4'
           )}
         >
           {/* Enhanced Header with Animation and better styling */}
-          <div className="relative overflow-hidden shrink-0 border-b border-border">
+          <div className="relative overflow-hidden shrink-0 border-b border-border/50">
              {/* Background Pattern Layer */}
              <div className={cn("absolute inset-0 opacity-10", headerBgClass, settings.animations && "animate-grid")} />
              
@@ -354,7 +356,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 onToggle={handleSectionToggle}
                 animations={settings.animations}
             >
-              <Card className="rounded-2xl border-border shadow-sm bg-card/50">
+              <Card className="rounded-2xl border-border/50 shadow-sm bg-card/40 dark:bg-black/20">
                 <CardContent className="space-y-5 pt-6">
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.gpio}</label>
@@ -372,7 +374,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.type}</label>
-                     <select value={outputForm.type} onChange={e => setOutputForm({ type: e.target.value as SegmentType })} className="col-span-3 h-9 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
+                     <select value={outputForm.type} onChange={e => setOutputForm({ type: e.target.value as SegmentType })} className="col-span-3 h-9 rounded-md border border-white/10 dark:border-white/5 bg-black/5 dark:bg-white/5 px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-foreground">
                         <option value="Digital">On/Off (Relay)</option>
                         <option value="PWM">PWM (Dimmer)</option>
                         <option value="Code">Protocol (Code)</option>
@@ -391,7 +393,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all",
                                outputForm.onOffMode === 'toggle' 
                                  ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
-                                 : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                 : "bg-transparent border-white/10 dark:border-white/5 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5"
                              )}
                            >
                              Feshari (Toggle)
@@ -402,7 +404,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all",
                                outputForm.onOffMode === 'momentary' 
                                  ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
-                                 : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                 : "bg-transparent border-white/10 dark:border-white/5 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5"
                              )}
                            >
                              Switch (Push)
@@ -438,7 +440,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 onToggle={handleSectionToggle}
                 animations={settings.animations}
             >
-              <Card className="rounded-2xl border-border shadow-sm bg-card/50 overflow-hidden">
+              <Card className="rounded-2xl border-border/50 shadow-sm bg-card/40 dark:bg-black/20 overflow-hidden">
                  <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                     <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
                        <Activity size={12} /> {t.status_desc || "Hardware Map"}
@@ -515,7 +517,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 animations={settings.animations}
             >
                {/* Shift Register Card */}
-               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
+               <Card className="rounded-2xl border-border/50 shadow-sm bg-card/40 dark:bg-black/20">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
                       <Cpu size={12} /> Shift Register (74HC595)
@@ -552,7 +554,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </Card>
 
               {/* DHT Weather Card */}
-              <Card className="rounded-2xl border-border shadow-sm bg-card/50">
+              <Card className="rounded-2xl border-border/50 shadow-sm bg-card/40 dark:bg-black/20">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-blue-500">
                       <Cloud size={12} /> Weather Station (DHT)
@@ -599,7 +601,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 onToggle={handleSectionToggle}
                 animations={settings.animations}
             >
-               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
+               <Card className="rounded-2xl border-border/50 shadow-sm bg-card/40 dark:bg-black/20">
                   <CardContent className="space-y-6 pt-6">
                     {/* Dashboard Title */}
                     <div className="space-y-2">
@@ -633,7 +635,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                     "h-10 border rounded-lg flex items-center justify-center gap-2 transition-all",
                                     settings.backgroundEffect === 'grid' 
                                         ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
-                                        : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                        : "bg-transparent border-white/10 dark:border-white/5 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5"
                                 )}
                             >
                                 <Grid3X3 size={14} />
@@ -645,7 +647,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                     "h-10 border rounded-lg flex items-center justify-center gap-2 transition-all",
                                     settings.backgroundEffect === 'dots' 
                                         ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_-4px_var(--primary)]" 
-                                        : "bg-transparent border-white/10 text-muted-foreground hover:bg-white/5"
+                                        : "bg-transparent border-white/10 dark:border-white/5 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5"
                                 )}
                             >
                                 <CircleDot size={14} />
@@ -675,7 +677,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                         onClick={() => updateSettings({ dashboardFont: fontName as any })}
                                         className={cn(
                                             "h-12 border rounded-lg flex flex-col items-center justify-center transition-all hover:bg-secondary/10",
-                                            isSelected ? "border-primary bg-primary/10 text-primary shadow-[0_0_10px_-4px_var(--primary)]" : "border-white/10 text-muted-foreground"
+                                            isSelected ? "border-primary bg-primary/10 text-primary shadow-[0_0_10px_-4px_var(--primary)]" : "border-white/10 dark:border-white/5 text-muted-foreground"
                                         )}
                                     >
                                         <span className={cn("text-xs font-bold", fontClass)}>{fontName}</span>
@@ -755,7 +757,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                            </div>
                        </div>
                        
-                       {/* NEW: Cursor Accent Color (Third Color) */}
+                       {/* Cursor Accent Color */}
                        <div className="space-y-2">
                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                                <MousePointer2 size={12} /> Cursor Highlight

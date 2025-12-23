@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Cable } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Power, Send, Settings2, Timer, Hourglass, AlertCircle, X, Save } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Slider } from '../ui/slider';
-import { Segment, CMD, Schedule } from '../../types/index';
+import { Segment, CMD } from '../../types/index';
 import { useDeviceState, useDeviceControl } from '../../hooks/useDevice';
 import { useSegments } from '../../lib/store/segments';
-import { useSchedulerStore } from '../../lib/store/scheduler';
 import { cn } from '../../lib/utils';
 
 interface Props {
@@ -18,278 +17,355 @@ interface Props {
 
 // Workaround for Framer Motion type compatibility
 const MotionDiv = motion.div as any;
+const MotionButton = motion.button as any;
 
-const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => {
+export const CustomSegment: React.FC<Props> = ({ segment: initialSegment }) => {
   const { data: deviceState } = useDeviceState(initialSegment.num_of_node);
   const { mutate: controlDevice } = useDeviceControl();
-  const { updateSegment } = useSegments();
-  const { schedules } = useSchedulerStore();
+  const { setSegmentAutoOff, updateSegment, clearSegmentTimer, setSegmentTimer } = useSegments();
   
   // Merge state securely
-  const safeSegment = useMemo(() => ({
+  const segment = useMemo(() => ({
     ...initialSegment,
     ...(deviceState || {}),
-    // FORCE overrides for config that might be stale in deviceState cache
+    // Ensure critical config fields are taken from store if device state is partial
     onOffMode: initialSegment.onOffMode,
+    autoOffDuration: initialSegment.autoOffDuration || 0,
     timerFinishAt: initialSegment.timerFinishAt
   }), [initialSegment, deviceState]);
 
   // Local state
-  const [localPwm, setLocalPwm] = useState(safeSegment.val_of_slide);
+  const [localPwm, setLocalPwm] = useState(segment.val_of_slide);
   const [code, setCode] = useState("");
+  const [showConfig, setShowConfig] = useState(false);
   
-  // Global "Now" state to trigger re-renders for countdowns without individual intervals
+  // Settings Input State
+  const [tempAutoOff, setTempAutoOff] = useState<string>(segment.autoOffDuration?.toString() || "0");
+
+  // Timer Logic State
+  const [remainingTime, setRemainingTime] = useState<number>(0);
   const [now, setNow] = useState(Date.now());
-
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
+  
   // Sync local PWM
   useEffect(() => {
-    setLocalPwm(safeSegment.val_of_slide);
-  }, [safeSegment.val_of_slide]);
+    setLocalPwm(segment.val_of_slide);
+  }, [segment.val_of_slide]);
 
-  const isOn = safeSegment.is_led_on === 'on';
-  const mode = safeSegment.onOffMode || 'toggle';
+  // Sync Config State when panel opens
+  useEffect(() => {
+    if (showConfig) {
+      setTempAutoOff(segment.autoOffDuration?.toString() || "0");
+    }
+  }, [showConfig, segment.autoOffDuration]);
 
-  // --- Identify Active Schedules for this Segment ---
-  const activeSchedules = useMemo(() => 
-    schedules.filter(s => s.targetSegmentId === safeSegment.num_of_node && s.enabled),
-  [schedules, safeSegment.num_of_node]);
+  const isOn = segment.is_led_on === 'on';
+  const mode = segment.onOffMode || 'toggle';
 
-  // --- Sorting Logic ---
-  const sortedSchedules = useMemo(() => {
-    return [...activeSchedules].sort((a, b) => {
-        const getNextExecutionTime = (s: Schedule) => {
-            if (s.type === 'input') {
-                return Infinity; // Inputs don't have a time, push to end
-            } else if (s.type === 'countdown') {
-                return (s.startedAt || 0) + (s.duration || 0) * 1000;
-            } else if (s.type === 'daily') {
-                if (!s.time) return Infinity;
-                const parts = s.time.split(':').map(Number);
-                const h = parts[0];
-                const m = parts[1];
-                const sec = parts[2] || 0;
-
-                const targetDate = new Date();
-                targetDate.setHours(h, m, sec, 0);
-                
-                if (targetDate.getTime() < Date.now()) {
-                    targetDate.setDate(targetDate.getDate() + 1);
-                }
-                return targetDate.getTime();
+  // --- GLOBAL TIMER TICKER ---
+  useEffect(() => {
+    // Only run interval if the light is ON and a timer is active
+    if (isOn && segment.timerFinishAt) {
+        const interval = setInterval(() => {
+            const current = Date.now();
+            setNow(current);
+            const diff = Math.ceil((segment.timerFinishAt! - current) / 1000);
+            
+            if (diff <= 0) {
+                // Time Expired: Turn OFF
+                handleToggle(false); // Force OFF
+                clearInterval(interval);
+            } else {
+                setRemainingTime(diff);
             }
-            return Infinity;
-        };
+        }, 100); // Check every 100ms for smoothness
+        return () => clearInterval(interval);
+    } else {
+        setRemainingTime(0);
+    }
+  }, [isOn, segment.timerFinishAt]);
 
-        return getNextExecutionTime(a) - getNextExecutionTime(b);
-    });
-  }, [activeSchedules, now]);
 
-  const getCountdownString = (schedule: Schedule) => {
-    if (schedule.type !== 'countdown') return null;
-    const finishTime = (schedule.startedAt || 0) + (schedule.duration || 0) * 1000;
-    const diff = finishTime - now;
-    if (diff <= 0) return "00:00";
+  // --- HANDLERS ---
+
+  const handleToggle = (forceState?: boolean) => {
+    if (showConfig) return; // Disable toggle while editing settings
+
+    const targetState = forceState !== undefined ? forceState : !isOn;
     
-    const totalSeconds = Math.ceil(diff / 1000);
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
-    const s = (totalSeconds % 60).toString().padStart(2, '0');
+    // Command Logic
+    const cmd = targetState ? CMD.LED_ON : CMD.LED_OFF;
     
-    if (h > 0) return `${h}:${m}:${s}`;
-    return `${m}:${s}`;
-  };
+    // Optimistic Update Data
+    const updateData: Partial<Segment> = { 
+        is_led_on: targetState ? 'on' : 'off' 
+    };
 
-  const getActionIndicator = (sch: Schedule) => {
-    if (sch.action === 'ON') {
-        return <ArrowUpCircle size={8} strokeWidth={3} className="text-green-500" />;
+    // Auto-Off Logic (Only if turning ON, mode is toggle, and duration > 0)
+    if (targetState && mode === 'toggle' && segment.autoOffDuration && segment.autoOffDuration > 0) {
+        const duration = segment.autoOffDuration;
+        const finishAt = Date.now() + (duration * 1000);
+        updateData.timerFinishAt = finishAt; // Persist expected finish time
+        setSegmentTimer(segment.num_of_node, duration); // Update store immediately
+    } else {
+        // If turning OFF or Normal ON, clear timer
+        updateData.timerFinishAt = undefined;
+        clearSegmentTimer(segment.num_of_node);
     }
-    if (sch.action === 'OFF') {
-        return <ArrowDownCircle size={8} strokeWidth={3} className="text-destructive" />;
-    }
-    if (sch.action === 'TOGGLE') {
-        return <ArrowLeftRight size={8} strokeWidth={3} className="text-blue-500" />;
-    }
-    if (sch.action === 'SET_VALUE') {
-        return <span className="text-[6px] text-orange-500 font-black font-mono">={sch.targetValue}</span>;
-    }
-    return null;
-  };
 
-  const handleToggle = useCallback(() => {
-    const cmd = isOn ? CMD.LED_OFF : CMD.LED_ON;
+    // Fire Mutation
     controlDevice({ 
         cmd, 
-        gpio: safeSegment.gpio || 0, 
+        gpio: segment.gpio || 0, 
         value: 0, 
-        nodeId: safeSegment.num_of_node 
+        nodeId: segment.num_of_node 
     });
-  }, [isOn, safeSegment.gpio, safeSegment.num_of_node, controlDevice]);
 
-  const handlePressStart = useCallback(() => {
-     if (mode !== 'momentary') return;
-     controlDevice({ cmd: CMD.LED_ON, gpio: safeSegment.gpio || 0, value: 0, nodeId: safeSegment.num_of_node });
-  }, [mode, safeSegment.gpio, safeSegment.num_of_node, controlDevice]);
-
-  const handlePressEnd = useCallback(() => {
-     if (mode !== 'momentary') return;
-     controlDevice({ cmd: CMD.LED_OFF, gpio: safeSegment.gpio || 0, value: 0, nodeId: safeSegment.num_of_node });
-  }, [mode, safeSegment.gpio, safeSegment.num_of_node, controlDevice]);
-
-  const cycleMode = () => {
-    const newMode = mode === 'toggle' ? 'momentary' : 'toggle';
-    updateSegment(safeSegment.num_of_node, { onOffMode: newMode });
+    // Fire Store Update (for immediate UI response)
+    updateSegment(segment.num_of_node, updateData);
   };
 
-  const handleSliderChange = (vals: number[]) => {
-    setLocalPwm(vals[0]); 
+  const handleMomentary = (pressed: boolean) => {
+    if (mode !== 'momentary') return;
+    const cmd = pressed ? CMD.LED_ON : CMD.LED_OFF;
+    
+    controlDevice({ 
+        cmd, 
+        gpio: segment.gpio || 0, 
+        value: 0, 
+        nodeId: segment.num_of_node 
+    });
+    
+    updateSegment(segment.num_of_node, { is_led_on: pressed ? 'on' : 'off' });
   };
 
-  const handleSliderCommit = (vals: number[]) => {
-     controlDevice({ 
+  const handlePWMCommit = (val: number[]) => {
+    const value = val[0];
+    setLocalPwm(value);
+    controlDevice({ 
         cmd: CMD.LED_PWM, 
-        gpio: safeSegment.gpio || 0, 
-        value: vals[0], 
-        nodeId: safeSegment.num_of_node 
-     });
+        gpio: segment.gpio || 0, 
+        value, 
+        nodeId: segment.num_of_node 
+    });
+    updateSegment(segment.num_of_node, { val_of_slide: value });
   };
 
-  const showToggle = safeSegment.segType === 'Digital' || safeSegment.segType === 'All';
-  const showSlider = safeSegment.segType === 'PWM' || safeSegment.segType === 'All';
-  const showCode = safeSegment.segType === 'Code' || safeSegment.segType === 'All';
+  const handleCodeSend = () => {
+    if (!code) return;
+    // Protocol example: 0xFF command for raw code
+    controlDevice({ 
+        cmd: CMD.CONSOLE, 
+        gpio: 0, 
+        value: parseInt(code) || 0, 
+        nodeId: segment.num_of_node 
+    });
+    setCode("");
+  };
+
+  const saveConfig = () => {
+    const duration = parseInt(tempAutoOff);
+    if (!isNaN(duration) && duration >= 0) {
+        setSegmentAutoOff(segment.num_of_node, duration);
+        setShowConfig(false);
+    }
+  };
+
+  // --- RENDER HELPERS ---
+
+  const renderDigitalButton = () => {
+    // Determine visuals based on state
+    const isTimerActive = isOn && segment.timerFinishAt && segment.autoOffDuration && remainingTime > 0;
+    
+    // Calculate progress percentage for background fill
+    let progressPercent = 0;
+    if (isTimerActive && segment.timerFinishAt && segment.autoOffDuration) {
+        const totalMs = segment.autoOffDuration * 1000;
+        const remainingMs = segment.timerFinishAt - now;
+        progressPercent = Math.max(0, Math.min(100, (remainingMs / totalMs) * 100));
+    }
+
+    return (
+        <div className="relative w-full h-24 md:h-28">
+            <MotionButton
+                layout
+                whileTap={{ scale: 0.95 }}
+                onPointerDown={() => mode === 'momentary' && handleMomentary(true)}
+                onPointerUp={() => mode === 'momentary' && handleMomentary(false)}
+                onPointerLeave={() => mode === 'momentary' && handleMomentary(false)}
+                onClick={() => mode === 'toggle' && handleToggle()}
+                className={cn(
+                    "relative w-full h-full rounded-2xl border-2 transition-all duration-300 flex flex-col items-center justify-center overflow-hidden group outline-none",
+                    // ON State
+                    isOn 
+                      ? "border-primary bg-primary/10 shadow-[0_0_25px_-5px_rgba(var(--primary),0.4)]" 
+                      : "border-border bg-secondary/5 hover:border-primary/30 hover:bg-secondary/10",
+                    // Momentary specific
+                    mode === 'momentary' && "active:border-primary active:bg-primary/20"
+                )}
+            >
+                {/* Timer Progress Background (Auto-Off Only) */}
+                {isTimerActive && (
+                    <div 
+                        className="absolute bottom-0 left-0 h-full bg-primary/10 transition-all duration-100 ease-linear pointer-events-none"
+                        style={{ width: `${progressPercent}%`, opacity: 0.3 }}
+                    />
+                )}
+
+                {/* Noise Texture */}
+                <div className={cn(
+                     "absolute inset-0 opacity-20 transition-opacity duration-500 pointer-events-none",
+                     isOn ? "bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-40" : "opacity-0"
+                )} />
+                
+                {/* Icon & Label Container */}
+                <div className="relative z-10 flex flex-col items-center gap-2">
+                    <Power 
+                        size={32} 
+                        strokeWidth={isOn ? 3 : 2}
+                        className={cn(
+                            "transition-all duration-300",
+                            isOn ? "text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.8)] scale-110" : "text-muted-foreground opacity-50 group-hover:opacity-80"
+                        )} 
+                    />
+                    
+                    <div className="flex flex-col items-center">
+                        <span className={cn(
+                            "text-[10px] font-black uppercase tracking-[0.2em] transition-colors",
+                            isOn ? "text-foreground" : "text-muted-foreground"
+                        )}>
+                            {isOn ? (mode === 'momentary' ? 'HOLDING' : 'ACTIVE') : 'STANDBY'}
+                        </span>
+
+                        {/* Timer Countdown Display */}
+                        {isTimerActive && (
+                            <div className="flex items-center gap-1 mt-1 text-primary animate-pulse">
+                                <Hourglass size={10} />
+                                <span className="text-[9px] font-mono font-bold">
+                                    {remainingTime}s
+                                </span>
+                            </div>
+                        )}
+                        
+                        {/* Static Auto-Off Indicator (When Off) */}
+                        {!isOn && segment.autoOffDuration! > 0 && mode === 'toggle' && (
+                            <div className="flex items-center gap-1 mt-1 text-muted-foreground/60">
+                                <Timer size={10} />
+                                <span className="text-[9px] font-mono font-bold">
+                                    {segment.autoOffDuration}s Auto-Off
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Status Indicator Dot */}
+                <div className={cn(
+                    "absolute top-3 right-3 w-2 h-2 rounded-full transition-all duration-300",
+                    isOn ? "bg-primary shadow-[0_0_8px_var(--primary)]" : "bg-muted-foreground/20"
+                )} />
+            </MotionButton>
+
+            {/* Config Trigger (Only for Toggle Mode) */}
+            {mode === 'toggle' && (
+                <button 
+                    onClick={(e) => { e.stopPropagation(); setShowConfig(true); }}
+                    className="absolute bottom-2 right-2 p-1.5 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 rounded-md transition-all z-20"
+                    title="Configure Auto-Off"
+                >
+                    <Settings2 size={14} />
+                </button>
+            )}
+        </div>
+    );
+  };
+
+  // --- RENDER ---
 
   return (
-    <MotionDiv initial={false} className="flex flex-col gap-4 md:gap-6">
-      
-      {showToggle && (
-        <div className="relative">
-           <div className="flex justify-between items-center mb-1.5 md:mb-2 px-1 gap-2">
-              <label className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1 shrink-0">
-                 {mode === 'toggle' ? <MousePointerClick size={10} /> : <Fingerprint size={10} />}
-                 <span className="hidden xs:inline">{mode === 'toggle' ? "Feshari (Toggle)" : "Push Mode"}</span>
-                 <span className="xs:hidden">{mode === 'toggle' ? "TGL" : "PSH"}</span>
-              </label>
-
-              <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar justify-end px-1">
-                    {sortedSchedules.map(sch => (
-                        <div key={sch.id} className="flex items-center gap-1.5 text-primary animate-in fade-in zoom-in duration-300 bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20 shrink-0 whitespace-nowrap">
-                            {sch.type === 'countdown' ? (
-                               <Hourglass size={8} className="animate-pulse" />
-                            ) : sch.type === 'input' ? (
-                               <Cable size={8} />
-                            ) : (
-                               <Clock size={8} />
-                            )}
-                            <span className="font-mono text-[8px] font-bold leading-none">
-                                {sch.type === 'countdown' ? getCountdownString(sch) : sch.type === 'input' ? `GP${sch.sourceGpio}` : sch.time}
-                            </span>
-                            <div className="pl-1 border-l border-primary/20 flex items-center">
-                                {getActionIndicator(sch)}
-                            </div>
-                        </div>
-                    ))}
-                 </div>
-
-                 <button 
-                    onClick={cycleMode} 
-                    className="text-[8px] md:text-[9px] text-primary opacity-60 hover:opacity-100 uppercase font-bold tracking-wider hover:underline flex items-center gap-1 ml-1 shrink-0"
-                    title="Change Button Mode"
-                 >
-                    <Settings2 size={10} /> <span className="hidden sm:inline">Change</span>
-                 </button>
-              </div>
-           </div>
-
-           <button
-             onPointerDown={mode === 'momentary' ? handlePressStart : undefined}
-             onPointerUp={mode === 'momentary' ? handlePressEnd : undefined}
-             onPointerLeave={mode === 'momentary' ? handlePressEnd : undefined}
-             onClick={mode === 'toggle' ? handleToggle : undefined}
-             className={cn(
-                "w-full h-12 md:h-16 rounded-lg md:rounded-xl border-2 transition-all duration-300 relative overflow-hidden group active:scale-[0.98] outline-none",
-                isOn 
-                  ? "border-primary bg-primary/20 shadow-[0_0_30px_rgba(var(--primary),0.25)]" 
-                  : "border-white/10 bg-black/5 dark:bg-white/5 hover:border-white/20 hover:bg-white/10"
-             )}
-           >
-              <div className={cn(
-                 "absolute inset-0 opacity-20 transition-opacity duration-500",
-                 isOn ? "bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-40" : ""
-              )} />
-              
-              <div className="flex items-center justify-center gap-3 relative z-10">
-                 <Power 
-                    className={cn(
-                        "w-5 h-5 md:w-6 md:h-6 transition-all duration-300", 
-                        isOn ? "text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.8)]" : "text-muted-foreground opacity-50"
-                    )} 
-                 />
-                 <span className={cn(
-                    "text-base md:text-xl font-black uppercase tracking-[0.2em] transition-colors duration-300",
-                    isOn ? "text-foreground" : "text-muted-foreground opacity-50"
-                 )}>
-                    {isOn ? "ACTIVE" : "OFFLINE"}
-                 </span>
-              </div>
-              
-              <div className={cn(
-                 "absolute bottom-0 left-0 h-1 transition-all duration-500 ease-out",
-                 isOn ? "w-full bg-primary shadow-[0_-2px_10px_rgba(var(--primary),0.5)]" : "w-0 bg-transparent"
-              )} />
-           </button>
-        </div>
-      )}
-
-      {showSlider && (
-        <div className="bg-secondary/5 p-3 md:p-4 rounded-lg md:rounded-xl border border-border-light dark:border-border-dark flex flex-col gap-3 md:gap-4">
-          <div className="flex justify-between items-center">
-             <label className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">PWM Intensity</label>
-             <span className="font-mono text-[10px] md:text-xs font-bold text-primary">{localPwm}</span>
-          </div>
-          <Slider
-            value={[localPwm]}
-            onValueChange={handleSliderChange}
-            onValueCommit={handleSliderCommit}
-            max={255}
-            step={1}
-            className="w-full"
-          />
-        </div>
-      )}
-
-      {showCode && (
-        <div className="flex flex-col gap-2">
-            <label className="text-[9px] text-muted-foreground font-black uppercase tracking-widest ml-1">Protocol Injector</label>
-            <div className="flex gap-2 items-center">
-            <Input 
-                type="text" 
-                placeholder="HEX..."
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="h-9 text-xs"
-            />
-            <Button size="sm" className="h-9 px-3">
-                <Send size={14} />
-            </Button>
-            <Button 
-                size="sm" 
-                variant="ghost" 
-                onClick={() => setCode("")}
-                className="h-9 px-3 text-muted-foreground hover:text-destructive"
-            >
-                <Trash2 size={14} />
-            </Button>
+    <div className="relative w-full">
+      <AnimatePresence mode="wait">
+        {showConfig ? (
+          <MotionDiv 
+            key="config"
+            initial={{ opacity: 0, rotateX: -90 }}
+            animate={{ opacity: 1, rotateX: 0 }}
+            exit={{ opacity: 0, rotateX: 90 }}
+            transition={{ duration: 0.2 }}
+            className="w-full h-24 md:h-28 bg-secondary/10 rounded-2xl border border-primary/20 p-4 flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+                <span className="text-[9px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                    <Timer size={12} /> Auto-Off Timer
+                </span>
+                <button onClick={() => setShowConfig(false)} className="text-muted-foreground hover:text-destructive transition-colors">
+                    <X size={14} />
+                </button>
             </div>
-        </div>
-      )}
-    </MotionDiv>
+            
+            <div className="flex items-center gap-3">
+                <div className="flex-1 relative">
+                    <Input 
+                        type="number" 
+                        value={tempAutoOff} 
+                        onChange={(e) => setTempAutoOff(e.target.value)}
+                        className="h-9 text-center font-mono font-bold pr-8"
+                        placeholder="0"
+                        min="0"
+                    />
+                    <span className="absolute right-3 top-2.5 text-[8px] font-black text-muted-foreground">SEC</span>
+                </div>
+                <Button size="sm" onClick={saveConfig} className="h-9 w-9 p-0 bg-primary text-black hover:bg-primary/80">
+                    <Save size={16} />
+                </Button>
+            </div>
+            
+            <div className="flex items-center gap-1.5 text-[8px] text-muted-foreground font-medium opacity-70">
+                <AlertCircle size={10} />
+                <span>Set to 0 to disable auto-off.</span>
+            </div>
+          </MotionDiv>
+        ) : (
+          <MotionDiv 
+            key="controls"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col gap-4"
+          >
+            {(segment.segType === 'Digital' || segment.segType === 'All') && renderDigitalButton()}
+            
+            {(segment.segType === 'PWM' || segment.segType === 'All') && (
+              <div className="space-y-3 px-1">
+                <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                    <span>Intensity Control</span>
+                    <span className="text-primary font-mono">{localPwm} / 255</span>
+                </div>
+                <Slider 
+                  value={[localPwm]} 
+                  max={255} 
+                  step={1} 
+                  onValueChange={(val) => setLocalPwm(val[0])}
+                  onValueCommit={handlePWMCommit}
+                />
+              </div>
+            )}
+
+            {segment.segType === 'Code' && (
+              <div className="flex gap-2 items-center mt-2">
+                <Input 
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="HEX / CMD" 
+                  className="font-mono text-xs h-9"
+                />
+                <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleCodeSend}>
+                  <Send size={14} />
+                </Button>
+              </div>
+            )}
+          </MotionDiv>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
-const CustomSegment = React.memo(CustomSegmentInternal);
-CustomSegment.displayName = 'CustomSegment';
-export { CustomSegment };

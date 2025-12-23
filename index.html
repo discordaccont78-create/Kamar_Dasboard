@@ -12,48 +12,36 @@
         theme: {
           extend: {
             colors: {
+              border: "hsl(var(--border))",
+              input: "hsl(var(--input))",
+              ring: "hsl(var(--ring))",
+              background: "hsl(var(--background))",
+              foreground: "hsl(var(--foreground))",
               primary: {
-                DEFAULT: 'var(--primary)',
-                foreground: '#000000',
+                DEFAULT: "var(--primary)",
+                foreground: "hsl(var(--primary-foreground))",
               },
               secondary: {
-                DEFAULT: '#b8860b',    // Dark Gold fallback
-                foreground: '#ffffff',
+                DEFAULT: "hsl(var(--secondary))",
+                foreground: "hsl(var(--secondary-foreground))",
               },
-              background: {
-                light: '#f4f7f9',
-                dark: '#09090b',
-                DEFAULT: '#f4f7f9'
-              },
-              foreground: {
-                light: '#1a1c1e',
-                dark: '#e0e0e0',
-                DEFAULT: '#1a1c1e'
-              },
-              card: {
-                light: '#ffffff',
-                dark: '#18181b',       // Shadcn Zinc-900
-                DEFAULT: '#ffffff',
-                foreground: '#1a1c1e',
-              },
-              border: {
-                light: '#e4e4e7',      // Shadcn Zinc-200
-                dark: '#27272a',       // Shadcn Zinc-800
-                DEFAULT: '#e4e4e7',
-              },
-              input: '#e4e4e7',
-              ring: 'var(--primary)',
               destructive: {
-                DEFAULT: '#ef4444',
-                foreground: '#ffffff',
+                DEFAULT: "hsl(var(--destructive))",
+                foreground: "hsl(var(--destructive-foreground))",
               },
               muted: {
-                DEFAULT: '#f4f4f5',
-                foreground: '#71717a',
+                DEFAULT: "hsl(var(--muted))",
+                foreground: "hsl(var(--muted-foreground))",
               },
               accent: {
-                DEFAULT: '#f4f4f5',
-                foreground: '#18181b',
+                DEFAULT: "hsl(var(--accent))",
+                foreground: "hsl(var(--accent-foreground))",
+              },
+              card: {
+                DEFAULT: "hsl(var(--card))",
+                light: '#ffffff',
+                dark: '#18181b', // Zinc 900 for cards (lighter than bg)
+                foreground: "hsl(var(--card-foreground))",
               },
             },
             borderRadius: {
@@ -82,15 +70,81 @@
       
       :root {
         --primary: #daa520;
+        --primary-rgb: 218, 165, 32;
+        --primary-foreground: 222.2 47.4% 11.2%;
+        
+        --background: 210 40% 96.1%; /* #f4f7f9 */
+        --foreground: 222.2 84% 4.9%; 
+
+        --card: 0 0% 100%;
+        --card-rgb: 255, 255, 255;
+        --card-foreground: 222.2 84% 4.9%;
+ 
+        --popover: 0 0% 100%;
+        --popover-foreground: 222.2 84% 4.9%;
+ 
+        --secondary: 210 40% 96.1%;
+        --secondary-foreground: 222.2 47.4% 11.2%;
+ 
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+ 
+        --accent: 210 40% 96.1%;
+        --accent-foreground: 222.2 47.4% 11.2%;
+ 
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 222.2 84% 4.9%;
+ 
+        --radius: 0.5rem;
+      }
+ 
+      .dark {
+        --background: 240 10% 3.9%; /* #09090b - Zinc 950 */
+        --foreground: 210 40% 98%;
+
+        --card: 240 5.9% 10%; /* #18181b - Zinc 900 (Lighter than BG) */
+        --card-rgb: 24, 24, 27;
+        --card-foreground: 210 40% 98%;
+ 
+        --popover: 240 5.9% 10%;
+        --popover-foreground: 210 40% 98%;
+ 
+        --secondary: 240 3.7% 15.9%; /* Zinc 800 */
+        --secondary-foreground: 210 40% 98%;
+ 
+        --muted: 240 3.7% 15.9%;
+        --muted-foreground: 240 5% 64.9%;
+ 
+        --accent: 240 3.7% 15.9%;
+        --accent-foreground: 210 40% 98%;
+ 
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 210 40% 98%;
+ 
+        --border: 240 3.7% 15.9%;
+        --input: 240 3.7% 15.9%;
+        --ring: 240 4.9% 83.9%;
       }
 
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #f4f7f9;
-        color: #1a1c1e;
+        background-color: hsl(var(--background));
+        color: hsl(var(--foreground));
         margin: 0;
         overflow-x: hidden;
-        /* Dynamic Cursor removed from here, handled by React */
+      }
+
+      /* Advanced Dark Mode Gradient Background */
+      .dark body {
+        background-color: #09090b;
+        background-image: 
+            radial-gradient(circle at 50% 0%, #1c1c22 0%, transparent 70%),
+            radial-gradient(circle at 80% 10%, rgba(var(--primary-rgb), 0.08) 0%, transparent 50%);
+        background-attachment: fixed;
       }
 
       /* Font Classes for Dynamic Switching */
@@ -101,13 +155,11 @@
       .font-dina { font-family: 'Share Tech Mono', monospace; letter-spacing: 0.05em; }
       .font-proggy { font-family: 'Silkscreen', cursive; font-size: 0.95em; }
       
-      /* Priority Persian Font */
       .font-persian { 
         font-family: 'Vazirmatn', sans-serif !important; 
         letter-spacing: 0 !important;
       }
 
-      /* Performance Optimizations */
       .segment_area, .group_area {
         will-change: transform, opacity;
         transform: translateZ(0);
@@ -132,26 +184,11 @@
         font-family: 'JetBrains Mono', monospace;
       }
 
-      .dark body {
-        background-color: #09090b; 
-        color: #e0e0e0;
-      }
-
-      /* Old button cursor override removed */
-
       *:focus-visible {
         outline: 2px solid var(--primary);
         outline-offset: 2px;
       }
       
-      .dark .border-border {
-        border-color: #27272a;
-      }
-      
-      .dark .bg-card {
-        background-color: #18181b;
-      }
-
       .no-scrollbar::-webkit-scrollbar {
         display: none;
       }
@@ -164,34 +201,34 @@
 
       /* 1. Grid (Graph Paper) */
       .graph-paper {
-        background-color: #fdfdfd; 
+        background-color: transparent; 
         background-image: 
-            linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px);
+            linear-gradient(to right, rgba(0,0,0,0.06) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px);
         background-size: 24px 24px; 
         background-position: center top;
         will-change: background-position;
       }
 
+      /* IMPROVED: Brighter grid lines in dark mode */
       .dark .graph-paper {
-        background-color: #09090b; 
         background-image: 
-            linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+            linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px);
       }
 
       /* 2. Dots (Matrix Array) */
       .dot-matrix {
-        background-color: #fdfdfd;
+        background-color: transparent;
         background-image: radial-gradient(rgba(0,0,0,0.15) 1.5px, transparent 1.5px);
         background-size: 24px 24px;
         background-position: center top;
         will-change: background-position;
       }
 
+      /* IMPROVED: Brighter dots in dark mode */
       .dark .dot-matrix {
-        background-color: #09090b;
-        background-image: radial-gradient(rgba(255,255,255,0.15) 1.5px, transparent 1.5px);
+        background-image: radial-gradient(rgba(255,255,255,0.2) 1.5px, transparent 1.5px);
       }
 
       @keyframes bgScroll {
@@ -282,7 +319,7 @@
 }
 </script>
 </head>
-<body class="transition-colors duration-500">
+<body class="transition-colors duration-500 bg-background text-foreground">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
 </body>

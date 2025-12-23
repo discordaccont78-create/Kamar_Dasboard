@@ -41,8 +41,9 @@ export interface Segment {
   // Digital Button Mode
   onOffMode?: 'toggle' | 'momentary'; // 'toggle' = Standard Click, 'momentary' = Push to Hold
 
-  // Timer Feature (Local segment timer, separate from Scheduler)
-  timerFinishAt?: number; 
+  // Timer Feature (Auto-Off Pulse)
+  autoOffDuration?: number; // Duration in seconds (0 = disabled)
+  timerFinishAt?: number;   // Timestamp when the current pulse ends
 
   // Shift Register Hardware Pins
   readonly regBitIndex?: number;

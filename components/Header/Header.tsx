@@ -40,11 +40,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
 
   return (
     <header className="sticky top-2 md:top-4 z-50 px-2 md:px-6 transition-all duration-500">
-      <div className="bg-card/85 backdrop-blur-xl backdrop-saturate-150 text-foreground px-4 py-3 md:px-8 md:py-4 rounded-xl md:rounded-2xl border border-white/20 dark:border-white/10 shadow-2xl mx-auto flex items-center justify-between relative max-w-7xl">
+      <div className={cn(
+        "backdrop-blur-xl backdrop-saturate-150 text-foreground px-4 py-3 md:px-8 md:py-4 rounded-xl md:rounded-2xl border shadow-2xl mx-auto flex items-center justify-between relative max-w-7xl transition-all duration-300",
+        // Light Mode: White/80 background + Slight Black Border for definition
+        "bg-white/80 border-black/5 shadow-black/5",
+        // Dark Mode: Lighter Zinc (900) + White Border
+        "dark:bg-zinc-900/60 dark:border-white/10 dark:shadow-[0_0_20px_-10px_rgba(var(--primary),0.2)]"
+      )}>
         
         {/* Left: Branding */}
         <div className="flex items-center gap-3 md:gap-4 z-10">
-          <div className="bg-card/50 border border-primary/20 p-1.5 md:p-2.5 rounded-lg md:rounded-xl shadow-sm backdrop-blur-md transition-all duration-300">
+          <div className="bg-card/50 dark:bg-white/5 border border-black/5 dark:border-primary/20 p-1.5 md:p-2.5 rounded-lg md:rounded-xl shadow-sm backdrop-blur-md transition-all duration-300">
             <Zap className="text-primary w-4 h-4 md:w-6 md:h-6" fill="currentColor" />
           </div>
           <div className="flex flex-col">
@@ -80,7 +86,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
             size="icon"
             onClick={() => setIsSchedulerOpen(true)}
             title={t.scheduler}
-            className="rounded-lg md:rounded-xl h-9 w-9 md:h-12 md:w-12 hover:bg-primary/10 hover:border-primary/50 text-primary border-primary/30"
+            className="rounded-lg md:rounded-xl h-9 w-9 md:h-12 md:w-12 hover:bg-primary/10 hover:border-primary/50 text-primary border-black/5 dark:border-primary/20 bg-transparent dark:bg-white/5"
           >
              <CalendarClock className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
@@ -90,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
             size="icon"
             onClick={toggleTheme}
             title={t.switch_env}
-            className="rounded-lg md:rounded-xl h-9 w-9 md:h-12 md:w-12 hover:bg-primary/10 hover:border-primary/50"
+            className="rounded-lg md:rounded-xl h-9 w-9 md:h-12 md:w-12 hover:bg-primary/10 hover:border-primary/50 border-black/5 dark:border-white/10 bg-transparent dark:bg-white/5"
           >
             {settings.theme === 'light' ? <Moon className="w-4 h-4 md:w-5 md:h-5" /> : <Sun className="w-4 h-4 md:w-5 md:h-5" />}
           </Button>
@@ -100,7 +106,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
             size="icon"
             onClick={toggleLanguage}
             title={t.switch_lang}
-            className="rounded-lg md:rounded-xl h-9 w-9 md:h-12 md:w-12 hover:bg-primary/10 hover:border-primary/50 font-black text-[10px] md:text-xs"
+            className="rounded-lg md:rounded-xl h-9 w-9 md:h-12 md:w-12 hover:bg-primary/10 hover:border-primary/50 font-black text-[10px] md:text-xs border-black/5 dark:border-white/10 bg-transparent dark:bg-white/5"
           >
             {settings.language === 'en' ? 'FA' : 'EN'}
           </Button>
@@ -108,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
           <Button 
             onClick={onOpenMenu}
             size="icon"
-            className="rounded-lg md:rounded-xl h-9 w-9 md:h-12 md:w-12 shadow-lg hover:brightness-110"
+            className="rounded-lg md:rounded-xl h-9 w-9 md:h-12 md:w-12 shadow-lg hover:brightness-110 border border-transparent dark:bg-primary dark:text-black"
             title={t.sys_config}
           >
             <Settings className="w-4 h-4 md:w-5 md:h-5" />
