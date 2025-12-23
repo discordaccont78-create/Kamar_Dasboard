@@ -1,2 +1,3 @@
-// Logic moved to components/ui/slider.tsx
-export {};
+
+// This file is deprecated. Use components/ui/slider.tsx directly.
+// export { Slider } from '../ui/slider';
