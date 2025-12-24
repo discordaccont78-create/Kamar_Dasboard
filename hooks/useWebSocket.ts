@@ -13,7 +13,8 @@ import { CMD, Segment } from '../types/index';
 
 // --- SIMULATION CONFIGURATION ---
 // Set this to true to ignore server connection errors and mock a successful connection.
-const SIMULATION_MODE = true;
+// CHANGED: Set to false for production/hardware testing
+const SIMULATION_MODE = false;
 
 /**
  * Mock Socket Manager for Simulator Environment
