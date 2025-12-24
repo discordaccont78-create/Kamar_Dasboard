@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -13,7 +12,6 @@ import { CMD, Segment } from '../types/index';
 
 // --- SIMULATION CONFIGURATION ---
 // Set this to true to ignore server connection errors and mock a successful connection.
-// CHANGED: Set to false for production/hardware testing
 const SIMULATION_MODE = false;
 
 /**
@@ -72,13 +70,30 @@ export function useWebSocket() {
   
   useEffect(() => {
     // 1. Sanitize Domain input
-    const cleanDomain = settings.domain.replace(/^(ws|wss|http|https):\/\//, '').trim();
+    let cleanDomain = settings.domain.replace(/^(ws|wss|http|https):\/\//, '').trim();
+    cleanDomain = cleanDomain.replace(/\/$/, ''); // Remove trailing slash
+    
     if (!cleanDomain && !SIMULATION_MODE) return;
 
     // 2. Protocol & URL Construction
-    const isSecureContext = typeof window !== 'undefined' && window.location.protocol === 'https:';
-    const protocol = (settings.useSsl || isSecureContext) ? 'wss' : 'ws';
-    const url = `${protocol}://${cleanDomain}.local/ws`;
+    // Robust Secure Context Detection
+    const isSecureContext = typeof window !== 'undefined' && (
+        window.location.protocol === 'https:' || 
+        window.location.protocol.indexOf('https') === 0 ||
+        (window as any).isSecureContext === true
+    );
+    
+    // Strict Mixed Content Rule: If page is HTTPS, WS is forbidden. Must use WSS.
+    // If page is HTTP, we can choose based on settings.
+    const protocol = isSecureContext ? 'wss' : (settings.useSsl ? 'wss' : 'ws');
+    
+    // Smart Hostname Handling
+    // If it looks like an IP or already has a TLD (contains dot), use as is.
+    // Otherwise assume it's a local mDNS name and append .local
+    const isIpOrDomain = cleanDomain.includes('.') || cleanDomain === 'localhost';
+    const host = isIpOrDomain ? cleanDomain : `${cleanDomain}.local`;
+
+    const url = `${protocol}://${host}/ws`;
 
     // Initialize Singleton if not exists or URL changed
     if (!sharedSocket || (sharedSocket as any)['url'] !== url) {
@@ -90,6 +105,7 @@ export function useWebSocket() {
         if (SIMULATION_MODE) {
             sharedSocket = new MockWebSocketManager("simulation://virtual-device");
         } else {
+            console.log(`[WebSocket] Connecting to ${url}`);
             sharedSocket = new WebSocketManager(url);
         }
         
@@ -102,8 +118,6 @@ export function useWebSocket() {
 
     socket.onStatus(setConnected);
     
-    // In simulation, we typically don't receive messages back unless we echo them.
-    // For now, the Optimistic UI handles the state changes visually.
     socket.onMessage((data: ArrayBuffer | string) => {
       if (data instanceof ArrayBuffer) {
         const msg = protocolRef.current.decode(data);
@@ -128,7 +142,6 @@ export function useWebSocket() {
           };
                
           switch (msg.cmd) {
-            // (Existing switch logic retained for real hardware mode)
             case CMD.LED_ON: 
                 updateSegmentByGpio(msg.seg, { is_led_on: 'on' });
                 break;

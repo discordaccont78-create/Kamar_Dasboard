@@ -1,4 +1,3 @@
-
 export class WebSocketManager {
   private socket: WebSocket | null = null;
   private url: string;
@@ -13,6 +12,15 @@ export class WebSocketManager {
 
   connect() {
     try {
+        // Security Check: Upgrade to WSS if running on HTTPS to prevent Mixed Content blocking.
+        // This catches cases where the URL construction logic might have missed the environment.
+        if (typeof window !== 'undefined' && 
+           (window.location.protocol === 'https:' || window.location.protocol.indexOf('https') === 0) && 
+           this.url.startsWith('ws://')) {
+            console.warn("[WebSocketManager] Auto-upgrading insecure connection to WSS due to HTTPS context.");
+            this.url = this.url.replace('ws://', 'wss://');
+        }
+
         this.socket = new WebSocket(this.url);
         this.socket.binaryType = 'arraybuffer';
         
