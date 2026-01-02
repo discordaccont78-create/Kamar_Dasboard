@@ -16,7 +16,7 @@ import {
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-import { Slider } from '../ui/slider';
+import { Slider } from './Slider';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { translations } from '../../lib/i18n';

@@ -38,9 +38,9 @@ export class WebSocketManager {
           this.scheduleReconnect();
         };
         
-        this.socket.onerror = (e) => {
-           console.error("WebSocket Error:", e);
-           // Do not throw here to prevent app crash, let onclose handle reconnect
+        this.socket.onerror = (e: Event) => {
+           // Avoid logging [object Object] which happens when logging the Event object directly
+           console.error(`[WebSocket] Connection failed to ${this.url}. Check network or SSL configuration.`);
         };
     } catch (e) {
         console.error("Failed to create WebSocket:", e);
