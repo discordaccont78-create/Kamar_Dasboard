@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { GripVertical, Cpu, Power } from 'lucide-react';
@@ -11,8 +12,6 @@ interface Props {
   onToggle: (id: string) => void;
   dragHandle?: React.ReactNode;
 }
-
-const MotionDiv = motion.div as any;
 
 /**
  * A Minimal "Power" Button for a single bit inside the Register Sub-Group.
@@ -120,11 +119,6 @@ export const RegisterSubGroup: React.FC<Props> = ({ segments, onToggle, dragHand
                         onToggle={() => onToggle(seg.num_of_node)} 
                     />
                 ))}
-                {/* 
-                   If for some reason we have fewer than 8 bits, 
-                   we could add placeholders here to maintain the grid shape, 
-                   but usually registers are fixed to 8. 
-                */}
             </div>
         </div>
     </SegmentCard>

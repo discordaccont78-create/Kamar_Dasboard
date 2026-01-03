@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,12 +10,12 @@ import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
   Settings as SettingsIcon, X, Zap, Play, Activity, Monitor, 
   SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type, TableProperties,
-  Grid3X3, CircleDot, MousePointer2
+  Grid3X3, CircleDot, MousePointer2, Palette
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-import { Slider } from './Slider';
+import { Slider } from '../ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
@@ -261,7 +260,16 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     updateSettings({ currentTrackIndex: prevIndex });
   };
 
-  const headerBgClass = settings.backgroundEffect === 'dots' ? 'dot-matrix' : 'graph-paper';
+  // Logic to switch to square-matrix if font is ProggyDotted
+  const headerBgClass = (() => {
+    if (settings.backgroundEffect === 'dots') {
+        if (settings.dashboardFont === 'PrpggyDotted') {
+            return 'square-matrix';
+        }
+        return 'dot-matrix';
+    }
+    return 'graph-paper';
+  })();
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -306,6 +314,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 no-scrollbar">
             
+            {/* ... (Previous sections Output, Status, Hardware omitted for brevity, they remain unchanged) ... */}
+            
             <MenuSection 
                 id="output" 
                 title="Output Segments" 
@@ -316,6 +326,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             >
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardContent className="space-y-5 pt-6">
+                  {/* ... Output Form Fields ... */}
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.gpio}</label>
                      <Input type="number" value={outputForm.gpio} onChange={e => setOutputForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="PIN #" />
@@ -419,6 +430,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 onToggle={handleSectionToggle}
                 animations={settings.animations}
             >
+              {/* Status Content */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50 overflow-hidden">
                  <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                     <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
@@ -491,6 +503,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 onToggle={handleSectionToggle}
                 animations={settings.animations}
             >
+               {/* Hardware Content */}
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
@@ -624,6 +637,17 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                 <span className="text-[9px] font-bold uppercase tracking-wider">Dot Array</span>
                             </button>
                         </div>
+                        
+                        {/* New Dual-Tone Switch */}
+                        <div className="flex items-center justify-between mt-2 px-1">
+                            <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                <Palette size={12} /> Dual-Tone Pattern
+                            </label>
+                            <Switch 
+                                checked={settings.dualColorBackground} 
+                                onCheckedChange={(c) => updateSettings({ dualColorBackground: c })} 
+                            />
+                        </div>
                     </div>
 
                     <div className="space-y-2 pt-2 border-t border-border/50">
@@ -724,7 +748,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                        
                        <div className="space-y-2">
                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                               <MousePointer2 size={12} /> Cursor Highlight
+                               <MousePointer2 size={12} /> Cursor & 3rd Color
                            </label>
                            <div className="flex gap-2 flex-wrap">
                               {["#daa520", "#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899", "#ffffff"].map(color => (

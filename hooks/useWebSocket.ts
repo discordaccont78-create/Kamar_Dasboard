@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -12,7 +13,7 @@ import { CMD, Segment } from '../types/index';
 
 // --- SIMULATION CONFIGURATION ---
 // Set this to true to ignore server connection errors and mock a successful connection.
-const SIMULATION_MODE = false;
+const SIMULATION_MODE = true;
 
 /**
  * Mock Socket Manager for Simulator Environment

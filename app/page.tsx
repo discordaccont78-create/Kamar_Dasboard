@@ -6,6 +6,7 @@ import { SideMenu } from '../components/UI/SideMenu';
 import { SegmentGroup } from '../components/Group/SegmentGroup';
 import { ToastContainer } from '../components/UI/Toast';
 import { CursorGlobalStyle } from '../components/UI/CursorGlobalStyle';
+import { BackgroundStyle } from '../components/UI/BackgroundStyle';
 import { useSegments } from '../lib/store/segments';
 import { useSettingsStore } from '../lib/store/settings';
 import { useConnection } from '../lib/store/connection';
@@ -21,21 +22,47 @@ import { MUSIC_TRACKS } from '../lib/constants';
 // Workaround for Framer Motion types
 const MotionDiv = motion.div as any;
 
+// --- CORE EMBLEM: THE ELECTRIC ROCK ---
 const CoreEmblem: React.FC = React.memo(() => (
   <div className="relative flex items-center justify-center">
+    {/* Outer Heavy Ring (The Rock Strength) */}
     <MotionDiv
       animate={{ rotate: 360 }}
+      transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+      className="absolute opacity-20"
+    >
+      <div className="border-4 border-dashed border-primary w-[160px] h-[160px] md:w-[240px] md:h-[240px] rounded-full" />
+    </MotionDiv>
+
+    {/* Spinning Hexagon (Industrial Tech) */}
+    <MotionDiv
+      animate={{ rotate: -360 }}
       transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
       className="absolute"
     >
-      <Hexagon className="text-foreground/80 dark:text-foreground/60 w-[120px] h-[120px] md:w-[180px] md:h-[180px]" strokeWidth={1.5} />
+      <Hexagon className="text-foreground/40 w-[120px] h-[120px] md:w-[180px] md:h-[180px]" strokeWidth={2} />
     </MotionDiv>
+    
+    {/* Core Energy (Electric Pulse) */}
     <MotionDiv
-      animate={{ scale: [1, 1.05, 1], opacity: [0.8, 1, 0.8] }}
-      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      className="bg-card/30 backdrop-blur-md border-2 border-primary p-4 md:p-6 rounded-full shadow-[0_0_40px_rgba(var(--primary),0.2)] z-10 transition-colors"
+      animate={{ 
+        scale: [1, 1.15, 1],
+        filter: [
+          'drop-shadow(0 0 0px rgba(218,165,32,0))',
+          'drop-shadow(0 0 25px rgba(218,165,32,0.6))',
+          'drop-shadow(0 0 0px rgba(218,165,32,0))'
+        ]
+      }}
+      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+      className="bg-card border-4 border-primary p-5 md:p-8 rounded-full shadow-2xl z-10 relative"
     >
-      <Zap className="text-primary w-8 h-8 md:w-12 md:h-12" fill="currentColor" />
+       {/* Inner Spark */}
+      <MotionDiv
+         animate={{ opacity: [0.5, 1, 0.5] }}
+         transition={{ duration: 0.1, repeat: Infinity, repeatDelay: 1.5 }}
+         className="absolute inset-0 bg-primary/20 rounded-full"
+      />
+      <Zap className="text-primary w-10 h-10 md:w-16 md:h-16 fill-current" strokeWidth={0} />
     </MotionDiv>
   </div>
 ));
@@ -332,11 +359,21 @@ export default function DashboardPage(): React.JSX.Element {
     });
   }, []);
 
-  const bgClass = settings.backgroundEffect === 'dots' ? 'dot-matrix' : 'graph-paper';
+  // Updated Background Class Logic for Square Matrix support
+  const bgClass = (() => {
+    if (settings.backgroundEffect === 'dots') {
+        if (settings.dashboardFont === 'PrpggyDotted') {
+            return 'square-matrix';
+        }
+        return 'dot-matrix';
+    }
+    return 'graph-paper';
+  })();
 
   return (
     <MotionConfig reducedMotion={settings.animations ? "never" : "always"}>
       <CursorGlobalStyle />
+      <BackgroundStyle />
 
       <div className={cn(
           "min-h-screen transition-colors duration-500 flex flex-col overflow-x-hidden bg-background text-foreground",

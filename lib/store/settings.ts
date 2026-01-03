@@ -9,9 +9,11 @@ interface ExtendedAppSettings extends AppSettings {
   title: string;
   enableNotifications: boolean;
   primaryColor: string;
-  cursorColor: string; // New Third Color for Cursor
+  cursorColor: string; // New Third Color for Cursor & Background Accent
   language: 'en' | 'fa';
+  dashboardFont: 'Inter' | 'Oswald' | 'Lato' | 'Montserrat' | 'DinaRemaster' | 'PrpggyDotted';
   backgroundEffect: 'grid' | 'dots';
+  dualColorBackground: boolean; // New: Toggle for 2-tone background
 }
 
 interface SettingsStore {
@@ -50,7 +52,8 @@ export const useSettingsStore = create<SettingsStore>()(
         cursorColor: "#daa520", // Default Cursor Color (Matches Gold initially)
         language: 'en',
         dashboardFont: 'Inter',
-        backgroundEffect: 'grid'
+        backgroundEffect: 'grid',
+        dualColorBackground: false, // Default to single color (grey)
       },
       updateSettings: (updates) => set((state) => ({
         settings: { ...state.settings, ...updates }

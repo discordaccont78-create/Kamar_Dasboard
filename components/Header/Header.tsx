@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun, Settings, Zap, Terminal, Globe, CalendarClock } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Moon, Sun, Settings, Zap, Terminal, CalendarClock, Activity } from 'lucide-react';
 import { ConnectionStatus } from './ConnectionStatus';
 import { useSettingsStore } from '../../lib/store/settings';
 import { SchedulerDialog } from '../Scheduler/SchedulerDialog';
@@ -12,6 +13,10 @@ interface HeaderProps {
   onOpenMenu: () => void;
 }
 
+// Workaround for Framer Motion types compatibility
+const MotionDiv = motion.div as any;
+const MotionButton = motion.button as any;
+
 export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const { settings, updateSettings } = useSettingsStore();
   const [time, setTime] = useState<string>('');
@@ -20,7 +25,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const t = translations[settings.language];
 
   useEffect(() => {
-    // Initial set
     const locale = settings.language === 'fa' ? 'fa-IR' : 'en-US';
     setTime(new Date().toLocaleTimeString(locale, { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     
@@ -38,89 +42,204 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     updateSettings({ language: settings.language === 'en' ? 'fa' : 'en' });
   };
 
+  // --- ANIMATION VARIANTS ---
+  const islandVariants = {
+    hidden: { y: -50, opacity: 0, scale: 0.9 },
+    visible: { 
+      y: 0, 
+      opacity: 1, 
+      scale: 1,
+      transition: { 
+        type: "spring", 
+        stiffness: 300, 
+        damping: 20, 
+        mass: 1.5
+      }
+    }
+  };
+
+  const logoInnerVariants = {
+    idle: {
+      scale: [1, 1.2, 1],
+      opacity: [0.8, 1, 0.8],
+      filter: [
+        'drop-shadow(0 0 0px rgba(218,165,32,0))',
+        'drop-shadow(0 0 10px rgba(218,165,32,0.8))',
+        'drop-shadow(0 0 0px rgba(218,165,32,0))'
+      ],
+      transition: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+    },
+    hover: {
+      rotate: [0, -5, 5, -5, 0],
+      transition: { duration: 0.2 }
+    }
+  };
+
+  // --- POLYGON DEFINITIONS FOR HIGH-TECH SHAPES ---
+  // Left Island: Chamfered Left corners, Straight Right Top, Slanted Right Bottom
+  const CLIP_LEFT = "polygon(12px 0, 100% 0, calc(100% - 24px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px)";
+  
+  // Right Island: Slanted Left Top, Straight Right Top, Chamfered Right corners
+  const CLIP_RIGHT = "polygon(24px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%)";
+
   return (
-    <header className="sticky top-2 md:top-4 z-50 px-2 md:px-6 transition-all duration-500">
-      <div className="bg-background/70 dark:bg-background/50 backdrop-blur-xl backdrop-saturate-150 text-foreground px-4 py-3 md:px-8 md:py-4 rounded-xl md:rounded-2xl border border-border/50 dark:border-white/5 shadow-2xl mx-auto flex items-center justify-between relative max-w-7xl">
+    <header className="sticky top-2 md:top-6 z-50 px-2 md:px-8 transition-all duration-500 pointer-events-none">
+      <div className="max-w-[1400px] mx-auto flex items-stretch justify-between gap-2 md:gap-4 relative pointer-events-auto h-[60px] md:h-[72px]">
         
-        {/* Left: Branding */}
-        <div className="flex items-center gap-3 md:gap-4 z-10">
-          <div className="bg-background/50 border border-primary/20 p-1.5 md:p-2.5 rounded-lg md:rounded-xl shadow-sm backdrop-blur-md transition-all duration-300">
-            <Zap className="text-primary w-4 h-4 md:w-6 md:h-6" fill="currentColor" />
-          </div>
-          <div className="flex flex-col">
-            <h1 className={cn(
-              "text-lg md:text-2xl font-black uppercase tracking-tighter leading-none transition-all truncate max-w-[120px] md:max-w-none",
-              settings.animations ? "text-shimmer" : "text-primary"
-            )}>
-              {settings.title}
-            </h1>
-            <div className="hidden md:flex items-center gap-2 mt-1 text-[9px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
-              <Terminal size={10} /> 
-              {t.node_controller}
-            </div>
-          </div>
-        </div>
+        {/* === ISLAND 1: IDENTITY === */}
+        <MotionDiv
+          variants={islandVariants}
+          initial="hidden"
+          animate="visible"
+          className="relative min-w-[180px] md:min-w-[280px] drop-shadow-xl filter" 
+        >
+           {/* 1. Border Layer (Outer) */}
+           <div 
+             className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl"
+             style={{ clipPath: CLIP_LEFT }}
+           />
+           
+           {/* 2. Background Layer (Inner - inset to reveal border) */}
+           <div 
+             className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl overflow-hidden"
+             style={{ clipPath: CLIP_LEFT }}
+           >
+              {/* Spark Effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+           </div>
+
+           {/* 3. Content Layer (Not Clipped, just safely padded) */}
+           <div className="relative h-full w-full flex items-center pl-6 pr-10 md:pl-8 md:pr-14">
+              <div className="flex items-center gap-3 md:gap-4 z-10">
+                  <MotionDiv 
+                    className="bg-background border-2 border-primary p-1.5 md:p-2 rounded-xl shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)] cursor-pointer"
+                    whileHover="hover"
+                    initial="idle"
+                    animate="idle"
+                  >
+                    <MotionDiv variants={logoInnerVariants}>
+                      <Zap className="text-primary w-4 h-4 md:w-6 md:h-6 fill-current" strokeWidth={0} />
+                    </MotionDiv>
+                  </MotionDiv>
+                  
+                  <div className="flex flex-col justify-center">
+                    <h1 className={cn(
+                      "text-sm md:text-lg font-black uppercase tracking-tighter leading-none text-foreground flex items-center gap-1",
+                      settings.animations && "text-shimmer"
+                    )}>
+                      <Activity size={12} className="text-primary animate-pulse" />
+                      {settings.title}
+                    </h1>
+                    <div className="hidden md:flex items-center gap-1.5 mt-0.5 text-[8px] font-black uppercase tracking-[0.25em] text-muted-foreground/60">
+                      <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+                      {t.node_controller}
+                    </div>
+                  </div>
+              </div>
+           </div>
+        </MotionDiv>
         
-        {/* Center: Clock - Hidden on Mobile */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden lg:flex flex-col items-center justify-center opacity-80">
-            <div className={cn(
-                "clock-display font-mono text-xl font-black tracking-widest flex items-center gap-2",
-                settings.animations ? "text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]" : "text-foreground"
-            )}>
-               {time || "00:00:00"}
+        {/* === ISLAND 2: COMMAND CENTER === */}
+        <MotionDiv
+            variants={islandVariants}
+            initial="hidden"
+            animate="visible"
+            transition={{ delay: 0.1 }}
+            className="relative flex-1 drop-shadow-xl filter"
+        >
+            {/* 1. Border Layer */}
+            <div 
+             className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl"
+             style={{ clipPath: CLIP_RIGHT }}
+            />
+
+            {/* 2. Background Layer */}
+            <div 
+             className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl overflow-hidden"
+             style={{ clipPath: CLIP_RIGHT }}
+            >
+               <div className="absolute inset-0 bg-gradient-to-l from-transparent via-primary/5 to-transparent opacity-50" />
             </div>
-            <div className="text-[8px] uppercase tracking-[0.4em] text-muted-foreground mt-1">{t.system_time}</div>
-        </div>
 
-        {/* Right: Controls */}
-        <div className="flex items-center gap-2 md:gap-3 z-10">
-          
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setIsSchedulerOpen(true)}
-            title={t.scheduler}
-            className="rounded-lg md:rounded-xl h-9 w-9 md:h-12 md:w-12 hover:bg-primary/10 hover:border-primary/50 text-primary border-primary/30"
-          >
-             <CalendarClock className="w-4 h-4 md:w-5 md:h-5" />
-          </Button>
+            {/* 3. Content Layer */}
+            <div className="relative h-full w-full flex items-center justify-between pl-10 pr-6 md:pl-14 md:pr-8">
+               {/* Center: Digital Clock */}
+               <div className="hidden lg:flex flex-col items-start justify-center pl-4 border-l-2 border-border/30 h-10">
+                  <div className={cn(
+                      "font-dina text-2xl font-bold tracking-widest flex items-center gap-2",
+                      "text-foreground drop-shadow-sm"
+                  )}>
+                    {time || "00:00:00"}
+                  </div>
+                  <div className="text-[7px] font-black uppercase tracking-[0.4em] text-primary/70">{t.system_time}</div>
+               </div>
 
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleTheme}
-            title={t.switch_env}
-            className="rounded-lg md:rounded-xl h-9 w-9 md:h-12 md:w-12 hover:bg-primary/10 hover:border-primary/50"
-          >
-            {settings.theme === 'light' ? <Moon className="w-4 h-4 md:w-5 md:h-5" /> : <Sun className="w-4 h-4 md:w-5 md:h-5" />}
-          </Button>
+               {/* Right: Controls */}
+               <div className="flex items-center gap-2 md:gap-3 z-10 ml-auto">
+                  <ControlButton 
+                    onClick={() => setIsSchedulerOpen(true)} 
+                    icon={CalendarClock} 
+                    title={t.scheduler}
+                    active={isSchedulerOpen}
+                  />
 
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleLanguage}
-            title={t.switch_lang}
-            className="rounded-lg md:rounded-xl h-9 w-9 md:h-12 md:w-12 hover:bg-primary/10 hover:border-primary/50 font-black text-[10px] md:text-xs"
-          >
-            {settings.language === 'en' ? 'FA' : 'EN'}
-          </Button>
-          
-          <Button 
-            onClick={onOpenMenu}
-            size="icon"
-            className="rounded-lg md:rounded-xl h-9 w-9 md:h-12 md:w-12 shadow-lg hover:brightness-110"
-            title={t.sys_config}
-          >
-            <Settings className="w-4 h-4 md:w-5 md:h-5" />
-          </Button>
-          
-          <div className="hidden sm:block">
-            <ConnectionStatus />
-          </div>
-        </div>
+                  <div className="w-px h-8 bg-border/40 mx-1 hidden sm:block" />
+
+                  <ControlButton 
+                    onClick={toggleTheme} 
+                    icon={settings.theme === 'light' ? Moon : Sun} 
+                    title={t.switch_env}
+                  />
+
+                  <ControlButton 
+                    onClick={toggleLanguage} 
+                    label={settings.language === 'en' ? 'FA' : 'EN'}
+                    title={t.switch_lang}
+                  />
+                  
+                  <ControlButton 
+                    onClick={onOpenMenu}
+                    icon={Settings}
+                    title={t.sys_config}
+                    variant="primary"
+                  />
+                  
+                  <div className="hidden sm:block pl-2 border-l-2 border-border/30">
+                    <ConnectionStatus />
+                  </div>
+               </div>
+            </div>
+        </MotionDiv>
+
       </div>
       
       <SchedulerDialog isOpen={isSchedulerOpen} onClose={() => setIsSchedulerOpen(false)} />
     </header>
   );
 };
+
+// --- Custom "Charged" Button Component ---
+const ControlButton = ({ onClick, icon: Icon, label, title, active, variant = 'default' }: any) => {
+    return (
+        <MotionButton
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95, y: 1 }}
+            onClick={onClick}
+            title={title}
+            className={cn(
+                "relative h-10 w-10 md:h-11 md:w-11 rounded-xl flex items-center justify-center transition-all duration-300 border-2 overflow-hidden group",
+                variant === 'primary' 
+                    ? "bg-primary text-black border-primary shadow-[0_4px_0_rgb(var(--foreground))]"
+                    : "bg-background hover:bg-secondary border-border hover:border-primary/50 text-muted-foreground hover:text-primary shadow-sm",
+                active && "bg-primary/20 border-primary text-primary"
+            )}
+        >
+            {/* Electric Hover Fill */}
+            <div className="absolute inset-0 bg-primary/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+            
+            <div className="relative z-10">
+                {Icon ? <Icon size={20} strokeWidth={variant === 'primary' ? 2.5 : 2} /> : <span className="font-black text-xs">{label}</span>}
+            </div>
+        </MotionButton>
+    )
+}
