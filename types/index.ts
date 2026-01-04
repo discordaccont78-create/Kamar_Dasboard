@@ -114,6 +114,8 @@ export interface AppSettings {
   backgroundEffect?: 'grid' | 'dots' | 'squares' | 'triangles';
   dualColorBackground: boolean;
   hollowShapes: boolean; // New: Toggles between filled and outlined shapes
+  enableTextPattern: boolean; // New: Text Overlay Toggle
+  textPatternValue: string; // New: The text string
 }
 
 export interface LogEntry {

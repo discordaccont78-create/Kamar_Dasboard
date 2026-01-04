@@ -9,7 +9,7 @@ import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-import { Slider } from '../../components/UI/Slider';
+import { Slider } from '../ui/slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import { ButtonTrigger } from '../../types/index';
@@ -26,7 +26,7 @@ interface SchedulerDialogProps {
   onClose: () => void;
 }
 
-const TRIGGER_OPTIONS = [
+const TRIGGER_OPTIONS: { value: ButtonTrigger; label: string }[] = [
   { value: 2, label: "HIGH (1)" },
   { value: 3, label: "LOW (0)" },
   { value: 1, label: "TOGGLE" },
@@ -102,7 +102,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
         // Find the first option that isn't taken
         const availableOption = TRIGGER_OPTIONS.find(opt => !takenTriggers.includes(opt.value));
         if (availableOption) {
-            setInputTrigger(availableOption.value as any);
+            setInputTrigger(availableOption.value as ButtonTrigger);
         }
     }
   }, [takenTriggers, inputTrigger, conditionType]);
@@ -362,7 +362,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                 <div className="flex-1 relative">
                                     <select
                                         value={inputTrigger}
-                                        onChange={(e) => setInputTrigger(parseInt(e.target.value) as any)}
+                                        onChange={(e) => setInputTrigger(parseInt(e.target.value) as ButtonTrigger)}
                                         className="w-full h-12 rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-3 text-xs font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all appearance-none text-center"
                                     >
                                         {TRIGGER_OPTIONS.map(opt => {

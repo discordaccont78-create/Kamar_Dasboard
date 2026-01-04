@@ -63,7 +63,9 @@ export const translations = {
     label_off: "Off Label",
     pattern_style: "Pattern Style",
     hollow: "Hollow",
-    solid: "Solid"
+    solid: "Solid",
+    text_overlay: "Text Pattern Overlay",
+    enter_text_pattern: "Overlay Text...",
   },
   fa: {
     system_time: "زمان سیستم",
@@ -128,6 +130,8 @@ export const translations = {
     label_off: "متن خاموش",
     pattern_style: "سبک الگو",
     hollow: "توخالی",
-    solid: "توپر"
+    solid: "توپر",
+    text_overlay: "لایه متنی الگو",
+    enter_text_pattern: "متن الگو را وارد کنید...",
   }
 };

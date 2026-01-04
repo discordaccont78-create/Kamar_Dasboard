@@ -11,7 +11,7 @@ import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
   Settings as SettingsIcon, X, Zap, Play, Activity, Monitor, 
   SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type, TableProperties,
-  Grid3X3, CircleDot, MousePointer2, Palette, Volume2, Square, Triangle, Circle
+  Grid3X3, CircleDot, MousePointer2, Palette, Volume2, Square, Triangle, Circle, Sticker
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -650,10 +650,9 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                             <PatternButton id="triangles" icon={Triangle} label="Triangles" />
                         </div>
                         
-                        {/* Only visible for Dots/Matrix/Triangles (Non-Grid) */}
-                        {settings.backgroundEffect !== 'grid' && (
-                            <div className="space-y-2 mt-2 px-1 animate-in fade-in slide-in-from-top-1 duration-300">
-                                {/* Hollow/Solid Toggle */}
+                        <div className="space-y-2 mt-2 px-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                            {/* Hollow/Solid Toggle - Only for Shapes */}
+                            {settings.backgroundEffect !== 'grid' && (
                                 <div className="flex items-center justify-between">
                                     <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                                         <Circle size={12} /> {t.pattern_style || "Pattern Style"}
@@ -666,8 +665,10 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                         />
                                     </div>
                                 </div>
+                            )}
 
-                                {/* Dual Tone Toggle */}
+                            {/* Dual Tone Toggle - Only for Shapes */}
+                            {settings.backgroundEffect !== 'grid' && (
                                 <div className="flex items-center justify-between">
                                     <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                                         <Palette size={12} /> Dual-Tone Pattern
@@ -677,8 +678,39 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                         onCheckedChange={(c) => updateSettings({ dualColorBackground: c })} 
                                     />
                                 </div>
+                            )}
+
+                            {/* Text Overlay Toggle & Input */}
+                            <div className="pt-2 border-t border-border/30 mt-2">
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                        <Sticker size={12} /> {t.text_overlay || "Text Pattern"}
+                                    </label>
+                                    <Switch 
+                                        checked={settings.enableTextPattern} 
+                                        onCheckedChange={(c) => updateSettings({ enableTextPattern: c })} 
+                                    />
+                                </div>
+                                <AnimatePresence>
+                                    {settings.enableTextPattern && (
+                                        <MotionDiv
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <Input 
+                                                value={settings.textPatternValue}
+                                                onChange={(e) => updateSettings({ textPatternValue: e.target.value })}
+                                                placeholder={t.enter_text_pattern || "KAMYAR"}
+                                                className="h-8 text-center uppercase"
+                                                maxLength={12}
+                                            />
+                                        </MotionDiv>
+                                    )}
+                                </AnimatePresence>
                             </div>
-                        )}
+                        </div>
                     </div>
 
                     <div className="space-y-2 pt-2 border-t border-border/50">

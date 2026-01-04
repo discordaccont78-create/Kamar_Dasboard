@@ -39,11 +39,6 @@ export const BackgroundStyle: React.FC = () => {
 
   // --- SHAPE GENERATION LOGIC ---
 
-  /**
-   * Generates a Data URI SVG for the requested shape.
-   * Handles both Filled and Hollow logic.
-   * Hollow shapes are sized slightly larger to be visible.
-   */
   const createShapeSvg = (type: 'dots' | 'squares' | 'triangles', color: string) => {
     const encodedColor = encodeURIComponent(color);
     let shape = '';
@@ -51,31 +46,20 @@ export const BackgroundStyle: React.FC = () => {
     // ViewBox is 24x24. Center is 12,12.
     if (type === 'dots') {
         if (isHollow) {
-            // Hollow Circle (Ring)
             shape = `<circle cx='12' cy='12' r='3.5' fill='none' stroke='${encodedColor}' stroke-width='1.5' />`;
         } else {
-            // Solid Circle
             shape = `<circle cx='12' cy='12' r='1.8' fill='${encodedColor}' />`;
         }
     } else if (type === 'squares') {
         if (isHollow) {
-            // Hollow Square (Box) - Centered
-            // Size 6x6, x=9, y=9
             shape = `<rect x='9' y='9' width='6' height='6' fill='none' stroke='${encodedColor}' stroke-width='1.5' />`;
         } else {
-            // Solid Square
-            // Size 3x3, x=10.5, y=10.5
             shape = `<rect x='10.5' y='10.5' width='3' height='3' fill='${encodedColor}' />`;
         }
     } else if (type === 'triangles') {
-        // Triangle Points
         if (isHollow) {
-            // Hollow Triangle (Larger)
-            // Top: 12,8 | BottomRight: 16,15 | BottomLeft: 8,15
             shape = `<polygon points='12,8 16.5,16 7.5,16' fill='none' stroke='${encodedColor}' stroke-width='1.5' stroke-linejoin='round' />`;
         } else {
-            // Solid Triangle
-            // Top: 12,10 | BottomRight: 14,13.5 | BottomLeft: 10,13.5
             shape = `<polygon points='12,10 14.5,14 9.5,14' fill='${encodedColor}' />`;
         }
     }
@@ -83,28 +67,80 @@ export const BackgroundStyle: React.FC = () => {
     return `data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E${shape}%3C/svg%3E`;
   };
 
+  /**
+   * Generates a sparse Text SVG Overlay.
+   * ViewBox is 384x384 (16x the size of the 24px grid) to achieve very low density.
+   * Font: Dancing Script (Handwritten).
+   */
+  const createTextSvg = (text: string) => {
+      const sanitizedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      // Pure Grey with low opacity
+      const color = 'rgba(128, 128, 128, 0.15)'; 
+      
+      const svg = `
+        <svg width='384' height='384' viewBox='0 0 384 384' xmlns='http://www.w3.org/2000/svg'>
+            <style>
+                .txt { 
+                    font-family: 'Dancing Script', cursive; 
+                    font-size: 32px; 
+                    fill: ${color}; 
+                    font-weight: 700; 
+                }
+            </style>
+            <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' class='txt' transform='rotate(-15, 192, 192)'>
+                ${sanitizedText}
+            </text>
+        </svg>
+      `.trim();
+      
+      return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  };
+
   // --- CSS CONSTRUCTION ---
 
   let cssRule = '';
+  const hasText = settings.enableTextPattern && settings.textPatternValue;
+  const textOverlayUrl = hasText ? `url("${createTextSvg(settings.textPatternValue)}"),` : '';
+
+  /**
+   * Animation Physics:
+   * Loop Duration: 120s (Very Slow)
+   * 
+   * Text Movement:
+   * Moves 1 Tile (384px) in 120s.
+   * Speed: 3.2 px/s (Very slow floating)
+   * 
+   * Grid/Shape Movement:
+   * Moves 40 Tiles (24px * 40 = 960px) in 120s.
+   * Speed: 8 px/s (Energetic)
+   * 
+   * Since 960px and 384px are multiples of their respective tile sizes, the loop is seamless.
+   */
+  const ANIM_DURATION = '120s';
+  const TEXT_MOVE_X = '384px';
+  const TEXT_MOVE_Y = '384px';
+  const SHAPE_MOVE_X = '960px'; 
+  const SHAPE_MOVE_Y = '960px';
 
   if (settings.backgroundEffect === 'grid') {
-      // Grid handles its own logic, ignores shapes/hollow settings
       const gridCss = isDual
       ? `
           background-image: 
+              ${textOverlayUrl}
               linear-gradient(to right, ${baseColor} 1px, transparent 1px),
               linear-gradient(to bottom, ${baseColor} 1px, transparent 1px),
               linear-gradient(to right, ${accentColor} 1px, transparent 1px),
               linear-gradient(to bottom, ${accentColor} 1px, transparent 1px);
-          background-size: 24px 24px;
-          background-position: 0 0, 0 0, 12px 0, 0 12px;
+          background-size: ${hasText ? '384px 384px, ' : ''} 24px 24px, 24px 24px, 24px 24px, 24px 24px;
+          background-position: ${hasText ? 'center center, ' : ''} 0 0, 0 0, 12px 0, 0 12px;
         `
       : `
           background-image: 
+              ${textOverlayUrl}
               linear-gradient(to right, ${baseColor} 1px, transparent 1px),
               linear-gradient(to bottom, ${baseColor} 1px, transparent 1px);
-          background-size: 24px 24px;
-          background-position: center top;
+          background-size: ${hasText ? '384px 384px, ' : ''} 24px 24px, 24px 24px;
+          background-position: ${hasText ? 'center center, ' : ''} center top, center top;
         `;
       
       cssRule = `
@@ -115,21 +151,25 @@ export const BackgroundStyle: React.FC = () => {
         }
       `;
   } else {
-      // Handle Shape Patterns (Dots, Squares, Triangles)
       const type = settings.backgroundEffect as 'dots' | 'squares' | 'triangles';
+      const shape1 = createShapeSvg(type, baseColor);
+      const shape2 = createShapeSvg(type, accentColor);
       
       const patternCss = isDual
       ? `
           background-image: 
-              url("${createShapeSvg(type, baseColor)}"),
-              url("${createShapeSvg(type, accentColor)}");
-          background-size: 24px 24px;
-          background-position: 0 0, 12px 12px;
+              ${textOverlayUrl}
+              url("${shape1}"),
+              url("${shape2}");
+          background-size: ${hasText ? '384px 384px, ' : ''} 24px 24px, 24px 24px;
+          background-position: ${hasText ? 'center center, ' : ''} 0 0, 12px 12px;
         `
       : `
-          background-image: url("${createShapeSvg(type, baseColor)}");
-          background-size: 24px 24px;
-          background-position: center top;
+          background-image: 
+              ${textOverlayUrl}
+              url("${shape1}");
+          background-size: ${hasText ? '384px 384px, ' : ''} 24px 24px;
+          background-position: ${hasText ? 'center center, ' : ''} center top;
         `;
 
       cssRule = `
@@ -141,20 +181,56 @@ export const BackgroundStyle: React.FC = () => {
       `;
   }
 
-  return (
-    <style dangerouslySetInnerHTML={{ __html: `
-      /* Generated Background CSS */
-      ${cssRule}
-
-      /* Animation Logic (Scrolls the pattern) */
-      @keyframes bgScroll {
-        from { background-position: 0 0, 12px 12px, 12px 0, 0 12px; }
-        to { background-position: 24px 24px, 36px 36px, 36px 24px, 24px 36px; }
-      }
+  // --- KEYFRAME GENERATION ---
+  
+  const getToPositions = () => {
+      const textPos = `${TEXT_MOVE_X} ${TEXT_MOVE_Y}`;
       
-      .animate-grid {
-        animation: bgScroll 3s linear infinite;
+      if (settings.backgroundEffect === 'grid') {
+          if (isDual) {
+              return `${hasText ? textPos + ', ' : ''} ${SHAPE_MOVE_X} ${SHAPE_MOVE_Y}, ${SHAPE_MOVE_X} ${SHAPE_MOVE_Y}, calc(12px + ${SHAPE_MOVE_X}) ${SHAPE_MOVE_Y}, ${SHAPE_MOVE_X} calc(12px + ${SHAPE_MOVE_Y})`;
+          } else {
+              return `${hasText ? textPos + ', ' : ''} ${SHAPE_MOVE_X} ${SHAPE_MOVE_Y}, ${SHAPE_MOVE_X} ${SHAPE_MOVE_Y}`;
+          }
+      } else {
+          if (isDual) {
+              return `${hasText ? textPos + ', ' : ''} ${SHAPE_MOVE_X} ${SHAPE_MOVE_Y}, calc(12px + ${SHAPE_MOVE_X}) calc(12px + ${SHAPE_MOVE_Y})`;
+          } else {
+              return `${hasText ? textPos + ', ' : ''} ${SHAPE_MOVE_X} ${SHAPE_MOVE_Y}`;
+          }
       }
-    `}} />
+  };
+
+  const getFromPositions = () => {
+      // Must match initial background-positions exactly
+      if (settings.backgroundEffect === 'grid') {
+          if (isDual) return `${hasText ? 'center center, ' : ''} 0 0, 0 0, 12px 0, 0 12px`;
+          return `${hasText ? 'center center, ' : ''} center top, center top`;
+      } else {
+          if (isDual) return `${hasText ? 'center center, ' : ''} 0 0, 12px 12px`;
+          return `${hasText ? 'center center, ' : ''} center top`;
+      }
+  }
+
+  return (
+    <React.Fragment>
+        {/* Load Handwritten Font */}
+        <style dangerouslySetInnerHTML={{__html: `@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');`}} />
+        
+        <style dangerouslySetInnerHTML={{ __html: `
+        /* Generated Background CSS */
+        ${cssRule}
+
+        /* Animation Logic */
+        @keyframes bgScroll {
+            from { background-position: ${getFromPositions()}; }
+            to { background-position: ${getToPositions()}; }
+        }
+        
+        .animate-grid {
+            animation: bgScroll ${ANIM_DURATION} linear infinite;
+        }
+        `}} />
+    </React.Fragment>
   );
 };

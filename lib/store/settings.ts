@@ -55,6 +55,8 @@ export const useSettingsStore = create<SettingsStore>()(
         backgroundEffect: 'grid',
         dualColorBackground: false, // Default to single color (grey)
         hollowShapes: false, // Default to Solid
+        enableTextPattern: false, 
+        textPatternValue: "KAMYAR",
       },
       updateSettings: (updates) => set((state) => ({
         settings: { ...state.settings, ...updates }
