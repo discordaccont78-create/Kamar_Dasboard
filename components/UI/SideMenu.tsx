@@ -529,14 +529,14 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             </MenuSection>
 
             <MenuSection 
-                id="hardware" 
-                title="Hardware Modules" 
+                id="hardware_out" 
+                title="Output Modules" 
                 icon={Cpu} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
                 animations={settings.animations}
             >
-               {/* Hardware Content */}
+               {/* Shift Register Card */}
                <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
@@ -572,7 +572,17 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   </TechButton>
                 </CardContent>
               </Card>
+            </MenuSection>
 
+            <MenuSection 
+                id="hardware_in" 
+                title="Input Modules" 
+                icon={Cloud} 
+                activeId={activeSection} 
+                onToggle={handleSectionToggle}
+                animations={settings.animations}
+            >
+              {/* Weather Station Card */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-blue-500">
