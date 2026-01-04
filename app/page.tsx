@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { MotionConfig, AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { Header } from '../components/Header/Header';
@@ -435,7 +434,17 @@ export default function DashboardPage(): React.JSX.Element {
         </main>
 
         <footer className="fixed bottom-2 md:bottom-4 left-0 w-full px-2 md:px-6 z-[40] transition-colors duration-500 pointer-events-none">
-          <div className="bg-background/80 dark:bg-background/50 backdrop-blur-xl backdrop-saturate-150 border border-border/50 dark:border-white/5 rounded-xl md:rounded-2xl shadow-2xl py-2 px-4 md:py-4 md:px-10 flex items-center justify-between h-14 md:h-20 max-w-7xl mx-auto pointer-events-auto">
+          <div className="relative overflow-hidden bg-background/80 dark:bg-background/50 backdrop-blur-xl backdrop-saturate-150 border border-border/50 dark:border-white/5 rounded-xl md:rounded-2xl shadow-2xl py-2 px-4 md:py-4 md:px-10 flex items-center justify-between h-14 md:h-20 max-w-7xl mx-auto pointer-events-auto">
+            
+            {/* Top Edge Scanner Effect */}
+            <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-primary/5 w-full">
+               <MotionDiv
+                  animate={{ x: ["-100%", "350%"], opacity: [0, 1, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                  className="w-[40%] h-full bg-gradient-to-r from-transparent via-primary to-transparent opacity-80"
+               />
+            </div>
+
             <div className="flex items-center gap-2 md:gap-3 font-black text-[8px] md:text-[9px] uppercase tracking-[0.1em] md:tracking-[0.2em] text-primary">
               <Cpu className="w-3 h-3 md:w-4 md:h-4" /> 
               <span className="opacity-60">ESP32-NODE-PRO</span>
