@@ -69,22 +69,43 @@ export const BackgroundStyle: React.FC = () => {
 
   /**
    * Generates a sparse Text SVG Overlay.
-   * ViewBox is 384x384 (16x the size of the 24px grid) to achieve very low density.
+   * ViewBox is 384x384 (16x the size of the 24px grid).
    * Font: Dancing Script (Handwritten).
+   * 
+   * Updates:
+   * - Significantly reduced opacity.
+   * - Smaller font sizes (Volume).
    */
   const createTextSvg = (text: string) => {
       const sanitizedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      // Pure Grey with low opacity
-      const color = 'rgba(128, 128, 128, 0.15)'; 
+      
+      const baseGrey = '128, 128, 128'; 
+      let style = '';
+
+      if (isHollow) {
+          // Hollow: Empty Inside, Thin Outline, Low Opacity
+          style = `
+            font-size: 42px; 
+            fill: transparent; 
+            stroke: rgba(${baseGrey}, 0.12); 
+            stroke-width: 1px;
+          `;
+      } else {
+          // Solid: Small Font, Very Light Fill, No Outline
+          style = `
+            font-size: 16px; 
+            fill: rgba(${baseGrey}, 0.07); 
+            stroke: none;
+          `;
+      }
       
       const svg = `
         <svg width='384' height='384' viewBox='0 0 384 384' xmlns='http://www.w3.org/2000/svg'>
             <style>
                 .txt { 
                     font-family: 'Dancing Script', cursive; 
-                    font-size: 32px; 
-                    fill: ${color}; 
                     font-weight: 700; 
+                    ${style}
                 }
             </style>
             <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' class='txt' transform='rotate(-15, 192, 192)'>
@@ -104,23 +125,24 @@ export const BackgroundStyle: React.FC = () => {
 
   /**
    * Animation Physics:
-   * Loop Duration: 120s (Very Slow)
+   * Loop Duration: 240s (4 Minutes) -> Extremely slow loop to allow subtle text drift.
+   * Direction: Diagonal (Positive X, Positive Y) -> Top-Left to Bottom-Right.
    * 
-   * Text Movement:
-   * Moves 1 Tile (384px) in 120s.
-   * Speed: 3.2 px/s (Very slow floating)
+   * Text Movement: 
+   * Moves 1 Tile (384px) in 240s.
+   * Speed: 1.6 px/s (Ghostly float)
    * 
    * Grid/Shape Movement:
-   * Moves 40 Tiles (24px * 40 = 960px) in 120s.
-   * Speed: 8 px/s (Energetic)
+   * Moves 80 Tiles (24px * 80 = 1920px) in 240s.
+   * Speed: 8 px/s (Standard energy)
    * 
-   * Since 960px and 384px are multiples of their respective tile sizes, the loop is seamless.
+   * Ratio: Pattern moves 5x faster than text.
    */
-  const ANIM_DURATION = '120s';
+  const ANIM_DURATION = '240s';
   const TEXT_MOVE_X = '384px';
   const TEXT_MOVE_Y = '384px';
-  const SHAPE_MOVE_X = '960px'; 
-  const SHAPE_MOVE_Y = '960px';
+  const SHAPE_MOVE_X = '1920px'; 
+  const SHAPE_MOVE_Y = '1920px';
 
   if (settings.backgroundEffect === 'grid') {
       const gridCss = isDual
@@ -202,7 +224,7 @@ export const BackgroundStyle: React.FC = () => {
   };
 
   const getFromPositions = () => {
-      // Must match initial background-positions exactly
+      // Must match initial background-positions exactly to prevent jumping
       if (settings.backgroundEffect === 'grid') {
           if (isDual) return `${hasText ? 'center center, ' : ''} 0 0, 0 0, 12px 0, 0 12px`;
           return `${hasText ? 'center center, ' : ''} center top, center top`;

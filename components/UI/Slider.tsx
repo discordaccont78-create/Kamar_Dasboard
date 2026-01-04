@@ -1,1 +1,2 @@
-// This file is deprecated. Please use components/ui/slider.tsx
+
+export * from "../ui/slider";
