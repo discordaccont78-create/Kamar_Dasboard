@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun, Settings, Zap, Terminal, CalendarClock, Activity, Hash, Monitor } from 'lucide-react';
 import { ConnectionStatus } from './ConnectionStatus';
 import { useSettingsStore } from '../../lib/store/settings';
+import { useCursorStore } from '../../lib/store/cursorStore';
 import { SchedulerDialog } from '../Scheduler/SchedulerDialog';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
@@ -114,6 +115,72 @@ const SparkBolt = ({ active }: { active: boolean }) => {
     );
 };
 
+// --- CURSOR DISCHARGE BOLT: The arc jumping from Logo to Cursor ---
+// Updated to use jagged lines (Math.random) instead of Smooth Curve (Q)
+const CursorDischargeBolt = ({ start, end }: { start: {x:number, y:number} | null, end: {x:number, y:number} | null }) => {
+    if (!start || !end) return null;
+
+    // Generate Jagged Lightning Path
+    const segments = 6;
+    let d = `M ${start.x} ${start.y}`;
+    
+    // Create random intermediate points
+    for (let i = 1; i < segments; i++) {
+        const t = i / segments;
+        const x = start.x + (end.x - start.x) * t;
+        const y = start.y + (end.y - start.y) * t;
+        
+        // Add jitter perpendicular to the path
+        const jitter = 30; 
+        const offsetX = (Math.random() - 0.5) * jitter;
+        const offsetY = (Math.random() - 0.5) * jitter;
+        
+        d += ` L ${x + offsetX} ${y + offsetY}`;
+    }
+    
+    d += ` L ${end.x} ${end.y}`;
+
+    return (
+        <div className="fixed inset-0 pointer-events-none z-[100] overflow-visible">
+             <svg className="w-full h-full overflow-visible">
+                <defs>
+                    <filter id="cursor-bolt-glow">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                </defs>
+                <MotionPath
+                    d={d}
+                    stroke="hsl(var(--primary))"
+                    strokeWidth="3"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    filter="url(#cursor-bolt-glow)"
+                    initial={{ pathLength: 0, opacity: 1, strokeWidth: 1 }}
+                    animate={{ pathLength: 1, opacity: [1, 0], strokeWidth: [1, 4, 0] }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                />
+                {/* Core white hot center */}
+                <MotionPath
+                    d={d}
+                    stroke="white"
+                    strokeWidth="1.5"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    initial={{ pathLength: 0, opacity: 1 }}
+                    animate={{ pathLength: 1, opacity: [1, 0] }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                />
+             </svg>
+        </div>
+    )
+}
+
 // --- GLITCH TITLE COMPONENT ---
 const GlitchTitle = ({ text, active, discharging }: { text: string, active: boolean, discharging: boolean }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -175,16 +242,18 @@ const GlitchTitle = ({ text, active, discharging }: { text: string, active: bool
 
 export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const { settings, updateSettings } = useSettingsStore();
+  const { setCharged } = useCursorStore(); // Hook into cursor state
   const [time, setTime] = useState<string>('');
   const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
   
   // --- SPARK SYSTEM STATE ---
-  // 'idle': nothing happening
-  // 'discharge': text flashes, spark flies
-  // 'impact': spark hits logo, logo glows
   const [sparkState, setSparkState] = useState<'idle' | 'discharge' | 'impact'>('idle');
+  
+  // --- INTERACTIVE CHARGE STATE ---
+  const [isLogoCharged, setIsLogoCharged] = useState(false);
+  const logoRef = useRef<HTMLDivElement>(null);
+  const [cursorBolt, setCursorBolt] = useState<{start: {x:number, y:number}, end: {x:number, y:number}} | null>(null);
 
-  // Import new sound effects
   const { playClick, playToggle, playSpark, playCharge } = useSoundFx();
   const t = translations[settings.language];
 
@@ -197,30 +266,77 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     return () => clearInterval(interval);
   }, [settings.language]);
 
-  // --- THE "ALIVE" INTERVAL ---
+  // --- 1. THE "ALIVE" INTERVAL (Text -> Logo) ---
   useEffect(() => {
       if (!settings.animations) return;
 
       const loop = setInterval(() => {
-          // 1. Start Discharge (Text Flash + Spark Travel)
           setSparkState('discharge');
-          playSpark(); // Sound 1: Electric Zip
+          playSpark(); // Zip sound
 
-          // 2. Impact (Spark hits Logo) - 250ms later (sync with spark duration)
           setTimeout(() => {
               setSparkState('impact');
-              playCharge(); // Sound 2: Deep Thud/Absorb
+              playCharge(); // Thud sound
+              // LOGO GETS CHARGED HERE
+              setIsLogoCharged(true);
+              
+              // Charge lasts for 3 seconds max, then dissipates if not touched
+              setTimeout(() => {
+                  setIsLogoCharged(false);
+              }, 3000);
+
           }, 250);
 
-          // 3. Reset to Idle - 500ms after impact
           setTimeout(() => {
               setSparkState('idle');
           }, 750);
 
-      }, 6000); // Happens every 6 seconds
+      }, 6000); 
 
       return () => clearInterval(loop);
   }, [settings.animations, playSpark, playCharge]);
+
+  // --- 2. THE INTERACTIVE DISCHARGE (Logo -> Cursor) ---
+  useEffect(() => {
+      if (!isLogoCharged || !logoRef.current) return;
+
+      const handleMouseMove = (e: MouseEvent) => {
+          if (!isLogoCharged) return; // Double check inside closure
+
+          const rect = logoRef.current!.getBoundingClientRect();
+          const logoCenterX = rect.left + rect.width / 2;
+          const logoCenterY = rect.top + rect.height / 2;
+
+          // Calculate distance
+          const dist = Math.hypot(e.clientX - logoCenterX, e.clientY - logoCenterY);
+          
+          // Trigger threshold (e.g., 150px)
+          if (dist < 150) {
+              // FIRE THE BOLT!
+              playSpark(); // Play zap sound again
+              setCursorBolt({
+                  start: { x: logoCenterX, y: logoCenterY },
+                  end: { x: e.clientX, y: e.clientY }
+              });
+              
+              // Remove charge from Logo immediately
+              setIsLogoCharged(false);
+
+              // CHARGE THE CURSOR
+              setCharged(true);
+              setTimeout(() => {
+                  setCharged(false);
+              }, 1500); // Cursor stays charged for 1.5s
+
+              // Clear the visual bolt after animation
+              setTimeout(() => setCursorBolt(null), 300);
+          }
+      };
+
+      window.addEventListener('mousemove', handleMouseMove);
+      return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isLogoCharged, playSpark, setCharged]);
+
 
   const toggleTheme = () => {
     playToggle(settings.theme === 'light');
@@ -252,7 +368,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     }
   };
 
-  // Logo Animation Variants depending on Spark State
+  // Logo Animation Variants
   const logoVariants = {
     idle: {
       scale: 1,
@@ -268,8 +384,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
           'drop-shadow(0 0 20px rgba(255,255,255,0.9))', // Bright white flash
           'drop-shadow(0 0 10px rgba(218,165,32,0.5))'
       ],
-      color: ["hsl(var(--primary))", "#ffffff", "hsl(var(--primary))"], // Flash white
+      color: ["hsl(var(--primary))", "#ffffff", "hsl(var(--primary))"], 
       transition: { duration: 0.4, ease: "backOut" }
+    },
+    charged: {
+        scale: [1, 1.05, 1],
+        filter: 'drop-shadow(0 0 8px rgba(218,165,32,0.8))', // Steady Glow
+        transition: { duration: 1, repeat: Infinity, repeatType: "reverse" }
     }
   };
 
@@ -280,6 +401,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     <header className="sticky top-2 md:top-6 z-50 px-2 md:px-8 transition-all duration-500 pointer-events-none">
       <div className="max-w-[1400px] mx-auto flex items-stretch justify-between gap-2 md:gap-4 relative pointer-events-auto h-[60px] md:h-[72px]">
         
+        {/* === VISUAL FX LAYER === */}
+        {cursorBolt && <CursorDischargeBolt start={cursorBolt.start} end={cursorBolt.end} />}
+
         {/* === ISLAND 1: IDENTITY (Spark System) === */}
         <MotionDiv
           variants={islandVariants}
@@ -299,14 +423,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
               <div className="flex items-center gap-3 md:gap-4 z-10 relative w-full">
                   
                   {/* LOGO: The Target of the Spark */}
-                  <MotionDiv 
-                    className="bg-background border-2 border-primary p-1.5 md:p-2 rounded-xl cursor-pointer relative z-30"
-                    animate={sparkState === 'impact' ? 'impact' : 'idle'}
-                    variants={logoVariants}
-                    style={{ borderColor: sparkState === 'impact' ? 'white' : '' }} // Flash border too
-                  >
-                    <Zap className="w-4 h-4 md:w-6 md:h-6 fill-current transition-colors" strokeWidth={0} />
-                  </MotionDiv>
+                  <div ref={logoRef} className="relative z-30">
+                    <MotionDiv 
+                        className="bg-background border-2 border-primary p-1.5 md:p-2 rounded-xl cursor-pointer"
+                        animate={sparkState === 'impact' ? 'impact' : (isLogoCharged ? 'charged' : 'idle')}
+                        variants={logoVariants}
+                        style={{ borderColor: sparkState === 'impact' ? 'white' : '' }} 
+                    >
+                        <Zap className="w-4 h-4 md:w-6 md:h-6 fill-current transition-colors" strokeWidth={0} />
+                    </MotionDiv>
+                  </div>
                   
                   {/* SPARK ANIMATION: Bridges the gap (Absolute to avoid layout shift) */}
                   <SparkBolt active={sparkState === 'discharge'} />
