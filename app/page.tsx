@@ -434,15 +434,37 @@ export default function DashboardPage(): React.JSX.Element {
         </main>
 
         <footer className="fixed bottom-2 md:bottom-4 left-0 w-full px-2 md:px-6 z-[40] transition-colors duration-500 pointer-events-none">
-          <div className="relative overflow-hidden bg-background/80 dark:bg-background/50 backdrop-blur-xl backdrop-saturate-150 border border-border/50 dark:border-white/5 rounded-xl md:rounded-2xl shadow-2xl py-2 px-4 md:py-4 md:px-10 flex items-center justify-between h-14 md:h-20 max-w-7xl mx-auto pointer-events-auto">
+          <div className="relative overflow-hidden bg-background/80 dark:bg-background/50 backdrop-blur-xl backdrop-saturate-150 border border-border/50 dark:border-white/5 rounded-xl md:rounded-2xl shadow-2xl py-2 px-4 md:py-4 md:px-10 flex items-center justify-between h-14 md:h-20 max-w-7xl mx-auto pointer-events-auto group">
             
-            {/* Top Edge Scanner Effect */}
-            <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-primary/5 w-full">
+            {/* Top Edge Electric Rail - High Voltage Effect */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-primary/10 w-full overflow-visible">
                <MotionDiv
-                  animate={{ x: ["-100%", "350%"], opacity: [0, 1, 0] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                  className="w-[40%] h-full bg-gradient-to-r from-transparent via-primary to-transparent opacity-80"
-               />
+                  initial={{ left: "-20%" }}
+                  animate={{ left: "120%" }}
+                  transition={{ 
+                      duration: 3, 
+                      repeat: Infinity, 
+                      ease: "easeInOut",
+                      repeatDelay: 1 
+                  }}
+                  className="absolute top-0 bottom-0 w-[150px] h-full z-10"
+                  style={{
+                      background: 'linear-gradient(90deg, transparent 0%, hsla(var(--primary), 0.3) 50%, hsl(var(--primary)) 100%)',
+                  }}
+               >
+                   {/* The Head Spark (The Rock's Eyebrow Flash) */}
+                   <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white shadow-[0_0_15px_3px_hsl(var(--primary))] rounded-full z-20" />
+                   
+                   {/* Vertical Arc (The Jitter) */}
+                   <MotionDiv 
+                      animate={{ 
+                          height: [4, 16, 4, 12, 4], 
+                          opacity: [0, 1, 0.5, 1, 0],
+                      }}
+                      transition={{ duration: 0.1, repeat: Infinity, repeatType: "mirror" }}
+                      className="absolute right-0 top-1/2 -translate-y-1/2 w-[2px] bg-white/90 blur-[0.5px] shadow-[0_0_8px_1px_hsl(var(--primary))]"
+                   />
+               </MotionDiv>
             </div>
 
             <div className="flex items-center gap-2 md:gap-3 font-black text-[8px] md:text-[9px] uppercase tracking-[0.1em] md:tracking-[0.2em] text-primary">
