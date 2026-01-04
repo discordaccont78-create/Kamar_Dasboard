@@ -11,7 +11,7 @@ import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
   Settings as SettingsIcon, X, Zap, Play, Activity, Monitor, 
   SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type, TableProperties,
-  Grid3X3, CircleDot, MousePointer2, Palette, Volume2, Square, Triangle, Circle, Sticker
+  Grid3X3, CircleDot, MousePointer2, Palette, Volume2, Square, Triangle, Circle, Sticker, Droplets
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -260,12 +260,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
         segType: 'Input-0-1', 
         gpio: pin,
         dhtPin: pin,
+        dhtType: dhtForm.type,
         temperature: 0,
         humidity: 0,
         is_led_on: 'off',
         val_of_slide: 0
     });
-    setDhtForm({ gpio: '', name: '', group: '' });
+    setDhtForm({ gpio: '', name: '', group: '', type: 'DHT11' });
     addToast("Weather module added", "success");
   };
 
@@ -584,6 +585,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                      <Input type="number" value={dhtForm.gpio} onChange={e => setDhtForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="Data Pin GPIO" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.type}</label>
+                     <select value={dhtForm.type} onChange={e => setDhtForm({ type: e.target.value as 'DHT11' | 'DHT22' })} className="col-span-3 h-9 rounded-md border border-input bg-background px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-foreground">
+                        <option value="DHT11">DHT11 (Blue)</option>
+                        <option value="DHT22">DHT22 (White)</option>
+                      </select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
                      <Input 
                         value={dhtForm.name} 
@@ -679,6 +687,47 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                     />
                                 </div>
                             )}
+
+                            {/* Opacity Sliders */}
+                            <div className="space-y-4 pt-2">
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                            <Droplets size={12} /> Primary Opacity
+                                        </label>
+                                        <span className="text-[9px] font-mono font-bold text-primary">{settings.patternOpacity ?? 15}%</span>
+                                    </div>
+                                    <Slider 
+                                        value={[settings.patternOpacity ?? 15]}
+                                        onValueChange={(val) => updateSettings({ patternOpacity: val[0] })}
+                                        max={100}
+                                        step={1}
+                                        className="h-4"
+                                    />
+                                </div>
+
+                                {settings.dualColorBackground && settings.backgroundEffect !== 'grid' && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        className="space-y-2"
+                                    >
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                                <Droplets size={12} /> Secondary Opacity
+                                            </label>
+                                            <span className="text-[9px] font-mono font-bold text-primary">{settings.secondaryPatternOpacity ?? 20}%</span>
+                                        </div>
+                                        <Slider 
+                                            value={[settings.secondaryPatternOpacity ?? 20]}
+                                            onValueChange={(val) => updateSettings({ secondaryPatternOpacity: val[0] })}
+                                            max={100}
+                                            step={1}
+                                            className="h-4"
+                                        />
+                                    </motion.div>
+                                )}
+                            </div>
 
                             {/* Text Overlay Toggle & Input */}
                             <div className="pt-2 border-t border-border/30 mt-2">

@@ -28,14 +28,17 @@ export const BackgroundStyle: React.FC = () => {
   const isDual = settings.dualColorBackground && settings.backgroundEffect !== 'grid';
   const isHollow = settings.hollowShapes;
   
+  // Calculate dynamic opacity
+  const mainOpacity = (settings.patternOpacity ?? (isDark ? 15 : 8)) / 100;
+  const secOpacity = (settings.secondaryPatternOpacity ?? (isDark ? 20 : 12)) / 100;
+
   // 1. Define Base Color (The "Grey" part)
   const baseColor = isDark 
-    ? 'rgba(255,255,255,0.15)' 
-    : 'rgba(0,0,0,0.08)';
+    ? `rgba(255,255,255,${mainOpacity})` 
+    : `rgba(0,0,0,${mainOpacity})`;
 
   // 2. Define Accent Color
-  const accentAlpha = isDark ? 0.20 : 0.12;
-  const accentColor = hexToRgba(settings.cursorColor || '#daa520', accentAlpha);
+  const accentColor = hexToRgba(settings.cursorColor || '#daa520', secOpacity);
 
   // --- SHAPE GENERATION LOGIC ---
 

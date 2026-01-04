@@ -59,6 +59,7 @@ export interface Segment {
   
   // Weather
   readonly dhtPin?: number;
+  readonly dhtType?: 'DHT11' | 'DHT22';
   temperature?: number; 
   humidity?: number;    
   
@@ -116,6 +117,8 @@ export interface AppSettings {
   hollowShapes: boolean; // New: Toggles between filled and outlined shapes
   enableTextPattern: boolean; // New: Text Overlay Toggle
   textPatternValue: string; // New: The text string
+  patternOpacity?: number; // 0-100
+  secondaryPatternOpacity?: number; // 0-100
 }
 
 export interface LogEntry {

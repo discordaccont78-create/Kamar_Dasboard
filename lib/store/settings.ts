@@ -57,6 +57,8 @@ export const useSettingsStore = create<SettingsStore>()(
         hollowShapes: false, // Default to Solid
         enableTextPattern: false, 
         textPatternValue: "KAMYAR",
+        patternOpacity: 15,
+        secondaryPatternOpacity: 20
       },
       updateSettings: (updates) => set((state) => ({
         settings: { ...state.settings, ...updates }

@@ -26,7 +26,7 @@ interface UIState {
   regForm: { ds: string; shcp: string; stcp: string; group: string };
   setRegForm: (data: Partial<UIState['regForm']>) => void;
 
-  dhtForm: { gpio: string; name: string; group: string };
+  dhtForm: { gpio: string; name: string; group: string; type: 'DHT11' | 'DHT22' };
   setDhtForm: (data: Partial<UIState['dhtForm']>) => void;
 
   timerForm: { hours: number; minutes: number; seconds: number; targetSegmentId: string };
@@ -49,7 +49,7 @@ export const useUIStore = create<UIState>()(
       regForm: { ds: '', shcp: '', stcp: '', group: '' },
       setRegForm: (data) => set((state) => ({ regForm: { ...state.regForm, ...data } })),
 
-      dhtForm: { gpio: '', name: '', group: '' },
+      dhtForm: { gpio: '', name: '', group: '', type: 'DHT11' },
       setDhtForm: (data) => set((state) => ({ dhtForm: { ...state.dhtForm, ...data } })),
 
       timerForm: { hours: 0, minutes: 0, seconds: 0, targetSegmentId: '' },
