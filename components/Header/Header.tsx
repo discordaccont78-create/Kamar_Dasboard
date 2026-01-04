@@ -17,6 +17,70 @@ interface HeaderProps {
 // Workaround for Framer Motion types compatibility
 const MotionDiv = motion.div as any;
 const MotionButton = motion.button as any;
+const MotionPath = motion.path as any;
+
+// --- Electric Connection Component ---
+const ElectricConnection = React.memo(({ color }: { color: string }) => {
+  // Generates a jagged electric path
+  return (
+    <div className="absolute top-0 bottom-0 -left-3 md:-left-5 w-4 md:w-6 flex items-center justify-center overflow-visible pointer-events-none z-50">
+       <svg viewBox="0 0 100 100" className="w-[250%] h-full overflow-visible" preserveAspectRatio="none">
+          <defs>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          
+          {/* Main Bolt: Flows Left to Right */}
+          <MotionPath 
+             d="M0,50 L20,30 L40,70 L60,20 L80,60 L100,50"
+             stroke={color}
+             strokeWidth="3"
+             fill="none"
+             strokeLinecap="round"
+             strokeLinejoin="round"
+             filter="url(#glow)"
+             initial={{ pathLength: 0, opacity: 0 }}
+             animate={{ 
+                pathLength: [0, 1.2, 1.2], // Draw completely
+                opacity: [0, 1, 0],       // Fade in/out
+                pathOffset: [0, 0, 1]     // Move along
+             }}
+             transition={{
+                duration: 2, // Cycle every 2 seconds
+                repeat: Infinity,
+                ease: "easeInOut",
+                times: [0, 0.1, 1] // Fast attack, slow decay
+             }}
+          />
+          
+          {/* Secondary Chaotic Sparks */}
+          <MotionPath 
+             d="M10,50 L30,60 L50,40 L70,55 L90,50"
+             stroke={color}
+             strokeWidth="1"
+             fill="none"
+             opacity="0.6"
+             initial={{ pathLength: 0, opacity: 0 }}
+             animate={{ 
+                pathLength: [0, 1, 0],
+                opacity: [0, 0.8, 0]
+             }}
+             transition={{
+                duration: 0.3,
+                repeat: Infinity,
+                repeatDelay: 0.5,
+                ease: "linear"
+             }}
+          />
+       </svg>
+    </div>
+  )
+});
 
 export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const { settings, updateSettings } = useSettingsStore();
@@ -161,6 +225,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
             transition={{ delay: 0.1 }}
             className="relative flex-1 drop-shadow-xl filter"
         >
+            {/* ELECTRIC CONNECTION EFFECT (BRIDGING THE GAP) */}
+            <ElectricConnection color={settings.cursorColor || "#daa520"} />
+
             {/* 1. Border Layer */}
             <div 
              className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl"
