@@ -34,5 +34,24 @@ export function useSoundFx() {
     if (settings.enableSFX) soundEngine.playSweep();
   }, [settings.enableSFX]);
 
-  return { playClick, playToggle, playSuccess, playError, playType, playBlip, playSweep };
+  // New Electrical Sounds
+  const playSpark = useCallback(() => {
+    if (settings.enableSFX) soundEngine.playSpark();
+  }, [settings.enableSFX]);
+
+  const playCharge = useCallback(() => {
+    if (settings.enableSFX) soundEngine.playCharge();
+  }, [settings.enableSFX]);
+
+  return { 
+    playClick, 
+    playToggle, 
+    playSuccess, 
+    playError, 
+    playType, 
+    playBlip, 
+    playSweep,
+    playSpark,
+    playCharge
+  };
 }

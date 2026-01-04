@@ -184,7 +184,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   // 'impact': spark hits logo, logo glows
   const [sparkState, setSparkState] = useState<'idle' | 'discharge' | 'impact'>('idle');
 
-  const { playClick, playToggle, playSuccess } = useSoundFx();
+  // Import new sound effects
+  const { playClick, playToggle, playSpark, playCharge } = useSoundFx();
   const t = translations[settings.language];
 
   useEffect(() => {
@@ -203,12 +204,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
       const loop = setInterval(() => {
           // 1. Start Discharge (Text Flash + Spark Travel)
           setSparkState('discharge');
+          playSpark(); // Sound 1: Electric Zip
 
           // 2. Impact (Spark hits Logo) - 250ms later (sync with spark duration)
           setTimeout(() => {
               setSparkState('impact');
-              // Optional: Play a tiny electrical sound here if desired
-              // if(settings.enableSFX) playSuccess(); 
+              playCharge(); // Sound 2: Deep Thud/Absorb
           }, 250);
 
           // 3. Reset to Idle - 500ms after impact
@@ -219,7 +220,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
       }, 6000); // Happens every 6 seconds
 
       return () => clearInterval(loop);
-  }, [settings.animations]);
+  }, [settings.animations, playSpark, playCharge]);
 
   const toggleTheme = () => {
     playToggle(settings.theme === 'light');

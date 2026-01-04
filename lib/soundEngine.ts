@@ -192,6 +192,63 @@ class SoundEngine {
         osc.start();
         osc.stop(this.ctx.currentTime + 0.2);
     }
+
+    // --- NEW: ELECTRICAL EFFECTS ---
+
+    // 1. The Spark (Zap)
+    // A quick, high-pitch Sawtooth wave that drops in pitch rapidly.
+    public playSpark() {
+        this.init();
+        if (!this.ctx || !this.masterGain) return;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+
+        // Sawtooth gives that "electric" buzzy quality
+        osc.type = 'sawtooth';
+        
+        // Start high (2500Hz) and drop quickly to simulate the arc jumping
+        osc.frequency.setValueAtTime(2500, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.15);
+
+        // Volume Envelope: Sharp attack, sharp decay
+        gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.15, this.ctx.currentTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+    }
+
+    // 2. The Charge (Impact/Absorb)
+    // A lower, resonant Sine wave that swells slightly.
+    public playCharge() {
+        this.init();
+        if (!this.ctx || !this.masterGain) return;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc.type = 'sine';
+        
+        // Start low (150Hz) and pitch down slightly (heaviness)
+        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(80, this.ctx.currentTime + 0.3);
+
+        // Volume Envelope: Softer attack (absorption feel), longer decay
+        gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.25, this.ctx.currentTime + 0.05); // Impact
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4); // Fade out
+
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.4);
+    }
   }
   
   export const soundEngine = new SoundEngine();
