@@ -20,8 +20,31 @@ const MotionButton = motion.button as any;
 const MotionPath = motion.path as any;
 const MotionSpan = motion.span as any;
 const MotionSvg = motion.svg as any;
+const MotionCircle = motion.circle as any;
 
-// --- Electric Connection Component (Static Decoration) ---
+// --- Helper: Generate Jagged Path Data ---
+// Creates a chaotic lightning path string
+const generateJaggedPath = (startX: number, startY: number, endX: number, endY: number, segments: number, amplitude: number) => {
+    let d = `M ${startX} ${startY}`;
+    for (let i = 1; i < segments; i++) {
+        const t = i / segments;
+        const x = startX + (endX - startX) * t;
+        const y = startY + (endY - startY) * t;
+        
+        // Calculate perpendicular offset
+        const offset = (Math.random() - 0.5) * amplitude;
+        
+        // For a horizontal-ish line, simple Y offset works best for lightning look
+        // For arbitrary angles, we'd add vector math, but here X/Y jitter is enough
+        const jitterX = (Math.random() - 0.5) * (amplitude / 2);
+        
+        d += ` L ${x + jitterX} ${y + offset}`;
+    }
+    d += ` L ${endX} ${endY}`;
+    return d;
+};
+
+// --- Electric Connection Component (Static Decoration between Islands) ---
 const ElectricConnection = React.memo(({ color }: { color: string }) => {
   return (
     <div className="absolute top-0 bottom-0 -left-3 md:-left-5 w-4 md:w-6 flex items-center justify-center overflow-visible pointer-events-none z-50">
@@ -61,10 +84,16 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
   )
 });
 
-// --- SPARK BOLT: The arc jumping from Text to Logo ---
+// --- SPARK BOLT: The arc jumping from Text to Logo (High Density) ---
 const SparkBolt = ({ active }: { active: boolean }) => {
+    // Generate chaotic paths on every render (triggered by parent state change)
+    // We use 3 distinct paths to create volume and density
+    const path1 = generateJaggedPath(100, 10, 0, 10, 8, 15);  // Wide jitter
+    const path2 = generateJaggedPath(100, 10, 0, 10, 12, 10); // Medium jitter
+    const path3 = generateJaggedPath(100, 10, 0, 10, 6, 5);   // Core tight
+
     return (
-        <div className="absolute top-1/2 left-8 right-0 -translate-y-1/2 h-8 pointer-events-none z-20 overflow-visible">
+        <div className="absolute top-1/2 left-8 right-0 -translate-y-1/2 h-20 pointer-events-none z-20 overflow-visible">
             <AnimatePresence>
                 {active && (
                     <MotionSvg
@@ -74,7 +103,7 @@ const SparkBolt = ({ active }: { active: boolean }) => {
                         exit={{ opacity: 0 }}
                     >
                         <defs>
-                            <filter id="bolt-glow" x="-50%" y="-50%" width="200%" height="200%">
+                            <filter id="bolt-glow-dense" x="-50%" y="-50%" width="200%" height="200%">
                                 <feGaussianBlur stdDeviation="2" result="blur" />
                                 <feMerge>
                                     <feMergeNode in="blur" />
@@ -82,32 +111,53 @@ const SparkBolt = ({ active }: { active: boolean }) => {
                                 </feMerge>
                             </filter>
                         </defs>
-                        {/* The Bolt Path: Moves Right to Left (Text to Logo) */}
+                        
+                        {/* Layer 1: Outer Aura (Faint, Wide) */}
                         <MotionPath
-                            d="M 100 10 L 80 5 L 60 15 L 40 2 L 20 12 L 0 10"
+                            d={path1}
                             stroke="hsl(var(--primary))"
-                            strokeWidth="2"
+                            strokeWidth="6"
+                            strokeOpacity="0.2"
                             fill="none"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            filter="url(#bolt-glow)"
-                            initial={{ pathLength: 0, opacity: 0 }}
-                            animate={{ 
-                                pathLength: [0, 1], 
-                                opacity: [0, 1, 0],
-                                strokeWidth: [1, 3, 0]
-                            }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            filter="url(#bolt-glow-dense)"
+                            initial={{ pathLength: 0 }}
+                            animate={{ pathLength: 1 }}
+                            transition={{ duration: 0.1, ease: "linear" }}
                         />
-                        {/* Secondary Sparkles */}
+
+                        {/* Layer 2: Main Body (Primary Color) */}
                         <MotionPath
-                            d="M 90 10 L 85 15 M 50 10 L 45 5"
-                            stroke="white"
-                            strokeWidth="1"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: [0, 1, 0] }}
-                            transition={{ duration: 0.2, delay: 0.1 }}
+                            d={path2}
+                            stroke="hsl(var(--primary))"
+                            strokeWidth="3"
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            filter="url(#bolt-glow-dense)"
+                            initial={{ pathLength: 0, opacity: 0.5 }}
+                            animate={{ pathLength: 1, opacity: 1 }}
+                            transition={{ duration: 0.15, ease: "easeOut" }}
                         />
+
+                        {/* Layer 3: White Hot Core */}
+                        <MotionPath
+                            d={path3}
+                            stroke="white"
+                            strokeWidth="1.5"
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            initial={{ pathLength: 0, opacity: 0 }}
+                            animate={{ pathLength: 1, opacity: 1 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
+                        />
+
+                        {/* Particles: Flying Sparks */}
+                        <MotionCircle cx="80" cy="10" r="1.5" fill="white" initial={{ opacity:0, cx:90 }} animate={{ opacity: [0,1,0], cx: 60, cy: 5 }} transition={{ duration: 0.3 }} />
+                        <MotionCircle cx="50" cy="10" r="1" fill="hsl(var(--primary))" initial={{ opacity:0 }} animate={{ opacity: [0,1,0], cx: 40, cy: 15 }} transition={{ duration: 0.3, delay: 0.05 }} />
+                        <MotionCircle cx="20" cy="10" r="1.5" fill="white" initial={{ opacity:0 }} animate={{ opacity: [0,1,0], cx: 10, cy: 2 }} transition={{ duration: 0.3, delay: 0.1 }} />
                     </MotionSvg>
                 )}
             </AnimatePresence>
@@ -115,60 +165,63 @@ const SparkBolt = ({ active }: { active: boolean }) => {
     );
 };
 
-// --- CURSOR DISCHARGE BOLT: The arc jumping from Logo to Cursor ---
-// Updated to use jagged lines (Math.random) instead of Smooth Curve (Q)
+// --- CURSOR DISCHARGE BOLT: The arc jumping from Logo to Cursor (High Density) ---
 const CursorDischargeBolt = ({ start, end }: { start: {x:number, y:number} | null, end: {x:number, y:number} | null }) => {
     if (!start || !end) return null;
 
-    // Generate Jagged Lightning Path
-    const segments = 6;
-    let d = `M ${start.x} ${start.y}`;
-    
-    // Create random intermediate points
-    for (let i = 1; i < segments; i++) {
-        const t = i / segments;
-        const x = start.x + (end.x - start.x) * t;
-        const y = start.y + (end.y - start.y) * t;
-        
-        // Add jitter perpendicular to the path
-        const jitter = 30; 
-        const offsetX = (Math.random() - 0.5) * jitter;
-        const offsetY = (Math.random() - 0.5) * jitter;
-        
-        d += ` L ${x + offsetX} ${y + offsetY}`;
-    }
-    
-    d += ` L ${end.x} ${end.y}`;
+    // Generate 3 intense paths for the cursor discharge
+    // Higher amplitude because the distance is usually larger and it needs to look like a strike
+    const path1 = generateJaggedPath(start.x, start.y, end.x, end.y, 8, 40);
+    const path2 = generateJaggedPath(start.x, start.y, end.x, end.y, 12, 20);
+    const path3 = generateJaggedPath(start.x, start.y, end.x, end.y, 6, 10);
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[100] overflow-visible">
              <svg className="w-full h-full overflow-visible">
                 <defs>
-                    <filter id="cursor-bolt-glow">
-                        <feGaussianBlur stdDeviation="3" result="blur" />
+                    <filter id="cursor-bolt-glow-dense">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
                         <feMerge>
                             <feMergeNode in="blur" />
                             <feMergeNode in="SourceGraphic" />
                         </feMerge>
                     </filter>
                 </defs>
+                
+                {/* 1. Large Blur Aura */}
                 <MotionPath
-                    d={d}
+                    d={path1}
                     stroke="hsl(var(--primary))"
-                    strokeWidth="3"
+                    strokeWidth="8"
+                    strokeOpacity="0.2"
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    filter="url(#cursor-bolt-glow)"
+                    filter="url(#cursor-bolt-glow-dense)"
+                    initial={{ pathLength: 0, opacity: 1 }}
+                    animate={{ pathLength: 1, opacity: [1, 0] }}
+                    transition={{ duration: 0.2, ease: "linear" }}
+                />
+
+                {/* 2. Main Electric Arc */}
+                <MotionPath
+                    d={path2}
+                    stroke="hsl(var(--primary))"
+                    strokeWidth="4"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    filter="url(#cursor-bolt-glow-dense)"
                     initial={{ pathLength: 0, opacity: 1, strokeWidth: 1 }}
-                    animate={{ pathLength: 1, opacity: [1, 0], strokeWidth: [1, 4, 0] }}
+                    animate={{ pathLength: 1, opacity: [1, 0], strokeWidth: [2, 5, 0] }}
                     transition={{ duration: 0.25, ease: "easeOut" }}
                 />
-                {/* Core white hot center */}
+
+                {/* 3. White Core */}
                 <MotionPath
-                    d={d}
+                    d={path3}
                     stroke="white"
-                    strokeWidth="1.5"
+                    strokeWidth="2"
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
