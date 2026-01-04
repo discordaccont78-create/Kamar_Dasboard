@@ -58,7 +58,12 @@ export const useSettingsStore = create<SettingsStore>()(
         enableTextPattern: false, 
         textPatternValue: "KAMYAR",
         patternOpacity: 15,
-        secondaryPatternOpacity: 20
+        secondaryPatternOpacity: 20,
+        
+        // Grid Defaults
+        gridStrokeWidth: 1,
+        gridLineStyle: 'solid',
+        gridSize: 32
       },
       updateSettings: (updates) => set((state) => ({
         settings: { ...state.settings, ...updates }

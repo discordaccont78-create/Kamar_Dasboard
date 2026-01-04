@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,7 +10,8 @@ import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
   Settings as SettingsIcon, X, Zap, Play, Activity, Monitor, 
   SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type, TableProperties,
-  Grid3X3, CircleDot, MousePointer2, Palette, Volume2, Square, Triangle, Circle, Sticker, Droplets
+  Grid3X3, CircleDot, MousePointer2, Palette, Volume2, Square, Triangle, Circle, Sticker, Droplets,
+  Ruler, PenTool, Hash
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -657,9 +657,77 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                             <PatternButton id="squares" icon={Square} label="Squares" />
                             <PatternButton id="triangles" icon={Triangle} label="Triangles" />
                         </div>
+
+                        {/* GRID CONFIGURATION BLOCK - Only visible when Grid is active */}
+                        {settings.backgroundEffect === 'grid' && (
+                            <div className="space-y-4 mt-2 px-1 animate-in fade-in slide-in-from-top-1 duration-300 border-t border-border/30 pt-3">
+                                <label className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-2">
+                                    <Ruler size={12} /> Grid Configuration
+                                </label>
+                                
+                                {/* 1. Grid Size */}
+                                <div className="space-y-1">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-wide">
+                                            Cell Size
+                                        </label>
+                                        <span className="text-[8px] font-mono font-bold text-foreground">{settings.gridSize || 32}px</span>
+                                    </div>
+                                    <Slider 
+                                        value={[settings.gridSize || 32]}
+                                        onValueChange={(val) => updateSettings({ gridSize: val[0] })}
+                                        min={10}
+                                        max={100}
+                                        step={2}
+                                        className="h-3"
+                                    />
+                                </div>
+
+                                {/* 2. Stroke Width */}
+                                <div className="space-y-1">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-wide">
+                                            Line Thickness
+                                        </label>
+                                        <span className="text-[8px] font-mono font-bold text-foreground">{settings.gridStrokeWidth || 1}px</span>
+                                    </div>
+                                    <Slider 
+                                        value={[settings.gridStrokeWidth || 1]}
+                                        onValueChange={(val) => updateSettings({ gridStrokeWidth: val[0] })}
+                                        min={0.5}
+                                        max={5}
+                                        step={0.5}
+                                        className="h-3"
+                                    />
+                                </div>
+
+                                {/* 3. Line Style */}
+                                <div className="space-y-2">
+                                    <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                                        <PenTool size={10} /> Line Style
+                                    </label>
+                                    <div className="flex bg-secondary/20 p-1 rounded-lg gap-1">
+                                        {['solid', 'dashed', 'dotted'].map((style) => (
+                                            <button
+                                                key={style}
+                                                onClick={() => updateSettings({ gridLineStyle: style as any })}
+                                                className={cn(
+                                                    "flex-1 h-6 rounded text-[8px] font-black uppercase tracking-wider transition-all flex items-center justify-center",
+                                                    settings.gridLineStyle === style 
+                                                        ? "bg-background text-primary shadow-sm" 
+                                                        : "text-muted-foreground hover:text-foreground"
+                                                )}
+                                            >
+                                                {style}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         
                         <div className="space-y-2 mt-2 px-1 animate-in fade-in slide-in-from-top-1 duration-300">
-                            {/* Hollow/Solid Toggle - Only for Shapes */}
+                            {/* Hollow/Solid Toggle - Only for Shapes (Not Grid) */}
                             {settings.backgroundEffect !== 'grid' && (
                                 <div className="flex items-center justify-between">
                                     <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
@@ -675,7 +743,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                 </div>
                             )}
 
-                            {/* Dual Tone Toggle - Only for Shapes */}
+                            {/* Dual Tone Toggle - Only for Shapes (Not Grid) */}
                             {settings.backgroundEffect !== 'grid' && (
                                 <div className="flex items-center justify-between">
                                     <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
@@ -688,7 +756,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                 </div>
                             )}
 
-                            {/* Opacity Sliders */}
+                            {/* Opacity Sliders - Always Visible */}
                             <div className="space-y-4 pt-2">
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">

@@ -43,41 +43,62 @@ export const BackgroundStyle: React.FC = () => {
   // --- SHAPE GENERATION LOGIC ---
 
   const createShapeSvg = (type: 'dots' | 'squares' | 'triangles', color: string) => {
-    const encodedColor = encodeURIComponent(color);
+    // FIX: Do not double encode the color. The outer encodeURIComponent handles it.
+    const safeColor = color; 
     let shape = '';
     
     // ViewBox is 24x24. Center is 12,12.
     if (type === 'dots') {
         if (isHollow) {
-            shape = `<circle cx='12' cy='12' r='3.5' fill='none' stroke='${encodedColor}' stroke-width='1.5' />`;
+            shape = `<circle cx='12' cy='12' r='3.5' fill='none' stroke='${safeColor}' stroke-width='1.5' />`;
         } else {
-            shape = `<circle cx='12' cy='12' r='1.8' fill='${encodedColor}' />`;
+            shape = `<circle cx='12' cy='12' r='1.8' fill='${safeColor}' />`;
         }
     } else if (type === 'squares') {
         if (isHollow) {
-            shape = `<rect x='9' y='9' width='6' height='6' fill='none' stroke='${encodedColor}' stroke-width='1.5' />`;
+            shape = `<rect x='9' y='9' width='6' height='6' fill='none' stroke='${safeColor}' stroke-width='1.5' />`;
         } else {
-            shape = `<rect x='10.5' y='10.5' width='3' height='3' fill='${encodedColor}' />`;
+            shape = `<rect x='10.5' y='10.5' width='3' height='3' fill='${safeColor}' />`;
         }
     } else if (type === 'triangles') {
         if (isHollow) {
-            shape = `<polygon points='12,8 16.5,16 7.5,16' fill='none' stroke='${encodedColor}' stroke-width='1.5' stroke-linejoin='round' />`;
+            shape = `<polygon points='12,8 16.5,16 7.5,16' fill='none' stroke='${safeColor}' stroke-width='1.5' stroke-linejoin='round' />`;
         } else {
-            shape = `<polygon points='12,10 14.5,14 9.5,14' fill='${encodedColor}' />`;
+            shape = `<polygon points='12,10 14.5,14 9.5,14' fill='${safeColor}' />`;
         }
     }
 
-    return `data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E${shape}%3C/svg%3E`;
+    return `data:image/svg+xml,${encodeURIComponent(`<svg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>${shape}</svg>`)}`;
+  };
+
+  const createGridSvg = (color: string, strokeWidth: number = 1, style: 'solid' | 'dashed' | 'dotted' = 'solid', size: number = 24) => {
+    // FIX: Do not double encode the color.
+    const safeColor = color;
+    let dashArray = '';
+    let strokeLinecap = '';
+
+    if (style === 'dashed') {
+        dashArray = `stroke-dasharray='${size/3} ${size/3}'`; 
+    } 
+    else if (style === 'dotted') {
+        dashArray = `stroke-dasharray='1 ${strokeWidth * 3}'`; 
+        strokeLinecap = `stroke-linecap='round'`;
+    }
+
+    // Path draws Top line and Left line for the cell: ┌
+    // The previous bug was mainly due to double-encoding the 'color' string (which contains commas in rgba).
+    // Removing the inner encodeURIComponent fixes the visibility issue.
+    const svg = `
+      <svg width='${size}' height='${size}' viewBox='0 0 ${size} ${size}' xmlns='http://www.w3.org/2000/svg'>
+        <path d='M ${size} 0 L 0 0 L 0 ${size}' fill='none' stroke='${safeColor}' stroke-width='${strokeWidth}' ${dashArray} ${strokeLinecap} />
+      </svg>
+    `;
+    return `data:image/svg+xml,${encodeURIComponent(svg.trim())}`;
   };
 
   /**
    * Generates a sparse Text SVG Overlay.
-   * ViewBox is 384x384 (16x the size of the 24px grid).
-   * Font: Dancing Script (Handwritten).
-   * 
-   * Updates:
-   * - Significantly reduced opacity.
-   * - Smaller font sizes (Volume).
+   * ViewBox is 384x384.
    */
   const createTextSvg = (text: string) => {
       const sanitizedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -127,45 +148,32 @@ export const BackgroundStyle: React.FC = () => {
   const textOverlayUrl = hasText ? `url("${createTextSvg(settings.textPatternValue)}"),` : '';
 
   /**
-   * Animation Physics:
-   * Loop Duration: 240s (4 Minutes) -> Extremely slow loop to allow subtle text drift.
-   * Direction: Diagonal (Positive X, Positive Y) -> Top-Left to Bottom-Right.
-   * 
-   * Text Movement: 
-   * Moves 1 Tile (384px) in 240s.
-   * Speed: 1.6 px/s (Ghostly float)
-   * 
-   * Grid/Shape Movement:
-   * Moves 80 Tiles (24px * 80 = 1920px) in 240s.
-   * Speed: 8 px/s (Standard energy)
-   * 
-   * Ratio: Pattern moves 5x faster than text.
+   * Animation Physics
    */
   const ANIM_DURATION = '240s';
   const TEXT_MOVE_X = '384px';
   const TEXT_MOVE_Y = '384px';
-  const SHAPE_MOVE_X = '1920px'; 
+  
+  // Standard shape size
+  const SHAPE_SIZE = 24;
+  const SHAPE_MOVE_X = '1920px'; // 24 * 80
   const SHAPE_MOVE_Y = '1920px';
 
+  // Dynamic Grid size
+  const gridSize = settings.gridSize || 32;
+  const GRID_MOVE_X = `${gridSize * 80}px`; // ensure loop is smooth
+  const GRID_MOVE_Y = `${gridSize * 80}px`;
+
   if (settings.backgroundEffect === 'grid') {
-      const gridCss = isDual
-      ? `
+      const gridSvg = createGridSvg(baseColor, settings.gridStrokeWidth, settings.gridLineStyle, gridSize);
+      
+      // Grid uses dynamic generated SVG now
+      const gridCss = `
           background-image: 
               ${textOverlayUrl}
-              linear-gradient(to right, ${baseColor} 1px, transparent 1px),
-              linear-gradient(to bottom, ${baseColor} 1px, transparent 1px),
-              linear-gradient(to right, ${accentColor} 1px, transparent 1px),
-              linear-gradient(to bottom, ${accentColor} 1px, transparent 1px);
-          background-size: ${hasText ? '384px 384px, ' : ''} 24px 24px, 24px 24px, 24px 24px, 24px 24px;
-          background-position: ${hasText ? 'center center, ' : ''} 0 0, 0 0, 12px 0, 0 12px;
-        `
-      : `
-          background-image: 
-              ${textOverlayUrl}
-              linear-gradient(to right, ${baseColor} 1px, transparent 1px),
-              linear-gradient(to bottom, ${baseColor} 1px, transparent 1px);
-          background-size: ${hasText ? '384px 384px, ' : ''} 24px 24px, 24px 24px;
-          background-position: ${hasText ? 'center center, ' : ''} center top, center top;
+              url("${gridSvg}");
+          background-size: ${hasText ? '384px 384px, ' : ''} ${gridSize}px ${gridSize}px;
+          background-position: ${hasText ? 'center center, ' : ''} center top;
         `;
       
       cssRule = `
@@ -212,12 +220,10 @@ export const BackgroundStyle: React.FC = () => {
       const textPos = `${TEXT_MOVE_X} ${TEXT_MOVE_Y}`;
       
       if (settings.backgroundEffect === 'grid') {
-          if (isDual) {
-              return `${hasText ? textPos + ', ' : ''} ${SHAPE_MOVE_X} ${SHAPE_MOVE_Y}, ${SHAPE_MOVE_X} ${SHAPE_MOVE_Y}, calc(12px + ${SHAPE_MOVE_X}) ${SHAPE_MOVE_Y}, ${SHAPE_MOVE_X} calc(12px + ${SHAPE_MOVE_Y})`;
-          } else {
-              return `${hasText ? textPos + ', ' : ''} ${SHAPE_MOVE_X} ${SHAPE_MOVE_Y}, ${SHAPE_MOVE_X} ${SHAPE_MOVE_Y}`;
-          }
+          // Grid only has 1 layer (plus text) currently
+          return `${hasText ? textPos + ', ' : ''} ${GRID_MOVE_X} ${GRID_MOVE_Y}`;
       } else {
+          // Standard Shapes
           if (isDual) {
               return `${hasText ? textPos + ', ' : ''} ${SHAPE_MOVE_X} ${SHAPE_MOVE_Y}, calc(12px + ${SHAPE_MOVE_X}) calc(12px + ${SHAPE_MOVE_Y})`;
           } else {
@@ -229,9 +235,10 @@ export const BackgroundStyle: React.FC = () => {
   const getFromPositions = () => {
       // Must match initial background-positions exactly to prevent jumping
       if (settings.backgroundEffect === 'grid') {
-          if (isDual) return `${hasText ? 'center center, ' : ''} 0 0, 0 0, 12px 0, 0 12px`;
-          return `${hasText ? 'center center, ' : ''} center top, center top`;
+          // Grid
+          return `${hasText ? 'center center, ' : ''} center top`;
       } else {
+          // Standard Shapes
           if (isDual) return `${hasText ? 'center center, ' : ''} 0 0, 12px 12px`;
           return `${hasText ? 'center center, ' : ''} center top`;
       }

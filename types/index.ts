@@ -113,12 +113,19 @@ export interface AppSettings {
   currentTrackIndex: number; 
   dashboardFont?: 'Inter' | 'Oswald' | 'Lato' | 'Montserrat' | 'DinaRemaster' | 'PrpggyDotted';
   backgroundEffect?: 'grid' | 'dots' | 'squares' | 'triangles';
+  
+  // Advanced Pattern Config
   dualColorBackground: boolean;
-  hollowShapes: boolean; // New: Toggles between filled and outlined shapes
-  enableTextPattern: boolean; // New: Text Overlay Toggle
-  textPatternValue: string; // New: The text string
+  hollowShapes: boolean; // Toggles between filled and outlined shapes
+  enableTextPattern: boolean; // Text Overlay Toggle
+  textPatternValue: string; // The text string
   patternOpacity?: number; // 0-100
   secondaryPatternOpacity?: number; // 0-100
+
+  // Grid Specific Config
+  gridStrokeWidth?: number;
+  gridLineStyle?: 'solid' | 'dashed' | 'dotted';
+  gridSize?: number;
 }
 
 export interface LogEntry {
