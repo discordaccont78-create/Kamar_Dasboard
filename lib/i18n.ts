@@ -14,6 +14,7 @@ export const translations = {
     net_domain: "Network Domain / Hostname",
     ui_anim: "UI Animations",
     sys_notif: "System Notifications",
+    ui_sfx: "UI Sound Effects (SFX)",
     net_analytics: "Network Analytics",
     live_traffic: "Live Traffic (2s Interval)",
     new_device: "New Device Provisioning",
@@ -59,7 +60,10 @@ export const translations = {
     condition_input: "Input Condition",
     input_config: "Input Configuration",
     label_on: "On Label",
-    label_off: "Off Label"
+    label_off: "Off Label",
+    pattern_style: "Pattern Style",
+    hollow: "Hollow",
+    solid: "Solid"
   },
   fa: {
     system_time: "زمان سیستم",
@@ -75,6 +79,7 @@ export const translations = {
     net_domain: "دامنه شبکه / هاست",
     ui_anim: "انیمیشن‌های رابط کاربری",
     sys_notif: "اعلان‌های سیستم",
+    ui_sfx: "جلوه‌های صوتی رابط (SFX)",
     net_analytics: "آنالیز شبکه",
     live_traffic: "ترافیک زنده (بازه ۲ ثانیه)",
     new_device: "افزودن دستگاه جدید",
@@ -120,6 +125,9 @@ export const translations = {
     condition_input: "شرط ورودی",
     input_config: "پیکربندی ورودی",
     label_on: "متن روشن",
-    label_off: "متن خاموش"
+    label_off: "متن خاموش",
+    pattern_style: "سبک الگو",
+    hollow: "توخالی",
+    solid: "توپر"
   }
 };

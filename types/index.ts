@@ -111,7 +111,9 @@ export interface AppSettings {
   readonly useSsl: boolean; // Derived from window location
   currentTrackIndex: number; 
   dashboardFont?: 'Inter' | 'Oswald' | 'Lato' | 'Montserrat' | 'DinaRemaster' | 'PrpggyDotted';
-  backgroundEffect?: 'grid' | 'dots';
+  backgroundEffect?: 'grid' | 'dots' | 'squares' | 'triangles';
+  dualColorBackground: boolean;
+  hollowShapes: boolean; // New: Toggles between filled and outlined shapes
 }
 
 export interface LogEntry {

@@ -12,8 +12,7 @@ interface ExtendedAppSettings extends AppSettings {
   cursorColor: string; // New Third Color for Cursor & Background Accent
   language: 'en' | 'fa';
   dashboardFont: 'Inter' | 'Oswald' | 'Lato' | 'Montserrat' | 'DinaRemaster' | 'PrpggyDotted';
-  backgroundEffect: 'grid' | 'dots';
-  dualColorBackground: boolean; // New: Toggle for 2-tone background
+  enableSFX: boolean; // New: Toggle for UI Sound Effects (Clicks, Toggles)
 }
 
 interface SettingsStore {
@@ -43,6 +42,7 @@ export const useSettingsStore = create<SettingsStore>()(
         domain: "iot-device",
         animations: true,
         bgMusic: false,
+        enableSFX: true, // Default to ON for better UX
         volume: 30,
         theme: 'dark',
         useSsl: typeof window !== 'undefined' ? window.location.protocol.includes('https') : false,
@@ -54,6 +54,7 @@ export const useSettingsStore = create<SettingsStore>()(
         dashboardFont: 'Inter',
         backgroundEffect: 'grid',
         dualColorBackground: false, // Default to single color (grey)
+        hollowShapes: false, // Default to Solid
       },
       updateSettings: (updates) => set((state) => ({
         settings: { ...state.settings, ...updates }

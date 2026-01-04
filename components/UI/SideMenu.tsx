@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,7 +11,7 @@ import { MUSIC_TRACKS } from '../../lib/constants';
 import { 
   Settings as SettingsIcon, X, Zap, Play, Activity, Monitor, 
   SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type, TableProperties,
-  Grid3X3, CircleDot, MousePointer2, Palette
+  Grid3X3, CircleDot, MousePointer2, Palette, Volume2, Square, Triangle, Circle
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -19,6 +20,7 @@ import { Slider } from '../ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
+import { useSoundFx } from '../../hooks/useSoundFx';
 
 // Workaround for Framer Motion types
 const MotionDiv = motion.div as any;
@@ -50,11 +52,17 @@ const TechButton = ({ children, onClick, className, variant = 'primary', icon: I
 
 const MenuSection = ({ id, title, icon: Icon, children, activeId, onToggle, animations }: any) => {
   const isOpen = id === activeId;
+  const { playSweep } = useSoundFx();
+
+  const handleToggle = () => {
+      playSweep();
+      onToggle(id);
+  }
   
   return (
     <div className="space-y-1">
       <button 
-        onClick={() => onToggle(id)}
+        onClick={handleToggle}
         className={cn(
             "w-full flex items-center gap-3 group outline-none relative overflow-hidden transition-all duration-300 select-none",
             isOpen 
@@ -115,6 +123,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   const { settings, updateSettings } = useSettingsStore();
   const { addSegment, segments, setSegmentTimer } = useSegments();
   const { addToast } = useConnection();
+  const { playBlip, playClick } = useSoundFx();
   
   const { 
     activeSection, setActiveSection,
@@ -128,6 +137,11 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
 
   const handleSectionToggle = (id: string) => {
     setActiveSection(activeSection === id ? null : id);
+  };
+
+  const handleUpdateSetting = (update: any) => {
+      playBlip();
+      updateSettings(update);
   };
 
   const uniqueGroups = useMemo<string[]>(() => {
@@ -159,6 +173,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   }, [segments]);
 
   const handleAddOutput = () => {
+    playClick();
     const pin = parseInt(outputForm.gpio);
     const groupName = outputForm.group.trim() || "basic";
 
@@ -188,6 +203,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   };
 
   const handleAddRegister = () => {
+    playClick();
     const ds = parseInt(regForm.ds);
     const shcp = parseInt(regForm.shcp);
     const stcp = parseInt(regForm.stcp);
@@ -224,6 +240,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   };
 
   const handleAddDHT = () => {
+    playClick();
     const pin = parseInt(dhtForm.gpio);
     const groupName = dhtForm.group.trim() || "Weather_Station";
 
@@ -244,32 +261,49 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
         gpio: pin,
         dhtPin: pin,
         temperature: 0,
-        humidity: 0
+        humidity: 0,
+        is_led_on: 'off',
+        val_of_slide: 0
     });
     setDhtForm({ gpio: '', name: '', group: '' });
     addToast("Weather module added", "success");
   };
 
   const handleNextTrack = () => {
+    playClick();
     const nextIndex = (settings.currentTrackIndex + 1) % MUSIC_TRACKS.length;
     updateSettings({ currentTrackIndex: nextIndex });
   };
 
   const handlePrevTrack = () => {
+    playClick();
     const prevIndex = (settings.currentTrackIndex - 1 + MUSIC_TRACKS.length) % MUSIC_TRACKS.length;
     updateSettings({ currentTrackIndex: prevIndex });
   };
 
   // Logic to switch to square-matrix if font is ProggyDotted
   const headerBgClass = (() => {
-    if (settings.backgroundEffect === 'dots') {
-        if (settings.dashboardFont === 'PrpggyDotted') {
-            return 'square-matrix';
-        }
-        return 'dot-matrix';
-    }
+    if (settings.backgroundEffect === 'dots') return 'dot-matrix pattern-bg';
+    if (settings.backgroundEffect === 'squares') return 'pattern-bg';
+    if (settings.backgroundEffect === 'triangles') return 'pattern-bg';
     return 'graph-paper';
   })();
+
+  const PatternButton = ({ id, icon: Icon, label }: any) => (
+    <button
+        onClick={() => handleUpdateSetting({ backgroundEffect: id })}
+        className={cn(
+            "h-9 border rounded-lg flex items-center justify-center gap-1.5 transition-all",
+            settings.backgroundEffect === id 
+                ? "bg-primary/20 border-primary text-primary shadow-sm" 
+                : "bg-transparent border-input text-muted-foreground hover:bg-accent"
+        )}
+        title={label}
+    >
+        <Icon size={14} />
+        <span className="text-[8px] font-bold uppercase tracking-wider hidden sm:inline">{label}</span>
+    </button>
+  );
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -313,8 +347,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
           </datalist>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 no-scrollbar">
-            
-            {/* ... (Previous sections Output, Status, Hardware omitted for brevity, they remain unchanged) ... */}
             
             <MenuSection 
                 id="output" 
@@ -612,42 +644,41 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                             Background Effect
                         </label>
                         <div className="grid grid-cols-2 gap-3">
-                            <button
-                                onClick={() => updateSettings({ backgroundEffect: 'grid' })}
-                                className={cn(
-                                    "h-10 border rounded-lg flex items-center justify-center gap-2 transition-all",
-                                    settings.backgroundEffect === 'grid' 
-                                        ? "bg-primary/20 border-primary text-primary shadow-sm" 
-                                        : "bg-transparent border-input text-muted-foreground hover:bg-accent"
-                                )}
-                            >
-                                <Grid3X3 size={14} />
-                                <span className="text-[9px] font-bold uppercase tracking-wider">Grid Matrix</span>
-                            </button>
-                            <button
-                                onClick={() => updateSettings({ backgroundEffect: 'dots' })}
-                                className={cn(
-                                    "h-10 border rounded-lg flex items-center justify-center gap-2 transition-all",
-                                    settings.backgroundEffect === 'dots' 
-                                        ? "bg-primary/20 border-primary text-primary shadow-sm" 
-                                        : "bg-transparent border-input text-muted-foreground hover:bg-accent"
-                                )}
-                            >
-                                <CircleDot size={14} />
-                                <span className="text-[9px] font-bold uppercase tracking-wider">Dot Array</span>
-                            </button>
+                            <PatternButton id="grid" icon={Grid3X3} label="Grid Matrix" />
+                            <PatternButton id="dots" icon={CircleDot} label="Dot Array" />
+                            <PatternButton id="squares" icon={Square} label="Squares" />
+                            <PatternButton id="triangles" icon={Triangle} label="Triangles" />
                         </div>
                         
-                        {/* New Dual-Tone Switch */}
-                        <div className="flex items-center justify-between mt-2 px-1">
-                            <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                                <Palette size={12} /> Dual-Tone Pattern
-                            </label>
-                            <Switch 
-                                checked={settings.dualColorBackground} 
-                                onCheckedChange={(c) => updateSettings({ dualColorBackground: c })} 
-                            />
-                        </div>
+                        {/* Only visible for Dots/Matrix/Triangles (Non-Grid) */}
+                        {settings.backgroundEffect !== 'grid' && (
+                            <div className="space-y-2 mt-2 px-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                                {/* Hollow/Solid Toggle */}
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                        <Circle size={12} /> {t.pattern_style || "Pattern Style"}
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[8px] font-bold uppercase text-muted-foreground">{settings.hollowShapes ? (t.hollow || "Hollow") : (t.solid || "Solid")}</span>
+                                        <Switch 
+                                            checked={settings.hollowShapes} 
+                                            onCheckedChange={(c) => updateSettings({ hollowShapes: c })} 
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Dual Tone Toggle */}
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                        <Palette size={12} /> Dual-Tone Pattern
+                                    </label>
+                                    <Switch 
+                                        checked={settings.dualColorBackground} 
+                                        onCheckedChange={(c) => updateSettings({ dualColorBackground: c })} 
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-2 pt-2 border-t border-border/50">
@@ -667,7 +698,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                 return (
                                     <button
                                         key={fontName}
-                                        onClick={() => updateSettings({ dashboardFont: fontName as any })}
+                                        onClick={() => handleUpdateSetting({ dashboardFont: fontName as any })}
                                         className={cn(
                                             "h-12 border rounded-lg flex flex-col items-center justify-center transition-all hover:bg-secondary/10",
                                             isSelected ? "border-primary bg-primary/10 text-primary shadow-sm" : "border-input text-muted-foreground"
@@ -693,6 +724,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                        <div className="flex items-center justify-between">
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.audio_engine}</label>
                         <Switch checked={settings.bgMusic} onCheckedChange={(c) => updateSettings({ bgMusic: c })} />
+                      </div>
+                      {/* NEW: UI SFX Toggle */}
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                            <Volume2 size={12} /> {t.ui_sfx}
+                        </label>
+                        <Switch checked={settings.enableSFX} onCheckedChange={(c) => updateSettings({ enableSFX: c })} />
                       </div>
                     </div>
 
@@ -735,7 +773,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                               {["#daa520", "#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"].map(color => (
                                 <button
                                   key={color}
-                                  onClick={() => updateSettings({ primaryColor: color })}
+                                  onClick={() => handleUpdateSetting({ primaryColor: color })}
                                   className={cn(
                                     "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
                                     settings.primaryColor === color ? "border-foreground scale-110 shadow-sm" : "border-transparent opacity-70 hover:opacity-100"
@@ -754,7 +792,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                               {["#daa520", "#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899", "#ffffff"].map(color => (
                                 <button
                                   key={color}
-                                  onClick={() => updateSettings({ cursorColor: color })}
+                                  onClick={() => handleUpdateSetting({ cursorColor: color })}
                                   className={cn(
                                     "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
                                     settings.cursorColor === color ? "border-foreground scale-110 shadow-sm" : "border-transparent opacity-70 hover:opacity-100"

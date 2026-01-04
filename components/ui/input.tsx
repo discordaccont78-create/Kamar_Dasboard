@@ -1,15 +1,24 @@
 
 import * as React from "react"
 import { cn } from "../../lib/utils"
+import { useSoundFx } from "../../hooks/useSoundFx"
 
 export interface InputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {}
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, onKeyDown, ...props }, ref) => {
+    const { playType } = useSoundFx();
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        playType();
+        if (onKeyDown) onKeyDown(e);
+    };
+
     return (
       <input
         type={type}
+        onKeyDown={handleKeyDown}
         className={cn(
           // Layout & Base Styles
           "flex h-10 w-full rounded-md border border-white/10 bg-black/5 dark:bg-white/5 px-4 py-2 text-xs font-mono font-bold shadow-sm transition-all duration-300",

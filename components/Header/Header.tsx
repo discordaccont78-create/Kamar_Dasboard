@@ -8,6 +8,7 @@ import { SchedulerDialog } from '../Scheduler/SchedulerDialog';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
+import { useSoundFx } from '../../hooks/useSoundFx';
 
 interface HeaderProps {
   onOpenMenu: () => void;
@@ -21,6 +22,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const { settings, updateSettings } = useSettingsStore();
   const [time, setTime] = useState<string>('');
   const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
+  const { playClick, playToggle } = useSoundFx();
   
   const t = translations[settings.language];
 
@@ -35,11 +37,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   }, [settings.language]);
 
   const toggleTheme = () => {
+    playToggle(settings.theme === 'light');
     updateSettings({ theme: settings.theme === 'light' ? 'dark' : 'light' });
   };
 
   const toggleLanguage = () => {
+    playToggle(settings.language === 'en');
     updateSettings({ language: settings.language === 'en' ? 'fa' : 'en' });
+  };
+
+  const handleOpenMenu = () => {
+    playClick();
+    onOpenMenu();
+  };
+
+  const handleOpenScheduler = () => {
+    playClick();
+    setIsSchedulerOpen(true);
   };
 
   // --- ANIMATION VARIANTS ---
@@ -177,7 +191,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                {/* Right: Controls */}
                <div className="flex items-center gap-2 md:gap-3 z-10 ml-auto">
                   <ControlButton 
-                    onClick={() => setIsSchedulerOpen(true)} 
+                    onClick={handleOpenScheduler} 
                     icon={CalendarClock} 
                     title={t.scheduler}
                     active={isSchedulerOpen}
@@ -198,7 +212,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                   />
                   
                   <ControlButton 
-                    onClick={onOpenMenu}
+                    onClick={handleOpenMenu}
                     icon={Settings}
                     title={t.sys_config}
                     variant="primary"

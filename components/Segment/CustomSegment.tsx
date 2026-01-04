@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Cable, Timer, X } from 'lucide-react';
@@ -8,6 +9,7 @@ import { Segment, CMD, Schedule } from '../../types/index';
 import { useDeviceState, useDeviceControl } from '../../hooks/useDevice';
 import { useSegments } from '../../lib/store/segments';
 import { useSchedulerStore } from '../../lib/store/scheduler';
+import { useSoundFx } from '../../hooks/useSoundFx';
 import { cn } from '../../lib/utils';
 
 interface Props {
@@ -24,6 +26,7 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   const { mutate: controlDevice } = useDeviceControl();
   const { updateSegment } = useSegments();
   const { schedules, addSchedule } = useSchedulerStore();
+  const { playToggle, playClick } = useSoundFx();
   
   // Merge state securely
   const safeSegment = useMemo(() => ({
@@ -126,9 +129,9 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
 
   const handleToggle = useCallback(() => {
     const cmd = isOn ? CMD.LED_OFF : CMD.LED_ON;
+    playToggle(!isOn); // Play sound effect based on TARGET state (if currently ON, we turn OFF, so we pass false)
     
     // Auto-Off Pulse Logic
-    // If we are turning it ON, and pulseDuration is > 0, create a countdown schedule
     if (!isOn && safeSegment.pulseDuration && safeSegment.pulseDuration > 0 && mode === 'toggle') {
         addSchedule({
             id: Math.random().toString(36).substr(2, 9),
@@ -148,12 +151,13 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
         value: 0, 
         nodeId: safeSegment.num_of_node 
     });
-  }, [isOn, safeSegment, mode, controlDevice, addSchedule]);
+  }, [isOn, safeSegment, mode, controlDevice, addSchedule, playToggle]);
 
   const handlePressStart = useCallback(() => {
      if (mode !== 'momentary') return;
+     playClick();
      controlDevice({ cmd: CMD.LED_ON, gpio: safeSegment.gpio || 0, value: 0, nodeId: safeSegment.num_of_node });
-  }, [mode, safeSegment.gpio, safeSegment.num_of_node, controlDevice]);
+  }, [mode, safeSegment.gpio, safeSegment.num_of_node, controlDevice, playClick]);
 
   const handlePressEnd = useCallback(() => {
      if (mode !== 'momentary') return;

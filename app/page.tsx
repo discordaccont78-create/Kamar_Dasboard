@@ -359,15 +359,10 @@ export default function DashboardPage(): React.JSX.Element {
     });
   }, []);
 
-  // Updated Background Class Logic for Square Matrix support
+  // Class Selection Logic - Simplified as logic is now in BackgroundStyle.tsx
   const bgClass = (() => {
-    if (settings.backgroundEffect === 'dots') {
-        if (settings.dashboardFont === 'PrpggyDotted') {
-            return 'square-matrix';
-        }
-        return 'dot-matrix';
-    }
-    return 'graph-paper';
+    if (settings.backgroundEffect === 'grid') return 'graph-paper';
+    return 'pattern-bg'; // Unified class for Dots, Squares, Triangles
   })();
 
   return (
