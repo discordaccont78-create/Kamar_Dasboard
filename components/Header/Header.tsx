@@ -46,26 +46,61 @@ const generateJaggedPath = (startX: number, startY: number, endX: number, endY: 
 
 // --- Electric Connection Component (Static Decoration between Islands) ---
 const ElectricConnection = React.memo(({ color }: { color: string }) => {
+  // 4 Distinct chaotic paths to create high density (Tesla Coil effect)
+  const paths = [
+    "M0,50 L20,20 L40,80 L60,20 L80,80 L100,50", 
+    "M0,50 L15,65 L35,35 L55,75 L85,25 L100,50", 
+    "M0,50 L25,30 L45,70 L65,30 L85,70 L100,50", 
+    "M0,50 L10,45 L30,55 L50,45 L70,55 L90,45 L100,50"
+  ];
+
   return (
     <div className="absolute top-0 bottom-0 -left-3 md:-left-5 w-4 md:w-6 flex items-center justify-center overflow-visible pointer-events-none z-50">
-       <svg viewBox="0 0 100 100" className="w-[250%] h-full overflow-visible" preserveAspectRatio="none">
+       <svg viewBox="0 0 100 100" className="w-[400%] h-full overflow-visible" preserveAspectRatio="none">
           <defs>
-            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+            <filter id="glow-connection" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
               <feMerge>
                 <feMergeNode in="coloredBlur"/>
                 <feMergeNode in="SourceGraphic"/>
               </feMerge>
             </filter>
           </defs>
+          
+          {paths.map((d, i) => (
+            <MotionPath 
+               key={i}
+               d={d}
+               stroke={color}
+               strokeWidth={i === 0 ? 2.5 : 1.5} // Main path thicker
+               fill="none"
+               strokeLinecap="round"
+               strokeLinejoin="round"
+               filter="url(#glow-connection)"
+               initial={{ pathLength: 0, opacity: 0 }}
+               animate={{ 
+                  pathLength: [0, 1.2, 1.2],
+                  opacity: [0, 1, 0],
+                  pathOffset: [0, 0, 1]
+               }}
+               transition={{
+                  duration: 1.5 + (i * 0.3), // Varied duration so they don't sync up perfectly
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: i * 0.1, // Staggered start for streaming effect
+                  repeatDelay: 0.2
+               }}
+            />
+          ))}
+          
+          {/* White hot center for the primary path to make it pop */}
           <MotionPath 
-             d="M0,50 L20,30 L40,70 L60,20 L80,60 L100,50"
-             stroke={color}
-             strokeWidth="3"
+             d={paths[0]}
+             stroke="white"
+             strokeWidth="1"
              fill="none"
              strokeLinecap="round"
              strokeLinejoin="round"
-             filter="url(#glow)"
              initial={{ pathLength: 0, opacity: 0 }}
              animate={{ 
                 pathLength: [0, 1.2, 1.2],
@@ -73,10 +108,11 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
                 pathOffset: [0, 0, 1]
              }}
              transition={{
-                duration: 2,
+                duration: 1.5,
                 repeat: Infinity,
                 ease: "easeInOut",
-                times: [0, 0.1, 1]
+                delay: 0,
+                repeatDelay: 0.2
              }}
           />
        </svg>
