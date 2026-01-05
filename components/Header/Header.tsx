@@ -44,20 +44,26 @@ const generateJaggedPath = (startX: number, startY: number, endX: number, endY: 
 
 // --- Electric Connection Component (Animated Realistic Arc) ---
 const ElectricConnection = React.memo(({ color }: { color: string }) => {
-  const [boltPaths, setBoltPaths] = useState<string[]>([]);
+  const [bolts, setBolts] = useState<{ id: number, d: string }[]>([]);
 
   useEffect(() => {
-    // Generate initial paths
-    const gen = () => [
-        generateJaggedPath(0, 50, 100, 50, 6, 30), // Wide atmospheric glow
-        generateJaggedPath(0, 50, 100, 50, 10, 20), // Mid arc
-        generateJaggedPath(0, 50, 100, 50, 12, 10)  // Tight core
-    ];
-    setBoltPaths(gen());
+    // Generate 3 distinct parallel paths
+    const gen = () => {
+        // Add slight randomness to anchors so they aren't perfectly static
+        const r = () => (Math.random() * 6 - 3); 
+        
+        return [
+            { id: 1, d: generateJaggedPath(0, 25 + r(), 100, 25 + r(), 8, 12) },
+            { id: 2, d: generateJaggedPath(0, 50 + r(), 100, 50 + r(), 8, 12) },
+            { id: 3, d: generateJaggedPath(0, 75 + r(), 100, 75 + r(), 8, 12) }
+        ];
+    };
+    
+    setBolts(gen());
 
     const interval = setInterval(() => {
-        setBoltPaths(gen());
-    }, 100); // 10 FPS for jittery electric feel
+        setBolts(gen());
+    }, 80); // 80ms for high-energy jitter
 
     return () => clearInterval(interval);
   }, []);
@@ -67,7 +73,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
        <svg viewBox="0 0 100 100" className="w-[400%] h-full overflow-visible" preserveAspectRatio="none">
           <defs>
             <filter id="connection-glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feGaussianBlur stdDeviation="2.5" result="blur"/>
               <feMerge>
                 <feMergeNode in="blur"/>
                 <feMergeNode in="SourceGraphic"/>
@@ -75,39 +81,42 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
             </filter>
           </defs>
           
-          {/* Outer Atmosphere (Faint) */}
-          <path 
-             d={boltPaths[0]} 
-             stroke={color} 
-             strokeWidth="3" 
-             strokeOpacity="0.2"
-             fill="none" 
-             strokeLinecap="round"
-             strokeLinejoin="round"
-             filter="url(#connection-glow)"
-          />
+          {bolts.map((bolt) => (
+            <g key={bolt.id}>
+                {/* Outer Atmosphere (Faint Glow) */}
+                <path 
+                    d={bolt.d} 
+                    stroke={color} 
+                    strokeWidth="4" 
+                    strokeOpacity="0.15"
+                    fill="none" 
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    filter="url(#connection-glow)"
+                />
 
-          {/* Main Bolt Body */}
-          <path 
-             d={boltPaths[1]} 
-             stroke={color} 
-             strokeWidth="1.5" 
-             strokeOpacity="0.8"
-             fill="none" 
-             strokeLinecap="round"
-             strokeLinejoin="round"
-             filter="url(#connection-glow)"
-          />
+                {/* Main Bolt Body */}
+                <path 
+                    d={bolt.d} 
+                    stroke={color} 
+                    strokeWidth="1.2" 
+                    strokeOpacity="0.8"
+                    fill="none" 
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
 
-          {/* White Hot Core */}
-          <path 
-             d={boltPaths[2]} 
-             stroke="white" 
-             strokeWidth="0.8" 
-             fill="none" 
-             strokeLinecap="round"
-             strokeLinejoin="round"
-          />
+                {/* White Hot Core */}
+                <path 
+                    d={bolt.d} 
+                    stroke="white" 
+                    strokeWidth="0.6" 
+                    fill="none" 
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
+            </g>
+          ))}
        </svg>
     </div>
   )
