@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -357,6 +358,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 onToggle={handleSectionToggle}
                 animations={settings.animations}
             >
+              {/* ... Output Form Content ... */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardContent className="space-y-5 pt-6">
                   {/* ... Output Form Fields ... */}
@@ -824,7 +826,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                             initial={{ height: 0, opacity: 0 }}
                                             animate={{ height: "auto", opacity: 1 }}
                                             exit={{ height: 0, opacity: 0 }}
-                                            className="overflow-hidden"
+                                            className="overflow-hidden space-y-3"
                                         >
                                             <Input 
                                                 value={settings.textPatternValue}
@@ -833,6 +835,34 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                                 className="h-8 text-center uppercase"
                                                 maxLength={12}
                                             />
+                                            
+                                            {/* Text Customization: Opacity & Color */}
+                                            <div className="flex items-center gap-3 bg-secondary/10 p-2 rounded-lg border border-border/30">
+                                                <div className="flex-1 space-y-1">
+                                                    <div className="flex justify-between items-center text-[8px] font-bold uppercase text-muted-foreground">
+                                                        <span>Opacity</span>
+                                                        <span>{settings.textPatternOpacity ?? 10}%</span>
+                                                    </div>
+                                                    <Slider 
+                                                        value={[settings.textPatternOpacity ?? 10]}
+                                                        onValueChange={(val) => updateSettings({ textPatternOpacity: val[0] })}
+                                                        max={100}
+                                                        step={1}
+                                                        className="h-3"
+                                                    />
+                                                </div>
+                                                <div className="shrink-0 flex flex-col items-center gap-1">
+                                                    <label className="text-[7px] font-bold uppercase text-muted-foreground">Color</label>
+                                                    <div className="relative h-6 w-8 overflow-hidden rounded border border-border">
+                                                        <input 
+                                                            type="color" 
+                                                            value={settings.textPatternColor || "#808080"} 
+                                                            onChange={(e) => updateSettings({ textPatternColor: e.target.value })}
+                                                            className="absolute -top-[50%] -left-[50%] w-[200%] h-[200%] p-0 border-0 cursor-pointer"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </MotionDiv>
                                     )}
                                 </AnimatePresence>

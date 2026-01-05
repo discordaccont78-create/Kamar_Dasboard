@@ -103,22 +103,27 @@ export const BackgroundStyle: React.FC = () => {
   const createTextSvg = (text: string) => {
       const sanitizedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
       
-      const baseGrey = '128, 128, 128'; 
+      const textColorHex = settings.textPatternColor || "#808080";
+      const textOpacityVal = (settings.textPatternOpacity ?? 10) / 100;
+      
+      const textColorRgba = hexToRgba(textColorHex, textOpacityVal);
+      const textOutlineColor = hexToRgba(textColorHex, Math.min(textOpacityVal + 0.1, 1)); // Slightly stronger outline
+
       let style = '';
 
       if (isHollow) {
-          // Hollow: Empty Inside, Thin Outline, Low Opacity
+          // Hollow: Empty Inside, Colored Outline
           style = `
             font-size: 42px; 
             fill: transparent; 
-            stroke: rgba(${baseGrey}, 0.12); 
+            stroke: ${textOutlineColor}; 
             stroke-width: 1px;
           `;
       } else {
-          // Solid: Small Font, Very Light Fill, No Outline
+          // Solid: Small Font, Colored Fill, No Outline
           style = `
             font-size: 16px; 
-            fill: rgba(${baseGrey}, 0.07); 
+            fill: ${textColorRgba}; 
             stroke: none;
           `;
       }

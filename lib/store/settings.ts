@@ -57,6 +57,8 @@ export const useSettingsStore = create<SettingsStore>()(
         hollowShapes: false, // Default to Solid
         enableTextPattern: false, 
         textPatternValue: "KAMYAR",
+        textPatternOpacity: 10,
+        textPatternColor: "#808080",
         patternOpacity: 15,
         secondaryPatternOpacity: 20,
         

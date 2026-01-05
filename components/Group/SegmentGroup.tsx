@@ -1,3 +1,4 @@
+
 import React, { useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { GripVertical } from 'lucide-react';
@@ -251,9 +252,9 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
 
   // Memoize style to prevent object creation on render
   const containerStyle = useMemo(() => ({
-    borderColor: `${settings.primaryColor}40`, 
-    backgroundColor: `${settings.primaryColor}08`, 
-    backgroundImage: `linear-gradient(135deg, ${settings.primaryColor}05 0%, transparent 100%)`
+    borderColor: `${settings.primaryColor}50`, // Stronger border
+    // Minimal tint, rely on backdrop-filter for the "glass" look
+    backgroundColor: `${settings.primaryColor}03`, 
   }), [settings.primaryColor]);
 
   const labelStyle = useMemo(() => ({
@@ -273,7 +274,14 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
 
   return (
     <div 
-      className="h-full relative border-2 border-dashed rounded-xl md:rounded-[2rem] p-3 pt-6 md:p-8 transition-all duration-500 backdrop-blur-[2px]"
+      className={cn(
+        "h-full relative border-2 border-dashed rounded-xl md:rounded-[2rem] p-3 pt-6 md:p-8 transition-all duration-500",
+        // EFFECTS LAYER:
+        // 1. bg-background/30: Stronger glass tint (Increased from 20).
+        // 2. backdrop-blur-[8px]: Stronger blur (Increased from 3px) for out-of-focus look.
+        // 3. backdrop-grayscale & backdrop-saturate-0: Complete removal of color (Dead Color Effect).
+        "bg-background/30 backdrop-blur-[8px] backdrop-grayscale backdrop-saturate-0 shadow-xl"
+      )}
       style={containerStyle} 
     >
       {/* Group Boundary Label & Drag Handle */}

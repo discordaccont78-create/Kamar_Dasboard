@@ -119,6 +119,8 @@ export interface AppSettings {
   hollowShapes: boolean; // Toggles between filled and outlined shapes
   enableTextPattern: boolean; // Text Overlay Toggle
   textPatternValue: string; // The text string
+  textPatternOpacity?: number; // 0-100 specifically for text
+  textPatternColor?: string; // Specific hex color for text
   patternOpacity?: number; // 0-100
   secondaryPatternOpacity?: number; // 0-100
 
