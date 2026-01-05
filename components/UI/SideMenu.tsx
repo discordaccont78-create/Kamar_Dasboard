@@ -12,7 +12,7 @@ import {
   Settings as SettingsIcon, X, Zap, Play, Activity, Monitor, 
   SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type, TableProperties,
   Grid3X3, CircleDot, MousePointer2, Palette, Volume2, Square, Triangle, Circle, Sticker, Droplets,
-  Ruler, PenTool, Hash
+  Ruler, PenTool, Hash, MonitorSmartphone
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -131,6 +131,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     outputForm, setOutputForm,
     regForm, setRegForm,
     dhtForm, setDhtForm,
+    lcdForm, setLcdForm,
     timerForm, setTimerForm
   } = useUIStore();
   
@@ -161,14 +162,16 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
       s.dhtPin === pin || 
       s.dsPin === pin ||
       s.shcpPin === pin ||
-      s.stcpPin === pin
+      s.stcpPin === pin || 
+      s.sdaPin === pin ||
+      s.sclPin === pin
     );
   };
 
   const sortedSegments = useMemo(() => {
     return [...segments].sort((a, b) => {
-        const pinA = a.gpio || a.dhtPin || a.dsPin || 0;
-        const pinB = b.gpio || b.dhtPin || b.dsPin || 0;
+        const pinA = a.gpio || a.dhtPin || a.dsPin || a.sdaPin || 0;
+        const pinB = b.gpio || b.dhtPin || b.dsPin || b.sdaPin || 0;
         return pinA - pinB;
     });
   }, [segments]);
@@ -238,6 +241,52 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
 
     setRegForm({ ds: '', shcp: '', stcp: '', group: '' });
     addToast(`Register Sub-Group added to '${groupName}'`, "success");
+  };
+
+  const handleAddDisplay = () => {
+    playClick();
+    const sda = parseInt(lcdForm.sda);
+    const scl = parseInt(lcdForm.scl);
+    const groupName = lcdForm.group.trim() || "Displays";
+    
+    if (!lcdForm.name) return;
+    if (isNaN(sda) || isNaN(scl)) { addToast("Invalid I2C Pins", "error"); return; }
+
+    // Note: I2C bus can be shared, so we don't strictly block used pins if they are SCL/SDA, 
+    // but for simplicity in this dashboard let's warn if they are used by non-i2c devices.
+    // Ideally we'd check if used by a DIFFERENT type of device.
+    
+    let width = 0;
+    let height = 0;
+
+    if (lcdForm.type === 'OLED') {
+        const [w, h] = lcdForm.resolution.split('x').map(Number);
+        width = w;
+        height = h;
+    } else {
+        width = parseInt(lcdForm.cols);
+        height = parseInt(lcdForm.rows);
+    }
+
+    addSegment({
+        num_of_node: Math.random().toString(36).substr(2, 9),
+        name: lcdForm.name.trim(),
+        group: groupName,
+        groupType: 'display',
+        segType: lcdForm.type,
+        gpio: 0, // Placeholder, uses I2C
+        sdaPin: sda,
+        sclPin: scl,
+        i2cAddress: lcdForm.address,
+        displayWidth: width,
+        displayHeight: height,
+        is_led_on: 'on',
+        val_of_slide: 0,
+        displayContent: "READY"
+    });
+
+    setLcdForm({ name: '', group: '', type: 'OLED', sda: '21', scl: '22', address: '0x3C', resolution: '128x64', rows: '2', cols: '16' });
+    addToast(`${lcdForm.type} Display added`, "success");
   };
 
   const handleAddDHT = () => {
@@ -502,6 +551,9 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                              } else if (seg.segType === 'Digital' || seg.groupType === 'register') {
                                 displayState = seg.is_led_on === 'on' ? "ON" : "OFF";
                                 stateColor = seg.is_led_on === 'on' ? "text-green-500" : "text-red-500";
+                             } else if (seg.groupType === 'display') {
+                                displayState = "ACTIVE";
+                                stateColor = "text-purple-500";
                              }
 
                              const nameFont = isPersian(seg.name) ? "font-persian" : "";
@@ -510,7 +562,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                              return (
                                 <div key={seg.num_of_node} className="grid grid-cols-[35px_1fr_1fr_auto] p-2 border-b border-border/20 last:border-0 hover:bg-secondary/5 transition-colors gap-2 items-center">
                                    <div className="text-center font-mono text-[9px] font-bold bg-muted/20 rounded py-0.5 text-foreground/70">
-                                      {seg.gpio || seg.dhtPin || seg.dsPin || "-"}
+                                      {seg.gpio || seg.dhtPin || seg.dsPin || seg.sdaPin || "-"}
                                    </div>
                                    <div className={cn("text-[9px] font-bold truncate", nameFont)}>
                                       {seg.name}
@@ -539,7 +591,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 animations={settings.animations}
             >
                {/* Shift Register Card */}
-               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
+               <Card className="rounded-2xl border-border shadow-sm bg-card/50 mb-4">
                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
                       <Cpu size={12} /> Shift Register (74HC595)
@@ -571,6 +623,99 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                   
                   <TechButton onClick={handleAddRegister} icon={Plus} variant="outline">
                     Add 74HC595 Sub-Group
+                  </TechButton>
+                </CardContent>
+              </Card>
+
+              {/* Display Modules Card (OLED / LCD) */}
+              <Card className="rounded-2xl border-border shadow-sm bg-card/50">
+                <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
+                   <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-purple-500">
+                      <MonitorSmartphone size={12} /> Display / LCD
+                   </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  {/* Common Fields */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.type}</label>
+                     <div className="col-span-3 flex gap-2">
+                        <button 
+                            onClick={() => setLcdForm({ type: 'OLED' })}
+                            className={cn(
+                                "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
+                                lcdForm.type === 'OLED' ? "bg-purple-500/20 border-purple-500 text-purple-500 shadow-sm" : "bg-transparent border-input text-muted-foreground"
+                            )}
+                        >
+                            <MonitorSmartphone size={12} /> OLED
+                        </button>
+                        <button 
+                            onClick={() => setLcdForm({ type: 'CharLCD' })}
+                            className={cn(
+                                "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
+                                lcdForm.type === 'CharLCD' ? "bg-green-500/20 border-green-500 text-green-500 shadow-sm" : "bg-transparent border-input text-muted-foreground"
+                            )}
+                        >
+                            <Grid3X3 size={12} /> LCD
+                        </button>
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
+                     <Input 
+                        value={lcdForm.name} 
+                        onChange={e => setLcdForm({ name: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Screen Name" 
+                        list="name-suggestions"
+                     />
+                  </div>
+
+                  {/* I2C Config */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">I2C BUS</label>
+                     <div className="col-span-3 flex gap-2">
+                        <Input type="number" value={lcdForm.sda} onChange={e => setLcdForm({ sda: e.target.value })} className="h-9 flex-1" placeholder="SDA (21)" />
+                        <Input type="number" value={lcdForm.scl} onChange={e => setLcdForm({ scl: e.target.value })} className="h-9 flex-1" placeholder="SCL (22)" />
+                     </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">ADDR</label>
+                     <Input value={lcdForm.address} onChange={e => setLcdForm({ address: e.target.value })} className="col-span-3 h-9" placeholder="0x3C or 0x27" />
+                  </div>
+
+                  {/* Specifics */}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">CONFIG</label>
+                     <div className="col-span-3">
+                        {lcdForm.type === 'OLED' ? (
+                            <select value={lcdForm.resolution} onChange={e => setLcdForm({ resolution: e.target.value as any })} className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs font-mono font-bold outline-none">
+                                <option value="128x64">128 x 64 (Standard)</option>
+                                <option value="128x32">128 x 32 (Slim)</option>
+                            </select>
+                        ) : (
+                            <div className="flex gap-2">
+                                <Input type="number" value={lcdForm.cols} onChange={e => setLcdForm({ cols: e.target.value })} className="h-9 flex-1" placeholder="Cols (16)" />
+                                <Input type="number" value={lcdForm.rows} onChange={e => setLcdForm({ rows: e.target.value })} className="h-9 flex-1" placeholder="Rows (2)" />
+                            </div>
+                        )}
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
+                     <Input 
+                        value={lcdForm.group} 
+                        onChange={e => setLcdForm({ group: e.target.value })} 
+                        className="col-span-3 h-9" 
+                        placeholder="Group (e.g. Living Room)" 
+                        list="group-suggestions"
+                     />
+                  </div>
+
+                  <TechButton onClick={handleAddDisplay} icon={Plus} variant="outline" className="text-purple-500 border-purple-500/30 hover:bg-purple-500/10">
+                    Add {lcdForm.type} Screen
                   </TechButton>
                 </CardContent>
               </Card>

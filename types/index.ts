@@ -20,11 +20,12 @@ export enum CMD {
   GPIO_STATE = 0x16,
   BTN_INPUT = 0x17,
   BTN_CONFIG = 0x18,
+  DISPLAY_UPDATE = 0x19, // New Command for Display
   ERROR = 0xFF,
 }
 
-export type SegmentType = 'All' | 'PWM' | 'Digital' | 'Code' | 'Input-0-1';
-export type GroupType = 'custom' | 'register' | 'weather' | 'input';
+export type SegmentType = 'All' | 'PWM' | 'Digital' | 'Code' | 'Input-0-1' | 'OLED' | 'CharLCD';
+export type GroupType = 'custom' | 'register' | 'weather' | 'input' | 'display';
 export type ButtonTrigger = 0 | 1 | 2 | 3; // 0=Hold, 1=Toggle, 2=High, 3=Low
 export type ButtonAction = 0 | 1 | 2 | 3; // None, ON, OFF, Toggle
 
@@ -70,6 +71,14 @@ export interface Segment {
   readonly inputAction?: ButtonAction;
   readonly inputActionGpio?: number;
   inputActive?: boolean; 
+
+  // Display (OLED / LCD)
+  readonly sdaPin?: number;
+  readonly sclPin?: number;
+  readonly i2cAddress?: string; // e.g., "0x3C"
+  readonly displayWidth?: number; // 128 or 16 (cols)
+  readonly displayHeight?: number; // 64 or 2 (rows)
+  displayContent?: string; // To store current text on screen
 }
 
 export interface Schedule {

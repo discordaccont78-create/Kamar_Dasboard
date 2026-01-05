@@ -6,7 +6,7 @@ import {
   Trees, Car, Briefcase, Gamepad2, Speaker, Radio, Camera, 
   DoorOpen, Layers, Cpu, Server, Router, Phone, Box, Settings,
   Utensils, Refrigerator, WashingMachine, Warehouse, Coffee, 
-  LayoutTemplate, Flame, Music
+  LayoutTemplate, Flame, Music, MonitorSmartphone, Grid3X3
 } from 'lucide-react';
 
 /**
@@ -20,6 +20,10 @@ export const getIconForName = (name: string, defaultType: 'group' | 'device' = '
   const lowerName = name.toLowerCase();
 
   // --- Mappings (Priority Order) ---
+
+  // 0. Displays / Screens (Explicit Types)
+  if (match(lowerName, ['oled', 'screen', 'monitor', 'display', 'نمایشگر', 'اولد'])) return MonitorSmartphone;
+  if (match(lowerName, ['lcd', 'character', 'text', 'ال سی دی'])) return Grid3X3;
 
   // 1. Kitchen / Cooking / Appliances
   if (match(lowerName, ['coffee', 'espresso', 'maker', 'barista', 'قهوه', 'اسپرسو', 'چای', 'نوشیدنی'])) return Coffee;

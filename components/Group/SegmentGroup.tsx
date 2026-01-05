@@ -6,6 +6,7 @@ import { SegmentCard } from '../Segment/SegmentCard';
 import { CustomSegment } from '../Segment/CustomSegment';
 import { WeatherSegment } from '../Segment/WeatherSegment';
 import { InputSegment } from '../Segment/InputSegment';
+import { DisplaySegment } from '../Segment/DisplaySegment';
 import { RegisterSubGroup } from './RegisterSubGroup';
 import { Segment } from '../../types/index';
 import { GroupHeader } from './GroupHeader';
@@ -138,6 +139,7 @@ const DraggableDisplayItem = React.memo(({
             )}
             {seg.groupType === 'input' && <InputSegment segment={seg} />}
             {seg.groupType === 'weather' && <WeatherSegment segment={seg} />}
+            {seg.groupType === 'display' && <DisplaySegment segment={seg} />}
         </SegmentCard>
       );
   }

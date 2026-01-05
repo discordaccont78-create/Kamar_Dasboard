@@ -29,6 +29,21 @@ interface UIState {
   dhtForm: { gpio: string; name: string; group: string; type: 'DHT11' | 'DHT22' };
   setDhtForm: (data: Partial<UIState['dhtForm']>) => void;
 
+  lcdForm: { 
+    name: string; 
+    group: string; 
+    type: 'OLED' | 'CharLCD'; 
+    sda: string; 
+    scl: string; 
+    address: string;
+    // OLED specific
+    resolution: '128x64' | '128x32';
+    // LCD specific
+    rows: string;
+    cols: string;
+  };
+  setLcdForm: (data: Partial<UIState['lcdForm']>) => void;
+
   timerForm: { hours: number; minutes: number; seconds: number; targetSegmentId: string };
   setTimerForm: (data: Partial<UIState['timerForm']>) => void;
 }
@@ -51,6 +66,19 @@ export const useUIStore = create<UIState>()(
 
       dhtForm: { gpio: '', name: '', group: '', type: 'DHT11' },
       setDhtForm: (data) => set((state) => ({ dhtForm: { ...state.dhtForm, ...data } })),
+
+      lcdForm: { 
+        name: '', 
+        group: '', 
+        type: 'OLED', 
+        sda: '21', 
+        scl: '22', 
+        address: '0x3C', 
+        resolution: '128x64', 
+        rows: '2', 
+        cols: '16' 
+      },
+      setLcdForm: (data) => set((state) => ({ lcdForm: { ...state.lcdForm, ...data } })),
 
       timerForm: { hours: 0, minutes: 0, seconds: 0, targetSegmentId: '' },
       setTimerForm: (data) => set((state) => ({ timerForm: { ...state.timerForm, ...data } })),
