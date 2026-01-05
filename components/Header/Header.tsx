@@ -42,74 +42,71 @@ const generateJaggedPath = (startX: number, startY: number, endX: number, endY: 
     return d;
 };
 
-// --- Electric Connection Component (Static Decoration between Islands) ---
+// --- Electric Connection Component (Animated Realistic Arc) ---
 const ElectricConnection = React.memo(({ color }: { color: string }) => {
-  const paths = [
-    "M0,50 L20,20 L40,80 L60,20 L80,80 L100,50", 
-    "M0,50 L15,65 L35,35 L55,75 L85,25 L100,50", 
-    "M0,50 L25,30 L45,70 L65,30 L85,70 L100,50", 
-    "M0,50 L10,45 L30,55 L50,45 L70,55 L90,45 L100,50"
-  ];
+  const [boltPaths, setBoltPaths] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Generate initial paths
+    const gen = () => [
+        generateJaggedPath(0, 50, 100, 50, 6, 30), // Wide atmospheric glow
+        generateJaggedPath(0, 50, 100, 50, 10, 20), // Mid arc
+        generateJaggedPath(0, 50, 100, 50, 12, 10)  // Tight core
+    ];
+    setBoltPaths(gen());
+
+    const interval = setInterval(() => {
+        setBoltPaths(gen());
+    }, 100); // 10 FPS for jittery electric feel
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="absolute top-0 bottom-0 -left-3 md:-left-5 w-4 md:w-6 flex items-center justify-center overflow-visible pointer-events-none z-50">
        <svg viewBox="0 0 100 100" className="w-[400%] h-full overflow-visible" preserveAspectRatio="none">
           <defs>
-            <filter id="glow-connection" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <filter id="connection-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
               <feMerge>
-                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="blur"/>
                 <feMergeNode in="SourceGraphic"/>
               </feMerge>
             </filter>
           </defs>
           
-          {paths.map((d, i) => (
-            <MotionPath 
-               key={i}
-               d={d}
-               stroke={color}
-               strokeWidth={i === 0 ? 2.5 : 1.5} 
-               fill="none"
-               strokeLinecap="round"
-               strokeLinejoin="round"
-               filter="url(#glow-connection)"
-               initial={{ pathLength: 0, opacity: 0 }}
-               animate={{ 
-                  pathLength: [0, 1.2, 1.2],
-                  opacity: [0, 1, 0],
-                  pathOffset: [0, 0, 1]
-               }}
-               transition={{
-                  duration: 1.5 + (i * 0.3), 
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: i * 0.1, 
-                  repeatDelay: 0.2
-               }}
-            />
-          ))}
-          
-          <MotionPath 
-             d={paths[0]}
-             stroke="white"
-             strokeWidth="1"
-             fill="none"
+          {/* Outer Atmosphere (Faint) */}
+          <path 
+             d={boltPaths[0]} 
+             stroke={color} 
+             strokeWidth="3" 
+             strokeOpacity="0.2"
+             fill="none" 
              strokeLinecap="round"
              strokeLinejoin="round"
-             initial={{ pathLength: 0, opacity: 0 }}
-             animate={{ 
-                pathLength: [0, 1.2, 1.2],
-                opacity: [0, 1, 0],
-                pathOffset: [0, 0, 1]
-             }}
-             transition={{
-                duration: 1.5,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 0,
-                repeatDelay: 0.2
-             }}
+             filter="url(#connection-glow)"
+          />
+
+          {/* Main Bolt Body */}
+          <path 
+             d={boltPaths[1]} 
+             stroke={color} 
+             strokeWidth="1.5" 
+             strokeOpacity="0.8"
+             fill="none" 
+             strokeLinecap="round"
+             strokeLinejoin="round"
+             filter="url(#connection-glow)"
+          />
+
+          {/* White Hot Core */}
+          <path 
+             d={boltPaths[2]} 
+             stroke="white" 
+             strokeWidth="0.8" 
+             fill="none" 
+             strokeLinecap="round"
+             strokeLinejoin="round"
           />
        </svg>
     </div>
@@ -314,15 +311,15 @@ const GlitchTitle = ({ text, active, discharging }: { text: string, active: bool
 // --- ANIMATED CLOCK COMPONENTS ---
 
 const TimeDigit = ({ val }: { val: string }) => (
-  <div className="relative h-10 w-6 md:h-12 md:w-8 overflow-hidden flex items-center justify-center">
+  <div className="relative h-6 w-3.5 md:h-8 md:w-5 overflow-hidden flex items-center justify-center">
     <AnimatePresence mode="popLayout">
       <MotionSpan
         key={val}
-        initial={{ y: -20, opacity: 0, filter: 'blur(4px)' }}
+        initial={{ y: -10, opacity: 0, filter: 'blur(2px)' }}
         animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
-        exit={{ y: 20, opacity: 0, filter: 'blur(4px)' }}
+        exit={{ y: 10, opacity: 0, filter: 'blur(2px)' }}
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        className="absolute inset-0 flex items-center justify-center font-dina text-xl md:text-3xl font-bold text-foreground pb-1"
+        className="absolute inset-0 flex items-center justify-center font-dina text-lg md:text-xl font-bold leading-none pb-0.5 text-transparent bg-clip-text bg-gradient-to-t from-[hsl(var(--primary))] from-50% to-[hsl(var(--foreground))] to-50% bg-[length:100%_200%] bg-top group-hover:bg-bottom transition-[background-position] duration-500 ease-out"
       >
         {val}
       </MotionSpan>
@@ -334,7 +331,7 @@ const Separator = () => (
   <MotionSpan 
     animate={{ opacity: [0.3, 1, 0.3] }} 
     transition={{ duration: 1, repeat: Infinity }}
-    className="font-dina text-xl md:text-2xl font-bold text-primary mx-0.5 -mt-1 pb-1"
+    className="font-dina text-lg md:text-xl font-bold mx-px -mt-0.5 text-transparent bg-clip-text bg-gradient-to-t from-[hsl(var(--primary))] from-50% to-[hsl(var(--primary))] to-50% bg-[length:100%_200%] bg-top group-hover:bg-bottom transition-[background-position] duration-500 ease-out"
   >
     :
   </MotionSpan>
@@ -588,13 +585,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                   {/* NEW ANIMATED CLOCK CONTAINER */}
                   <MotionDiv 
                     whileHover={{ scale: 1.05 }}
-                    className="group relative px-3 py-1 rounded-lg border border-transparent hover:border-primary/30 hover:bg-primary/5 transition-all duration-300 cursor-default overflow-hidden"
+                    className="group relative px-2 py-1 rounded-lg border border-transparent hover:border-primary/30 transition-all duration-300 cursor-default overflow-hidden"
                   >
-                      {/* Glow effect on hover */}
-                      <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 blur-md transition-opacity duration-300" />
+                      {/* Removed background glow div, using text-clip instead */}
                       
                       {/* FORCE LTR FOR CLOCK DISPLAY TO FIX RTL BUG */}
-                      <div className="relative z-10 flex items-center gap-0.5 md:gap-1 text-foreground drop-shadow-sm select-none" dir="ltr">
+                      <div className="relative z-10 flex items-center gap-0.5 md:gap-1 drop-shadow-sm select-none" dir="ltr">
                           <TimeDigit val={timeParts.h[0]} />
                           <TimeDigit val={timeParts.h[1]} />
                           <Separator />
