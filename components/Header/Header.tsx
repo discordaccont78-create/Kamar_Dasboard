@@ -23,7 +23,6 @@ const MotionSvg = motion.svg as any;
 const MotionCircle = motion.circle as any;
 
 // --- Helper: Generate Jagged Path Data ---
-// Creates a chaotic lightning path string
 const generateJaggedPath = (startX: number, startY: number, endX: number, endY: number, segments: number, amplitude: number) => {
     let d = `M ${startX} ${startY}`;
     for (let i = 1; i < segments; i++) {
@@ -35,7 +34,6 @@ const generateJaggedPath = (startX: number, startY: number, endX: number, endY: 
         const offset = (Math.random() - 0.5) * amplitude;
         
         // For a horizontal-ish line, simple Y offset works best for lightning look
-        // For arbitrary angles, we'd add vector math, but here X/Y jitter is enough
         const jitterX = (Math.random() - 0.5) * (amplitude / 2);
         
         d += ` L ${x + jitterX} ${y + offset}`;
@@ -46,7 +44,6 @@ const generateJaggedPath = (startX: number, startY: number, endX: number, endY: 
 
 // --- Electric Connection Component (Static Decoration between Islands) ---
 const ElectricConnection = React.memo(({ color }: { color: string }) => {
-  // 4 Distinct chaotic paths to create high density (Tesla Coil effect)
   const paths = [
     "M0,50 L20,20 L40,80 L60,20 L80,80 L100,50", 
     "M0,50 L15,65 L35,35 L55,75 L85,25 L100,50", 
@@ -72,7 +69,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
                key={i}
                d={d}
                stroke={color}
-               strokeWidth={i === 0 ? 2.5 : 1.5} // Main path thicker
+               strokeWidth={i === 0 ? 2.5 : 1.5} 
                fill="none"
                strokeLinecap="round"
                strokeLinejoin="round"
@@ -84,16 +81,15 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
                   pathOffset: [0, 0, 1]
                }}
                transition={{
-                  duration: 1.5 + (i * 0.3), // Varied duration so they don't sync up perfectly
+                  duration: 1.5 + (i * 0.3), 
                   repeat: Infinity,
                   ease: "easeInOut",
-                  delay: i * 0.1, // Staggered start for streaming effect
+                  delay: i * 0.1, 
                   repeatDelay: 0.2
                }}
             />
           ))}
           
-          {/* White hot center for the primary path to make it pop */}
           <MotionPath 
              d={paths[0]}
              stroke="white"
@@ -120,13 +116,11 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
   )
 });
 
-// --- SPARK BOLT: The arc jumping from Text to Logo (High Density) ---
+// --- SPARK BOLT ---
 const SparkBolt = ({ active }: { active: boolean }) => {
-    // Generate chaotic paths on every render (triggered by parent state change)
-    // We use 3 distinct paths to create volume and density
-    const path1 = generateJaggedPath(100, 10, 0, 10, 8, 15);  // Wide jitter
-    const path2 = generateJaggedPath(100, 10, 0, 10, 12, 10); // Medium jitter
-    const path3 = generateJaggedPath(100, 10, 0, 10, 6, 5);   // Core tight
+    const path1 = generateJaggedPath(100, 10, 0, 10, 8, 15);
+    const path2 = generateJaggedPath(100, 10, 0, 10, 12, 10);
+    const path3 = generateJaggedPath(100, 10, 0, 10, 6, 5);
 
     return (
         <div className="absolute top-1/2 left-8 right-0 -translate-y-1/2 h-20 pointer-events-none z-20 overflow-visible">
@@ -148,7 +142,6 @@ const SparkBolt = ({ active }: { active: boolean }) => {
                             </filter>
                         </defs>
                         
-                        {/* Layer 1: Outer Aura (Faint, Wide) */}
                         <MotionPath
                             d={path1}
                             stroke="hsl(var(--primary))"
@@ -163,7 +156,6 @@ const SparkBolt = ({ active }: { active: boolean }) => {
                             transition={{ duration: 0.1, ease: "linear" }}
                         />
 
-                        {/* Layer 2: Main Body (Primary Color) */}
                         <MotionPath
                             d={path2}
                             stroke="hsl(var(--primary))"
@@ -177,7 +169,6 @@ const SparkBolt = ({ active }: { active: boolean }) => {
                             transition={{ duration: 0.15, ease: "easeOut" }}
                         />
 
-                        {/* Layer 3: White Hot Core */}
                         <MotionPath
                             d={path3}
                             stroke="white"
@@ -190,7 +181,6 @@ const SparkBolt = ({ active }: { active: boolean }) => {
                             transition={{ duration: 0.2, ease: "easeOut" }}
                         />
 
-                        {/* Particles: Flying Sparks */}
                         <MotionCircle cx="80" cy="10" r="1.5" fill="white" initial={{ opacity:0, cx:90 }} animate={{ opacity: [0,1,0], cx: 60, cy: 5 }} transition={{ duration: 0.3 }} />
                         <MotionCircle cx="50" cy="10" r="1" fill="hsl(var(--primary))" initial={{ opacity:0 }} animate={{ opacity: [0,1,0], cx: 40, cy: 15 }} transition={{ duration: 0.3, delay: 0.05 }} />
                         <MotionCircle cx="20" cy="10" r="1.5" fill="white" initial={{ opacity:0 }} animate={{ opacity: [0,1,0], cx: 10, cy: 2 }} transition={{ duration: 0.3, delay: 0.1 }} />
@@ -201,12 +191,10 @@ const SparkBolt = ({ active }: { active: boolean }) => {
     );
 };
 
-// --- CURSOR DISCHARGE BOLT: The arc jumping from Logo to Cursor (High Density) ---
+// --- CURSOR DISCHARGE BOLT ---
 const CursorDischargeBolt = ({ start, end }: { start: {x:number, y:number} | null, end: {x:number, y:number} | null }) => {
     if (!start || !end) return null;
 
-    // Generate 3 intense paths for the cursor discharge
-    // Higher amplitude because the distance is usually larger and it needs to look like a strike
     const path1 = generateJaggedPath(start.x, start.y, end.x, end.y, 8, 40);
     const path2 = generateJaggedPath(start.x, start.y, end.x, end.y, 12, 20);
     const path3 = generateJaggedPath(start.x, start.y, end.x, end.y, 6, 10);
@@ -224,7 +212,6 @@ const CursorDischargeBolt = ({ start, end }: { start: {x:number, y:number} | nul
                     </filter>
                 </defs>
                 
-                {/* 1. Large Blur Aura */}
                 <MotionPath
                     d={path1}
                     stroke="hsl(var(--primary))"
@@ -239,7 +226,6 @@ const CursorDischargeBolt = ({ start, end }: { start: {x:number, y:number} | nul
                     transition={{ duration: 0.2, ease: "linear" }}
                 />
 
-                {/* 2. Main Electric Arc */}
                 <MotionPath
                     d={path2}
                     stroke="hsl(var(--primary))"
@@ -253,7 +239,6 @@ const CursorDischargeBolt = ({ start, end }: { start: {x:number, y:number} | nul
                     transition={{ duration: 0.25, ease: "easeOut" }}
                 />
 
-                {/* 3. White Core */}
                 <MotionPath
                     d={path3}
                     stroke="white"
@@ -283,12 +268,10 @@ const GlitchTitle = ({ text, active, discharging }: { text: string, active: bool
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
     >
-        {/* Main Text - Flash White on Discharge */}
         <h1 className={cn(baseClass, "z-10 relative", discharging && "text-primary/50 mix-blend-hard-light")}>
             {text}
         </h1>
 
-        {/* RGB Split Layers */}
         <AnimatePresence>
             {trigger && (
                 <>
@@ -328,12 +311,42 @@ const GlitchTitle = ({ text, active, discharging }: { text: string, active: bool
   );
 };
 
+// --- ANIMATED CLOCK COMPONENTS ---
+
+const TimeDigit = ({ val }: { val: string }) => (
+  <div className="relative h-10 w-6 md:h-12 md:w-8 overflow-hidden flex items-center justify-center">
+    <AnimatePresence mode="popLayout">
+      <MotionSpan
+        key={val}
+        initial={{ y: -20, opacity: 0, filter: 'blur(4px)' }}
+        animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
+        exit={{ y: 20, opacity: 0, filter: 'blur(4px)' }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        className="absolute inset-0 flex items-center justify-center font-dina text-xl md:text-3xl font-bold text-foreground pb-1"
+      >
+        {val}
+      </MotionSpan>
+    </AnimatePresence>
+  </div>
+);
+
+const Separator = () => (
+  <MotionSpan 
+    animate={{ opacity: [0.3, 1, 0.3] }} 
+    transition={{ duration: 1, repeat: Infinity }}
+    className="font-dina text-xl md:text-2xl font-bold text-primary mx-0.5 -mt-1 pb-1"
+  >
+    :
+  </MotionSpan>
+);
 
 export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const { settings, updateSettings } = useSettingsStore();
-  const { setCharged } = useCursorStore(); // Hook into cursor state
-  const [time, setTime] = useState<string>('');
+  const { setCharged } = useCursorStore();
   const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
+  
+  // Clock state split for animations
+  const [timeParts, setTimeParts] = useState<{h: string[], m: string[], s: string[]}>({ h:['0','0'], m:['0','0'], s:['0','0'] });
   
   // --- SPARK SYSTEM STATE ---
   const [sparkState, setSparkState] = useState<'idle' | 'discharge' | 'impact'>('idle');
@@ -347,13 +360,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const t = translations[settings.language];
 
   useEffect(() => {
-    // Clock
-    const locale = settings.language === 'fa' ? 'fa-IR' : 'en-US';
-    const updateTime = () => setTime(new Date().toLocaleTimeString(locale, { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    // Clock Logic
+    const locale = 'en-US'; // Force EN for consistent digit animation, format manually for aesthetics
+    const updateTime = () => {
+        const now = new Date();
+        const h = now.getHours().toString().padStart(2, '0').split('');
+        const m = now.getMinutes().toString().padStart(2, '0').split('');
+        const s = now.getSeconds().toString().padStart(2, '0').split('');
+        setTimeParts({ h, m, s });
+    };
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
-  }, [settings.language]);
+  }, []);
 
   // --- 1. THE "ALIVE" INTERVAL (Text -> Logo) ---
   useEffect(() => {
@@ -564,11 +583,30 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
             </div>
 
             <div className="relative h-full w-full flex items-center justify-between pl-10 pr-6 md:pl-14 md:pr-8">
-               <div className="hidden lg:flex flex-col items-start justify-center pl-4 border-l-2 border-border/30 h-10">
-                  <div className={cn("font-dina text-2xl font-bold tracking-widest flex items-center gap-2", "text-foreground drop-shadow-sm")}>
-                    {time || "00:00:00"}
-                  </div>
-                  <div className="text-[7px] font-black uppercase tracking-[0.4em] text-primary/70">{t.system_time}</div>
+               <div className="hidden lg:flex flex-col items-start justify-center pl-4 border-l-2 border-border/30 h-auto py-1">
+                  
+                  {/* NEW ANIMATED CLOCK CONTAINER */}
+                  <MotionDiv 
+                    whileHover={{ scale: 1.05 }}
+                    className="group relative px-3 py-1 rounded-lg border border-transparent hover:border-primary/30 hover:bg-primary/5 transition-all duration-300 cursor-default overflow-hidden"
+                  >
+                      {/* Glow effect on hover */}
+                      <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 blur-md transition-opacity duration-300" />
+                      
+                      {/* FORCE LTR FOR CLOCK DISPLAY TO FIX RTL BUG */}
+                      <div className="relative z-10 flex items-center gap-0.5 md:gap-1 text-foreground drop-shadow-sm select-none" dir="ltr">
+                          <TimeDigit val={timeParts.h[0]} />
+                          <TimeDigit val={timeParts.h[1]} />
+                          <Separator />
+                          <TimeDigit val={timeParts.m[0]} />
+                          <TimeDigit val={timeParts.m[1]} />
+                          <Separator />
+                          <TimeDigit val={timeParts.s[0]} />
+                          <TimeDigit val={timeParts.s[1]} />
+                      </div>
+                  </MotionDiv>
+
+                  <div className="text-[7px] font-black uppercase tracking-[0.4em] text-primary/70 mt-0.5 ml-3">{t.system_time}</div>
                </div>
 
                <div className="flex items-center gap-2 md:gap-3 z-10 ml-auto">

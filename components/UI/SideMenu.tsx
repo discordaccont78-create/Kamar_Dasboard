@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -932,7 +931,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                 </div>
 
                                 {settings.dualColorBackground && settings.backgroundEffect !== 'grid' && (
-                                    <motion.div 
+                                    <MotionDiv 
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
                                         className="space-y-2"
@@ -950,7 +949,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                             step={1}
                                             className="h-4"
                                         />
-                                    </motion.div>
+                                    </MotionDiv>
                                 )}
                             </div>
 

@@ -8,7 +8,7 @@ import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-import { Slider } from '../UI/Slider';
+import { Slider } from '../ui/slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import { ButtonTrigger } from '../../types/index';
@@ -486,7 +486,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                             </button>
                         </div>
                         {repeatMode === 'count' && (
-                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-2">
+                            <MotionDiv initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-2">
                                 <Input 
                                     type="number" 
                                     placeholder="Count" 
@@ -494,7 +494,7 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
                                     onChange={(e) => setRepeatCount(parseInt(e.target.value))}
                                     className="h-8 text-center"
                                 />
-                            </motion.div>
+                            </MotionDiv>
                         )}
                     </div>
                 )}
