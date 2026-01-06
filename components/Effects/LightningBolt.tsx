@@ -183,7 +183,6 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
             const myEntryDelay = parentEntryDelay + (parentDuration * splitRatio);
             
             // Unclamped Speed: Allow the bolt to strike as fast as the math dictates.
-            // Previously capped at 0.2s, now it can be 0.05s or less for a "Flash" effect.
             const myDuration = parentDuration * 0.5;
 
             // Exit Logic (Fade)
@@ -260,7 +259,8 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
     }, [startX, startY, endX, endY, segments, amplitude, active, branchIntensity, animationDuration, lingerDuration]);
 
     // Segment Variants
-    const segmentVariants = {
+    // Type as 'any' to handle the mix of single number opacity (hidden/visible) and array number[] opacity (exit)
+    const segmentVariants: any = {
         hidden: { 
             pathLength: 0, 
             pathOffset: 0,
@@ -275,7 +275,6 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                     delay: custom.delay, 
                     duration: custom.duration, 
                     // Linear easing for entry makes it look sharper and faster (like a projectile)
-                    // rather than slowing down at the end.
                     ease: "linear"
                 }, 
                 opacity: { 
@@ -288,7 +287,8 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
         exit: (custom: RenderableSegment) => ({ 
             pathLength: 0, 
             pathOffset: 1,
-            opacity: 0, 
+            // Keyframes: Start at 1, dip, flash back up, dip, gone.
+            opacity: [1, 0.4, 0.9, 0.2, 0], 
             transition: { 
                 // GEOMETRY FADE (Retraction): Follows the recursive wave timing
                 pathLength: {
@@ -301,11 +301,13 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                     duration: custom.exitDuration,
                     ease: "linear"
                 },
-                // OPACITY FADE (Dimming): Happens globally and uniformly
+                // OPACITY FADE (Dimming with Flicker)
                 opacity: {
-                    delay: 0, // Starts immediately when exit triggers
-                    duration: custom.globalExitDuration, // Fades over the total linger time
-                    ease: "linear"
+                    delay: 0,
+                    duration: custom.globalExitDuration, 
+                    times: [0, 0.3, 0.5, 0.8, 1], // Timing of the flickers
+                    ease: "easeInOut",
+                    repeat: 0
                 }
             } 
         })
@@ -330,9 +332,23 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                 >
                     <defs>
                         <filter id={filterId} x="-50%" y="-50%" width="200%" height="200%">
-                            <feGaussianBlur stdDeviation={glowIntensity} result="blur" />
+                            {/* 1. Standard Blur */}
+                            <feGaussianBlur in="SourceGraphic" stdDeviation={glowIntensity} result="blur" />
+                            
+                            {/* 2. Fractal Noise for "Plasma" Texture */}
+                            {/* baseFrequency high = fine grain. numOctaves low = performance */}
+                            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="noise" />
+                            
+                            {/* 3. Displace the blur with the noise to make it "smoky/electric" */}
+                            <feDisplacementMap in="blur" in2="noise" scale={glowIntensity * 2} result="texturedGlow" />
+                            
+                            {/* 4. Boost the Glow brightness */}
+                            <feComponentTransfer in="texturedGlow" result="boostedGlow">
+                                <feFuncA type="linear" slope="1.5" /> 
+                            </feComponentTransfer>
+
                             <feMerge>
-                                <feMergeNode in="blur" />
+                                <feMergeNode in="boostedGlow" />
                                 <feMergeNode in="SourceGraphic" />
                             </feMerge>
                         </filter>
@@ -340,7 +356,7 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                     
                     {allSegments.map((seg) => (
                         <g key={seg.id}>
-                            {/* Layer 1: Glow (Uses dGlow for volume) */}
+                            {/* Layer 1: Glow (Uses dGlow for volume + Turbulence Filter) */}
                             {seg.level < 2 && (
                                 <MotionPath
                                     custom={seg}
@@ -348,7 +364,7 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                                     d={seg.dGlow} 
                                     stroke={color}
                                     strokeWidth={Math.max(1, 6 * thickness * seg.widthMultiplier)}
-                                    strokeOpacity={0.2 * seg.widthMultiplier}
+                                    strokeOpacity={0.4 * seg.widthMultiplier}
                                     fill="none"
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
@@ -366,10 +382,11 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                                 fill="none"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                filter={`url(#${filterId})`}
+                                // Also apply filter to core to blend it with plasma
+                                filter={`url(#${filterId})`} 
                             />
 
-                            {/* Layer 3: White Hot Center (Uses dCore for intensity) */}
+                            {/* Layer 3: White Hot Center (Uses dCore for intensity - No Filter, sharpest part) */}
                             {seg.level < 2 && (
                                 <MotionPath
                                     custom={seg}
@@ -377,7 +394,7 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                                     d={seg.dCore} 
                                     stroke="white"
                                     strokeWidth={Math.max(0.2, 1 * thickness * seg.widthMultiplier)}
-                                    strokeOpacity={0.8}
+                                    strokeOpacity={0.9}
                                     fill="none"
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
