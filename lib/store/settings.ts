@@ -62,6 +62,10 @@ export const useSettingsStore = create<SettingsStore>()(
         patternOpacity: 15,
         secondaryPatternOpacity: 20,
         
+        // Header Defaults
+        headerGap: 160,
+        headerWaveOpacity: 90,
+
         // Grid Defaults
         gridStrokeWidth: 1,
         gridLineStyle: 'solid',

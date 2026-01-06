@@ -91,7 +91,7 @@ const generateSawtoothPath = (width: number, yCenter: number, cycles: number, am
 };
 
 // --- NEW Electric Connection Component ---
-const ElectricConnection = React.memo(({ color }: { color: string }) => {
+const ElectricConnection = React.memo(({ color, width, left, opacity }: { color: string, width: number, left: number, opacity: number }) => {
   const PHASE_SHIFT = (2 * Math.PI) / 3; // 120 degrees in radians
 
   // 1. Square Wave Frames (Soft Analog Style)
@@ -147,9 +147,16 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
   }, []);
 
   return (
-    // Update positioning to extend deeply to the left, under the first island
-    <div className="absolute top-0 bottom-0 -left-[5rem] md:-left-[14rem] w-[7rem] md:w-[18rem] flex items-center justify-center overflow-visible pointer-events-none z-0">
-       <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible opacity-90" preserveAspectRatio="none">
+    // Dynamic Positioning based on Header Gap
+    <div 
+      className="absolute top-0 bottom-0 flex items-center justify-center overflow-visible pointer-events-none z-0"
+      style={{
+          left: `${left}px`,
+          width: `${width}px`,
+          opacity: opacity
+      }}
+    >
+       <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible" preserveAspectRatio="none">
           <defs>
             <linearGradient id="stream-fade" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor={color} stopOpacity="0" />
@@ -496,6 +503,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const { playClick, playToggle, playSpark, playCharge } = useSoundFx();
   const t = translations[settings.language];
 
+  const gapSize = settings.headerGap ?? 160;
+  // Calculate dynamic dimensions to ensure wave covers the gap + overlap
+  const waveWidth = gapSize + 120; // Gap + 120px overlap total
+  const waveLeft = -(gapSize + 60); // Offset to the left to reach other island
+
   useEffect(() => {
     const updateTime = () => {
         const now = new Date();
@@ -615,8 +627,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
 
   return (
     <header className="sticky top-2 md:top-6 z-50 px-2 md:px-8 transition-all duration-500 pointer-events-none">
-      {/* Increased GAP heavily here: gap-12 md:gap-40 */}
-      <div className="max-w-[1400px] mx-auto flex items-stretch justify-between gap-12 md:gap-40 relative pointer-events-auto h-[60px] md:h-[72px]">
+      {/* Dynamic Gap applied via style */}
+      <div 
+        className="max-w-[1400px] mx-auto flex items-stretch justify-between relative pointer-events-auto h-[60px] md:h-[72px]"
+        style={{ gap: `${gapSize}px` }}
+      >
         {cursorBolt && <CursorDischargeBolt start={cursorBolt.start} end={cursorBolt.end} />}
         <MotionDiv
           variants={islandVariants}
@@ -668,7 +683,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
             className="relative flex-1 drop-shadow-xl filter"
         >
             {/* CONDITIONAL RENDER: Only show electric waves if animations are enabled */}
-            {settings.animations && <ElectricConnection color={settings.cursorColor || "#daa520"} />}
+            {settings.animations && (
+                <ElectricConnection 
+                    color={settings.cursorColor || "#daa520"} 
+                    width={waveWidth} 
+                    left={waveLeft}
+                    opacity={(settings.headerWaveOpacity ?? 90) / 100}
+                />
+            )}
             
             <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl" style={{ clipPath: CLIP_RIGHT }} />
             <div className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl overflow-hidden" style={{ clipPath: CLIP_RIGHT }}>

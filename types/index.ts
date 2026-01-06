@@ -123,6 +123,10 @@ export interface AppSettings {
   dashboardFont?: 'Inter' | 'Oswald' | 'Lato' | 'Montserrat' | 'DinaRemaster' | 'PrpggyDotted';
   backgroundEffect?: 'grid' | 'dots' | 'squares' | 'triangles';
   
+  // Header / Waves Config
+  headerGap?: number; // Distance between islands in px
+  headerWaveOpacity?: number; // Opacity 0-100
+
   // Advanced Pattern Config
   dualColorBackground: boolean;
   hollowShapes: boolean; // Toggles between filled and outlined shapes

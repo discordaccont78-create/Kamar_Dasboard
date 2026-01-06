@@ -12,7 +12,7 @@ import {
   Settings as SettingsIcon, X, Zap, Play, Activity, Monitor, 
   SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type, TableProperties,
   Grid3X3, CircleDot, MousePointer2, Palette, Volume2, Square, Triangle, Circle, Sticker, Droplets,
-  Ruler, PenTool, Hash, MonitorSmartphone
+  Ruler, PenTool, Hash, MonitorSmartphone, GripHorizontal
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -129,6 +129,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   const { 
     activeSection, setActiveSection,
     outputForm, setOutputForm,
+    inputForm, setInputForm,
     regForm, setRegForm,
     dhtForm, setDhtForm,
     lcdForm, setLcdForm,
@@ -206,6 +207,35 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     addToast("Output segment added successfully", "success");
   };
 
+  const handleAddInput = () => {
+    playClick();
+    const pin = parseInt(inputForm.gpio);
+    const groupName = inputForm.group.trim() || "Inputs";
+
+    if (!inputForm.gpio || !inputForm.name) return;
+    if (isNaN(pin)) { addToast("Invalid GPIO", "error"); return; }
+
+    if (isGpioUsed(pin)) {
+        addToast(`GPIO ${pin} is already in use!`, "error");
+        return;
+    }
+
+    addSegment({
+        num_of_node: Math.random().toString(36).substr(2, 9),
+        name: inputForm.name.trim(),
+        group: groupName,
+        groupType: 'input',
+        segType: 'Input-0-1',
+        gpio: pin,
+        is_led_on: 'off',
+        val_of_slide: 0,
+        inputCondition: 1, // Default Trigger
+        inputActive: false
+    });
+    setInputForm({ gpio: '', name: '', group: '', trigger: '1' });
+    addToast("Input sensor added", "success");
+  };
+
   const handleAddRegister = () => {
     playClick();
     const ds = parseInt(regForm.ds);
@@ -252,10 +282,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
     if (!lcdForm.name) return;
     if (isNaN(sda) || isNaN(scl)) { addToast("Invalid I2C Pins", "error"); return; }
 
-    // Note: I2C bus can be shared, so we don't strictly block used pins if they are SCL/SDA, 
-    // but for simplicity in this dashboard let's warn if they are used by non-i2c devices.
-    // Ideally we'd check if used by a DIFFERENT type of device.
-    
     let width = 0;
     let height = 0;
 
@@ -399,6 +425,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 no-scrollbar">
             
+            {/* 1. OUTPUTS SECTION */}
             <MenuSection 
                 id="output" 
                 title="Output Segments" 
@@ -407,10 +434,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                 onToggle={handleSectionToggle}
                 animations={settings.animations}
             >
-              {/* ... Output Form Content ... */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
                 <CardContent className="space-y-5 pt-6">
-                  {/* ... Output Form Fields ... */}
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.gpio}</label>
                      <Input type="number" value={outputForm.gpio} onChange={e => setOutputForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="PIN #" />
@@ -506,276 +531,173 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
               </Card>
             </MenuSection>
 
+            {/* 2. INPUTS SECTION */}
             <MenuSection 
-                id="status" 
-                title={t.dash_status || "Dashboard Status"} 
-                icon={TableProperties} 
+                id="input" 
+                title="Input Sensors" 
+                icon={Monitor} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
                 animations={settings.animations}
             >
-              {/* Status Content */}
-              <Card className="rounded-2xl border-border shadow-sm bg-card/50 overflow-hidden">
-                 <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
-                    <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
-                       <Activity size={12} /> {t.status_desc || "Hardware Map"}
-                    </CardTitle>
-                 </CardHeader>
-                 <CardContent className="p-0">
-                    <div className="grid grid-cols-[35px_1fr_1fr_auto] bg-muted/40 p-2 text-[8px] font-black uppercase tracking-widest text-muted-foreground border-b border-border/50 gap-2">
-                       <div className="text-center">{t.gpio || "PIN"}</div>
-                       <div>{t.name || "ID"}</div>
-                       <div>{t.group || "GRP"}</div>
-                       <div className="text-right">DATA</div>
-                    </div>
-                    
-                    {sortedSegments.length === 0 ? (
-                       <div className="p-4 text-center text-[10px] text-muted-foreground font-mono">
-                          No configured segments
-                       </div>
-                    ) : (
-                       <div className="max-h-[300px] overflow-y-auto no-scrollbar">
-                          {sortedSegments.map(seg => {
-                             let displayState = "-";
-                             let stateColor = "text-muted-foreground";
-
-                             if (seg.groupType === 'weather') {
-                                displayState = `${seg.temperature || 0}°C / ${seg.humidity || 0}%`;
-                                stateColor = "text-blue-500";
-                             } else if (seg.groupType === 'input') {
-                                displayState = seg.inputActive ? "HIGH" : "LOW";
-                                stateColor = seg.inputActive ? "text-primary" : "text-muted-foreground";
-                             } else if (seg.segType === 'PWM' || seg.segType === 'All') {
-                                displayState = `VAL: ${seg.val_of_slide}`;
-                                stateColor = "text-orange-500";
-                             } else if (seg.segType === 'Digital' || seg.groupType === 'register') {
-                                displayState = seg.is_led_on === 'on' ? "ON" : "OFF";
-                                stateColor = seg.is_led_on === 'on' ? "text-green-500" : "text-red-500";
-                             } else if (seg.groupType === 'display') {
-                                displayState = "ACTIVE";
-                                stateColor = "text-purple-500";
-                             }
-
-                             const nameFont = isPersian(seg.name) ? "font-persian" : "";
-                             const groupFont = isPersian(seg.group) ? "font-persian" : "";
-
-                             return (
-                                <div key={seg.num_of_node} className="grid grid-cols-[35px_1fr_1fr_auto] p-2 border-b border-border/20 last:border-0 hover:bg-secondary/5 transition-colors gap-2 items-center">
-                                   <div className="text-center font-mono text-[9px] font-bold bg-muted/20 rounded py-0.5 text-foreground/70">
-                                      {seg.gpio || seg.dhtPin || seg.dsPin || seg.sdaPin || "-"}
-                                   </div>
-                                   <div className={cn("text-[9px] font-bold truncate", nameFont)}>
-                                      {seg.name}
-                                   </div>
-                                   <div className={cn("text-[8px] uppercase tracking-wider text-muted-foreground truncate", groupFont)}>
-                                      {seg.group}
-                                   </div>
-                                   <div className={cn("text-[9px] font-mono font-black text-right min-w-[30px]", stateColor)}>
-                                      {displayState}
-                                   </div>
-                                </div>
-                             )
-                          })}
-                       </div>
-                    )}
-                 </CardContent>
+              <Card className="rounded-2xl border-border shadow-sm bg-card/50">
+                <CardContent className="space-y-5 pt-6">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.gpio}</label>
+                     <Input type="number" value={inputForm.gpio} onChange={e => setInputForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="PIN #" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
+                     <Input value={inputForm.name} onChange={e => setInputForm({ name: e.target.value })} className="col-span-3 h-9" placeholder="Sensor Name" list="name-suggestions" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
+                     <Input value={inputForm.group} onChange={e => setInputForm({ group: e.target.value })} className="col-span-3 h-9" placeholder="Inputs" list="group-suggestions" />
+                  </div>
+                  <TechButton onClick={handleAddInput} icon={Plus}>
+                    {t.add} Input Sensor
+                  </TechButton>
+                </CardContent>
               </Card>
             </MenuSection>
 
+            {/* 3. REGISTERS SECTION */}
             <MenuSection 
-                id="hardware_out" 
-                title="Output Modules" 
+                id="register" 
+                title="Shift Registers" 
                 icon={Cpu} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
                 animations={settings.animations}
             >
-               {/* Shift Register Card */}
-               <Card className="rounded-2xl border-border shadow-sm bg-card/50 mb-4">
-                <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
-                   <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
-                      <Cpu size={12} /> Shift Register (74HC595)
-                   </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input 
-                        value={regForm.group} 
-                        onChange={e => setRegForm({ group: e.target.value })} 
-                        className="col-span-3 h-9" 
-                        placeholder="Register Name (e.g. Relays)"
-                        list="group-suggestions" 
-                     />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">DS</label>
-                     <Input type="number" value={regForm.ds} onChange={e => setRegForm({ ds: e.target.value })} className="col-span-3 h-9" placeholder="Data Pin (SER)" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">SHCP</label>
-                     <Input type="number" value={regForm.shcp} onChange={e => setRegForm({ shcp: e.target.value })} className="col-span-3 h-9" placeholder="Clock Pin (SRCLK)" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">STCP</label>
-                     <Input type="number" value={regForm.stcp} onChange={e => setRegForm({ stcp: e.target.value })} className="col-span-3 h-9" placeholder="Latch Pin (RCLK)" />
-                  </div>
-                  
-                  <TechButton onClick={handleAddRegister} icon={Plus} variant="outline">
-                    Add 74HC595 Sub-Group
-                  </TechButton>
-                </CardContent>
-              </Card>
-
-              {/* Display Modules Card (OLED / LCD) */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
-                <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
-                   <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-purple-500">
-                      <MonitorSmartphone size={12} /> Display / LCD
-                   </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-4">
-                  {/* Common Fields */}
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.type}</label>
-                     <div className="col-span-3 flex gap-2">
-                        <button 
-                            onClick={() => setLcdForm({ type: 'OLED' })}
-                            className={cn(
-                                "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
-                                lcdForm.type === 'OLED' ? "bg-purple-500/20 border-purple-500 text-purple-500 shadow-sm" : "bg-transparent border-input text-muted-foreground"
-                            )}
-                        >
-                            <MonitorSmartphone size={12} /> OLED
-                        </button>
-                        <button 
-                            onClick={() => setLcdForm({ type: 'CharLCD' })}
-                            className={cn(
-                                "flex-1 h-9 rounded-md border text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
-                                lcdForm.type === 'CharLCD' ? "bg-green-500/20 border-green-500 text-green-500 shadow-sm" : "bg-transparent border-input text-muted-foreground"
-                            )}
-                        >
-                            <Grid3X3 size={12} /> LCD
-                        </button>
-                     </div>
+                <CardContent className="space-y-5 pt-6">
+                  <div className="space-y-4">
+                      <div className="flex gap-2">
+                          <div className="flex-1 space-y-1">
+                              <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">DS (Data)</label>
+                              <Input type="number" value={regForm.ds} onChange={e => setRegForm({ ds: e.target.value })} className="h-9 text-center" placeholder="PIN" />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                              <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">SHCP (Clock)</label>
+                              <Input type="number" value={regForm.shcp} onChange={e => setRegForm({ shcp: e.target.value })} className="h-9 text-center" placeholder="PIN" />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                              <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">STCP (Latch)</label>
+                              <Input type="number" value={regForm.stcp} onChange={e => setRegForm({ stcp: e.target.value })} className="h-9 text-center" placeholder="PIN" />
+                          </div>
+                      </div>
+                      <div className="space-y-1">
+                          <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Group Name (Required)</label>
+                          <Input value={regForm.group} onChange={e => setRegForm({ group: e.target.value })} className="h-9" placeholder="e.g., Living Room Lights" />
+                      </div>
                   </div>
-
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
-                     <Input 
-                        value={lcdForm.name} 
-                        onChange={e => setLcdForm({ name: e.target.value })} 
-                        className="col-span-3 h-9" 
-                        placeholder="Screen Name" 
-                        list="name-suggestions"
-                     />
-                  </div>
-
-                  {/* I2C Config */}
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">I2C BUS</label>
-                     <div className="col-span-3 flex gap-2">
-                        <Input type="number" value={lcdForm.sda} onChange={e => setLcdForm({ sda: e.target.value })} className="h-9 flex-1" placeholder="SDA (21)" />
-                        <Input type="number" value={lcdForm.scl} onChange={e => setLcdForm({ scl: e.target.value })} className="h-9 flex-1" placeholder="SCL (22)" />
-                     </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">ADDR</label>
-                     <Input value={lcdForm.address} onChange={e => setLcdForm({ address: e.target.value })} className="col-span-3 h-9" placeholder="0x3C or 0x27" />
-                  </div>
-
-                  {/* Specifics */}
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">CONFIG</label>
-                     <div className="col-span-3">
-                        {lcdForm.type === 'OLED' ? (
-                            <select value={lcdForm.resolution} onChange={e => setLcdForm({ resolution: e.target.value as any })} className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs font-mono font-bold outline-none">
-                                <option value="128x64">128 x 64 (Standard)</option>
-                                <option value="128x32">128 x 32 (Slim)</option>
-                            </select>
-                        ) : (
-                            <div className="flex gap-2">
-                                <Input type="number" value={lcdForm.cols} onChange={e => setLcdForm({ cols: e.target.value })} className="h-9 flex-1" placeholder="Cols (16)" />
-                                <Input type="number" value={lcdForm.rows} onChange={e => setLcdForm({ rows: e.target.value })} className="h-9 flex-1" placeholder="Rows (2)" />
-                            </div>
-                        )}
-                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input 
-                        value={lcdForm.group} 
-                        onChange={e => setLcdForm({ group: e.target.value })} 
-                        className="col-span-3 h-9" 
-                        placeholder="Group (e.g. Living Room)" 
-                        list="group-suggestions"
-                     />
-                  </div>
-
-                  <TechButton onClick={handleAddDisplay} icon={Plus} variant="outline" className="text-purple-500 border-purple-500/30 hover:bg-purple-500/10">
-                    Add {lcdForm.type} Screen
+                  <TechButton onClick={handleAddRegister} icon={Plus}>
+                    Initialize 74HC595
                   </TechButton>
                 </CardContent>
               </Card>
             </MenuSection>
 
+            {/* 4. WEATHER SECTION */}
             <MenuSection 
-                id="hardware_in" 
-                title="Input Modules" 
+                id="weather" 
+                title="Weather Modules" 
                 icon={Cloud} 
                 activeId={activeSection} 
                 onToggle={handleSectionToggle}
                 animations={settings.animations}
             >
-              {/* Weather Station Card */}
               <Card className="rounded-2xl border-border shadow-sm bg-card/50">
-                <CardHeader className="pb-2 border-b border-border/50 bg-secondary/5 py-3">
-                   <CardTitle className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-blue-500">
-                      <Cloud size={12} /> Weather Station (DHT)
-                   </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-4">
+                <CardContent className="space-y-5 pt-6">
                   <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Data</label>
-                     <Input type="number" value={dhtForm.gpio} onChange={e => setDhtForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="Data Pin GPIO" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.type}</label>
-                     <select value={dhtForm.type} onChange={e => setDhtForm({ type: e.target.value as 'DHT11' | 'DHT22' })} className="col-span-3 h-9 rounded-md border border-input bg-background px-3 text-xs font-mono font-bold outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-foreground">
-                        <option value="DHT11">DHT11 (Blue)</option>
-                        <option value="DHT22">DHT22 (White)</option>
-                      </select>
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.gpio}</label>
+                     <Input type="number" value={dhtForm.gpio} onChange={e => setDhtForm({ gpio: e.target.value })} className="col-span-3 h-9" placeholder="Data PIN" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                      <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
-                     <Input 
-                        value={dhtForm.name} 
-                        onChange={e => setDhtForm({ name: e.target.value })} 
-                        className="col-span-3 h-9" 
-                        placeholder="Sensor Name" 
-                        list="name-suggestions"
-                     />
+                     <Input value={dhtForm.name} onChange={e => setDhtForm({ name: e.target.value })} className="col-span-3 h-9" placeholder="Location Name" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.group}</label>
-                     <Input 
-                        value={dhtForm.group} 
-                        onChange={e => setDhtForm({ group: e.target.value })} 
-                        className="col-span-3 h-9" 
-                        placeholder="Weather Group" 
-                        list="group-suggestions"
-                     />
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.type}</label>
+                     <select value={dhtForm.type} onChange={e => setDhtForm({ type: e.target.value as any })} className="col-span-3 h-9 rounded-md border border-input bg-background px-3 text-xs font-mono font-bold">
+                        <option value="DHT11">DHT11</option>
+                        <option value="DHT22">DHT22 (AM2302)</option>
+                      </select>
                   </div>
-                  
-                  <TechButton onClick={handleAddDHT} icon={Plus} variant="outline">
-                    Add DHT Module
+                  <TechButton onClick={handleAddDHT} icon={Plus}>
+                    Add Weather Station
                   </TechButton>
                 </CardContent>
               </Card>
             </MenuSection>
 
+            {/* 5. DISPLAYS SECTION */}
+            <MenuSection 
+                id="displays" 
+                title="Display Units" 
+                icon={MonitorSmartphone} 
+                activeId={activeSection} 
+                onToggle={handleSectionToggle}
+                animations={settings.animations}
+            >
+              <Card className="rounded-2xl border-border shadow-sm bg-card/50">
+                <CardContent className="space-y-5 pt-6">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">{t.name}</label>
+                     <Input value={lcdForm.name} onChange={e => setLcdForm({ name: e.target.value })} className="col-span-3 h-9" placeholder="Display Name" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                     <label className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest col-span-1">Type</label>
+                     <select value={lcdForm.type} onChange={e => setLcdForm({ type: e.target.value as any })} className="col-span-3 h-9 rounded-md border border-input bg-background px-3 text-xs font-mono font-bold">
+                        <option value="OLED">OLED I2C</option>
+                        <option value="CharLCD">LCD 16x2 I2C</option>
+                      </select>
+                  </div>
+                  <div className="flex gap-2">
+                        <div className="flex-1 space-y-1">
+                            <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">SDA</label>
+                            <Input type="number" value={lcdForm.sda} onChange={e => setLcdForm({ sda: e.target.value })} className="h-9 text-center" />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                            <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">SCL</label>
+                            <Input type="number" value={lcdForm.scl} onChange={e => setLcdForm({ scl: e.target.value })} className="h-9 text-center" />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                            <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">ADDR</label>
+                            <Input value={lcdForm.address} onChange={e => setLcdForm({ address: e.target.value })} className="h-9 text-center" placeholder="0x3C" />
+                        </div>
+                  </div>
+                  
+                  {lcdForm.type === 'OLED' ? (
+                      <div className="space-y-1">
+                          <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Resolution</label>
+                          <select value={lcdForm.resolution} onChange={e => setLcdForm({ resolution: e.target.value as any })} className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs font-mono font-bold">
+                            <option value="128x64">128 x 64</option>
+                            <option value="128x32">128 x 32</option>
+                          </select>
+                      </div>
+                  ) : (
+                      <div className="flex gap-2">
+                          <div className="flex-1 space-y-1">
+                              <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Cols</label>
+                              <Input type="number" value={lcdForm.cols} onChange={e => setLcdForm({ cols: e.target.value })} className="h-9 text-center" />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                              <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Rows</label>
+                              <Input type="number" value={lcdForm.rows} onChange={e => setLcdForm({ rows: e.target.value })} className="h-9 text-center" />
+                          </div>
+                      </div>
+                  )}
+
+                  <TechButton onClick={handleAddDisplay} icon={Plus}>
+                    Initialize Screen
+                  </TechButton>
+                </CardContent>
+              </Card>
+            </MenuSection>
+
+            {/* 6. SYSTEM CORE SECTION (With New Header Energy Flow) */}
             <MenuSection 
                 id="system" 
                 title="System Core" 
@@ -802,6 +724,51 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                          onChange={(e) => updateSettings({ domain: e.target.value })} 
                          placeholder="iot-device"
                        />
+                    </div>
+
+                    {/* NEW: Electric Wave Management */}
+                    <div className="space-y-4 pt-2 border-t border-border/50">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                            <Zap size={12} className="text-primary" /> Header Energy Flow
+                        </label>
+                        
+                        <div className="space-y-2 px-1">
+                            {/* Gap Size Slider */}
+                            <div className="space-y-1">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                                        <GripHorizontal size={10} /> Island Gap
+                                    </label>
+                                    <span className="text-[8px] font-mono font-bold text-foreground">{settings.headerGap ?? 160}px</span>
+                                </div>
+                                <Slider 
+                                    value={[settings.headerGap ?? 160]}
+                                    onValueChange={(val) => updateSettings({ headerGap: val[0] })}
+                                    min={40}
+                                    max={400}
+                                    step={10}
+                                    className="h-3"
+                                />
+                            </div>
+
+                            {/* Wave Opacity Slider */}
+                            <div className="space-y-1">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                                        <Droplets size={10} /> Wave Opacity
+                                    </label>
+                                    <span className="text-[8px] font-mono font-bold text-foreground">{settings.headerWaveOpacity ?? 90}%</span>
+                                </div>
+                                <Slider 
+                                    value={[settings.headerWaveOpacity ?? 90]}
+                                    onValueChange={(val) => updateSettings({ headerWaveOpacity: val[0] })}
+                                    min={0}
+                                    max={100}
+                                    step={5}
+                                    className="h-3"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="space-y-2 pt-2 border-t border-border/50">
@@ -1059,7 +1026,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.audio_engine}</label>
                         <Switch checked={settings.bgMusic} onCheckedChange={(c) => updateSettings({ bgMusic: c })} />
                       </div>
-                      {/* NEW: UI SFX Toggle */}
                       <div className="flex items-center justify-between">
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                             <Volume2 size={12} /> {t.ui_sfx}
