@@ -62,23 +62,25 @@ const CoreDischarge = React.memo(() => {
             thickness = 2.5;
             branchIntensity = 1.0 + Math.random(); // High intensity = more recursive depth
             lingerDuration = 0.5 + Math.random() * 1.0; 
-            fadeDuration = 1.0 + Math.random();         
+            fadeDuration = 1.5 + Math.random();         
         } else if (length > 200) {
             // Medium Bolt
             thickness = 1.5;
             branchIntensity = 0.6 + Math.random() * 0.5;
             lingerDuration = 0.3 + Math.random() * 0.4;
-            fadeDuration = 0.6 + Math.random() * 0.4;
+            fadeDuration = 1.0 + Math.random() * 0.5;
         } else {
-            // Small Bolt - NOW ALLOWS BRANCHING
-            // Previously was 0 branching. Now we allow it but keep duration short.
+            // Small Bolt
             thickness = 1.0;
-            branchIntensity = Math.random() > 0.4 ? 0.5 : 0; // 60% chance of small branches
+            branchIntensity = Math.random() > 0.4 ? 0.5 : 0; 
             lingerDuration = 0.1 + Math.random() * 0.2;
-            fadeDuration = 0.3 + Math.random() * 0.3;
+            fadeDuration = 0.6 + Math.random() * 0.4;
         }
 
-        const travelTime = 0.15 + (length / 900); 
+        // STRIKE SPEED: Extremely fast (Flash)
+        // Previous: 0.15 + (length / 900) -> 0.2s - 0.5s
+        // New: 0.05 + (length / 2000) -> 0.05s - 0.25s
+        const travelTime = 0.05 + (length / 2000); 
 
         setBoltData({ 
             id: Date.now(), 
@@ -86,7 +88,8 @@ const CoreDischarge = React.memo(() => {
         });
         setIsActive(true);
 
-        const visibleTime = (travelTime * 1000) + (lingerDuration * 1000);
+        // Keep it visible for Strike Time + a tiny bit of hold, then fade
+        const visibleTime = (travelTime * 1000) + 100;
         
         phase2Timeout = setTimeout(() => {
             setIsActive(false);
@@ -135,8 +138,8 @@ const CoreDischarge = React.memo(() => {
           glowIntensity={3}
           thickness={boltData.thickness} 
           branchIntensity={boltData.branchIntensity} 
-          animationDuration={boltData.travelTime} 
-          lingerDuration={boltData.fadeDuration} 
+          animationDuration={boltData.travelTime} // This is now very short (Strike)
+          lingerDuration={boltData.fadeDuration} // This is now long (Fade)
           className="opacity-90 text-primary drop-shadow-[0_0_15px_rgba(var(--primary),0.8)]" 
           color="hsl(var(--primary))"
       />

@@ -22,7 +22,8 @@ interface RenderableSegment {
     delay: number; 
     duration: number; 
     exitDelay: number; 
-    exitDuration: number; // Added to store precise duration for this segment
+    exitDuration: number; // Precise duration for geometry retraction
+    globalExitDuration: number; // Total duration for opacity fade
     widthMultiplier: number; 
 }
 
@@ -147,7 +148,6 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
         }
 
         // 3. Add THIS segment to results
-        // Note: 'parentExitDuration' passed in IS the calculated duration for this segment from the previous recursion
         results.push({
             id: `lvl${level}-${Math.random().toString(36).substr(2, 5)}`,
             d: pathString,
@@ -158,6 +158,7 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
             duration: parentDuration,
             exitDelay: parentExitDelay,
             exitDuration: parentExitDuration, 
+            globalExitDuration: totalLingerLimit, // Store global limit for opacity fade
             widthMultiplier: Math.max(0.3, 1 - (level * 0.3))
         });
 
@@ -175,23 +176,24 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
             const pointIndex = availableIndices.splice(randIndex, 1)[0];
             const connectionPoint = points[pointIndex]; 
 
-            // --- TIMING LOGIC (SYNCHRONIZED DEATH) ---
+            // --- TIMING LOGIC (SYNCHRONIZED DEATH, INSTANT LIFE) ---
             const splitRatio = pointIndex / points.length;
             
             // Entry Logic (Draw)
             const myEntryDelay = parentEntryDelay + (parentDuration * splitRatio);
-            const myDuration = Math.min(0.2, parentDuration * 0.6);
+            
+            // Unclamped Speed: Allow the bolt to strike as fast as the math dictates.
+            // Previously capped at 0.2s, now it can be 0.05s or less for a "Flash" effect.
+            const myDuration = parentDuration * 0.5;
 
             // Exit Logic (Fade)
             // The child starts fading when the parent's fade reaches the connection point
             const myExitDelay = parentExitDelay + (parentExitDuration * splitRatio);
             
-            // CRITICAL CHANGE: The child MUST finish by 'totalLingerLimit'.
-            // Duration = Deadline - StartTime.
-            // This forces deep branches to fade extremely fast to catch up.
+            // CRITICAL: The child MUST finish by 'totalLingerLimit'.
             let myExitDuration = totalLingerLimit - myExitDelay;
             
-            // Safety clamp: Prevent negative or zero duration (causes visual glitches)
+            // Safety clamp
             if (myExitDuration < 0.05) myExitDuration = 0.05;
 
             // --- GEOMETRY MATH ---
@@ -272,7 +274,9 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                 pathLength: { 
                     delay: custom.delay, 
                     duration: custom.duration, 
-                    ease: "easeOut"
+                    // Linear easing for entry makes it look sharper and faster (like a projectile)
+                    // rather than slowing down at the end.
+                    ease: "linear"
                 }, 
                 opacity: { 
                     delay: custom.delay, 
@@ -286,10 +290,23 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
             pathOffset: 1,
             opacity: 0, 
             transition: { 
-                delay: custom.exitDelay,
-                // Using the deadline-calculated duration
-                duration: custom.exitDuration, 
-                ease: "linear" 
+                // GEOMETRY FADE (Retraction): Follows the recursive wave timing
+                pathLength: {
+                    delay: custom.exitDelay,
+                    duration: custom.exitDuration,
+                    ease: "linear"
+                },
+                pathOffset: {
+                    delay: custom.exitDelay,
+                    duration: custom.exitDuration,
+                    ease: "linear"
+                },
+                // OPACITY FADE (Dimming): Happens globally and uniformly
+                opacity: {
+                    delay: 0, // Starts immediately when exit triggers
+                    duration: custom.globalExitDuration, // Fades over the total linger time
+                    ease: "linear"
+                }
             } 
         })
     };
