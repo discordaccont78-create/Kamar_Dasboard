@@ -14,8 +14,9 @@ interface Point {
 
 interface BranchData {
     d: string;
-    delay: number; // Time in seconds to wait before drawing
-    duration: number; // How fast the branch draws
+    delay: number; // Time in seconds to wait before drawing (Entry)
+    duration: number; // How fast the branch draws (Entry)
+    splitRatio: number; // Position (0-1) along the main bolt where this branch connects
 }
 
 // 1. Generate Points Function (Returns Array of {x,y} instead of string)
@@ -128,7 +129,7 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                 const pointIndex = availableIndices.splice(randIndex, 1)[0];
                 const startNode = mainPoints[pointIndex];
                 
-                // --- TIMING CALCULATION ---
+                // --- TIMING & POSITION CALCULATION ---
                 // Calculate how far along the main path this point is (0.0 to 1.0)
                 const splitRatio = pointIndex / mainPoints.length;
                 
@@ -164,7 +165,8 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                 branches.push({
                     d: pointsToPath(branchPoints),
                     delay,
-                    duration: branchDrawDuration
+                    duration: branchDrawDuration,
+                    splitRatio // Crucial: Store where this branch is relative to main bolt
                 });
             }
         }
@@ -180,51 +182,78 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
 
     }, [startX, startY, endX, endY, segments, amplitude, active, branchIntensity, animationDuration]);
 
-    // MAIN PATH Variants (Refined for Smoother Exit)
+    // MAIN PATH Variants (Retract from Tail Logic)
     const mainVariants = {
-        hidden: { pathLength: 0, opacity: 0 },
+        hidden: { 
+            pathLength: 0, 
+            pathOffset: 0, 
+            opacity: 0 
+        },
         visible: { 
             pathLength: 1, 
+            pathOffset: 0,
             opacity: 1,
             transition: { 
                 pathLength: { duration: animationDuration, ease: "linear" }, 
-                opacity: { duration: 0.05 } 
+                opacity: { duration: 0.05 },
+                pathOffset: { duration: 0 }
             }
         },
         exit: { 
+            // LOGIC: As pathLength goes to 0 AND pathOffset goes to 1,
+            // the stroke shrinks towards the end of the path.
+            pathLength: 0,
+            pathOffset: 1, 
             opacity: 0,
             transition: { 
-                duration: lingerDuration, // Dynamic fade time from prop
-                ease: "easeInOut" // Smoother fade curve
+                pathLength: { duration: lingerDuration, ease: "easeInOut" },
+                pathOffset: { duration: lingerDuration, ease: "easeInOut" },
+                // Keep opacity high for most of the exit so we see the movement, then fade at the very end
+                opacity: { duration: lingerDuration, ease: "easeIn", times: [0, 0.8, 1], values: [1, 1, 0] } 
             } 
         }
     };
 
-    // BRANCH Variants (Refined for Smoother Exit)
+    // BRANCH Variants (Physics-based Sequential Fading)
     const branchVariants = {
-        hidden: { pathLength: 0, opacity: 0 },
+        hidden: { 
+            pathLength: 0, 
+            pathOffset: 0,
+            opacity: 0 
+        },
         visible: (custom: BranchData) => ({ 
             pathLength: 1, 
+            pathOffset: 0,
             opacity: 1,
             transition: { 
                 pathLength: { 
-                    delay: custom.delay, // Wait for main bolt
+                    delay: custom.delay, 
                     duration: custom.duration, 
                     ease: "easeOut"
                 }, 
                 opacity: { 
                     delay: custom.delay, 
                     duration: 0.01 
-                } 
+                },
+                pathOffset: { duration: 0 }
             }
         }),
-        exit: { 
+        exit: (custom: BranchData) => ({ 
+            pathLength: 0, 
+            pathOffset: 1,
             opacity: 0, 
             transition: { 
-                duration: lingerDuration * 0.9, // Slightly faster fade for branches
-                ease: "easeInOut"
+                // CRITICAL: The branch starts fading ONLY when the main bolt's fade (which takes lingerDuration)
+                // reaches the splitRatio point.
+                delay: lingerDuration * custom.splitRatio,
+                
+                // Once triggered, the branch fades faster than the main bolt (it's smaller/thinner).
+                // We use a fraction of the lingerDuration, ensuring it looks like power loss.
+                duration: lingerDuration * 0.25, 
+                
+                ease: "circOut" // Sudden drop looks more like electrical cutoff
             } 
-        }
+        })
     };
 
     const staticVariants = {
