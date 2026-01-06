@@ -9,7 +9,7 @@ import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-import { Slider } from '../ui/slider';
+import { Slider } from '../UI/Slider'; // Adjusted import casing
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import { ButtonTrigger } from '../../types/index';

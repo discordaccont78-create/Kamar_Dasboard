@@ -43,7 +43,7 @@ const generateJaggedPath = (startX: number, startY: number, endX: number, endY: 
     return d;
 };
 
-// --- Helper: Generate Smooth Sine Wave Path (Refined for 3-Phase Flow) ---
+// --- Helper: Generate Smooth Sine Wave Path ---
 const generateSinePath = (width: number, height: number, cycles: number, amplitude: number, phaseOffset: number) => {
     const points = 60; 
     let d = `M 0 ${height / 2}`;
@@ -52,7 +52,6 @@ const generateSinePath = (width: number, height: number, cycles: number, amplitu
         const t = i / points;
         const x = t * width;
         // 3-Phase Logic: y = Amp * sin(kx + phase)
-        // theta = (normalized_x * total_cycles * 2PI) + animation_phase_offset
         const theta = (t * cycles * Math.PI * 2) + phaseOffset;
         const y = (height / 2) + Math.sin(theta) * amplitude;
         d += ` L ${x} ${y}`;
@@ -60,7 +59,44 @@ const generateSinePath = (width: number, height: number, cycles: number, amplitu
     return d;
 };
 
-// --- NEW Electric Connection Component (3-Phase Harmonic Flow) ---
+// --- Helper: Generate Square Wave Path (Top Rail) ---
+const generateSquarePath = (width: number, yCenter: number, cycles: number, amplitude: number, phaseOffset: number) => {
+    const points = 100; // Higher resolution for sharp edges
+    let d = `M 0 ${yCenter}`;
+    
+    for (let i = 0; i <= points; i++) {
+        const t = i / points;
+        const x = t * width;
+        const theta = (t * cycles * Math.PI * 2) + phaseOffset;
+        // Square wave logic: Math.sign(sin(theta))
+        const val = Math.sin(theta) >= 0 ? 1 : -1;
+        const y = yCenter + (val * amplitude);
+        d += ` L ${x} ${y}`;
+    }
+    return d;
+};
+
+// --- Helper: Generate Sawtooth Wave Path (Bottom Rail) ---
+const generateSawtoothPath = (width: number, yCenter: number, cycles: number, amplitude: number, phaseOffset: number) => {
+    const points = 80;
+    let d = `M 0 ${yCenter}`;
+    
+    for (let i = 0; i <= points; i++) {
+        const t = i / points;
+        const x = t * width;
+        // Sawtooth logic: (x % period) linear ramp
+        // Normalized phase (0 to 1)
+        const rawPhase = ((t * cycles) + (phaseOffset / (Math.PI * 2))) % 1;
+        // Adjust negative phase for movement
+        const ramp = (rawPhase < 0 ? 1 + rawPhase : rawPhase) * 2 - 1; // -1 to 1
+        
+        const y = yCenter - (ramp * amplitude); // Inverted to look like ascending ramp
+        d += ` L ${x} ${y}`;
+    }
+    return d;
+};
+
+// --- NEW Electric Connection Component (3-Phase + Digital/Analog Rails) ---
 const ElectricConnection = React.memo(({ color }: { color: string }) => {
   // 120 degrees = 2 * PI / 3 radians
   const PHASE_SHIFT = (2 * Math.PI) / 3;
@@ -84,7 +120,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
             </filter>
           </defs>
           
-          {/* Layer 0: Central Data Bus (Direct Current / Neutral) */}
+          {/* Layer 0: Central Data Bus (Electron Path) */}
           <MotionPath
              d="M 0 20 L 100 20"
              stroke={color}
@@ -96,6 +132,38 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
              transition={{ duration: 0.3, repeat: Infinity, ease: "linear" }}
           />
 
+          {/* --- TOP RAIL: SQUARE WAVE (Digital Clock) --- */}
+          <MotionPath
+             stroke={color}
+             strokeWidth="0.8"
+             fill="none"
+             strokeOpacity="0.4"
+             animate={{ 
+                 d: [
+                     generateSquarePath(100, 5, 4, 3, 0),
+                     generateSquarePath(100, 5, 4, 3, -Math.PI * 2)
+                 ]
+             }}
+             transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+          />
+
+          {/* --- BOTTOM RAIL: SAWTOOTH WAVE (Ramp) --- */}
+          <MotionPath
+             stroke={color}
+             strokeWidth="0.8"
+             fill="none"
+             strokeOpacity="0.4"
+             animate={{ 
+                 d: [
+                     generateSawtoothPath(100, 35, 3, 3, 0),
+                     generateSawtoothPath(100, 35, 3, 3, -Math.PI * 2)
+                 ]
+             }}
+             transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+          />
+
+          {/* --- CENTER: 3-PHASE SINE WAVES --- */}
+          
           {/* Phase A (0 degrees) - The Primary Carrier */}
           <MotionPath
              stroke="url(#stream-fade)"
@@ -106,7 +174,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
              animate={{ 
                  d: [
                      generateSinePath(100, 40, 2, 8, 0),
-                     generateSinePath(100, 40, 2, 8, -Math.PI * 2) // Negative phase for Rightward travel
+                     generateSinePath(100, 40, 2, 8, -Math.PI * 2)
                  ]
              }}
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
@@ -144,7 +212,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
           
-          {/* Electron Particles - Synced with wave direction */}
+          {/* Electron Particles - Strictly on Center Line (Inside the Current) */}
           <MotionCircle 
             r="1.5" 
             fill="white"
