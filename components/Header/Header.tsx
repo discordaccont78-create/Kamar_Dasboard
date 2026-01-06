@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun, Settings, Zap, CalendarClock, Hash } from 'lucide-react';
@@ -38,14 +39,15 @@ const generateJaggedPath = (startX: number, startY: number, endX: number, endY: 
 };
 
 // --- Helper: Generate Smooth Sine Wave Path ---
-const generateSinePath = (width: number, height: number, cycles: number, amplitude: number, phaseOffset: number) => {
-    const points = 60; 
-    let d = `M 0 ${height / 2}`;
+const generateSinePath = (width: number, yCenter: number, cycles: number, amplitude: number, phaseOffset: number) => {
+    const points = 100; // Increased resolution for smoothness
+    let d = `M 0 ${yCenter}`;
     for (let i = 0; i <= points; i++) {
         const t = i / points;
         const x = t * width;
+        // Formula: y = A * sin(Bx + C) + D
         const theta = (t * cycles * Math.PI * 2) + phaseOffset;
-        const y = (height / 2) + Math.sin(theta) * amplitude;
+        const y = yCenter + Math.sin(theta) * amplitude;
         d += ` L ${x} ${y}`;
     }
     return d;
@@ -56,19 +58,12 @@ const generateSquarePath = (width: number, yCenter: number, cycles: number, ampl
     const points = 200; // Increased resolution for cleaner vertical lines during interpolation
     let d = `M 0 ${yCenter}`;
     
-    // We want crisp vertical lines. Using Math.sin directly in a loop with low resolution makes slopes.
-    // However, SVG Path interpolation (morph) handles slopes better than instant jumps for "sliding".
-    // High resolution is the key.
-    
     for (let i = 0; i <= points; i++) {
         const t = i / points;
         const x = t * width;
         const theta = (t * cycles * Math.PI * 2) + phaseOffset;
         
         // PWM Logic: 
-        // dutyCycle > 0 means SHORTER High pulses (Narrow 1s)
-        // dutyCycle < 0 means WIDER High pulses (Wide 1s)
-        // 0 is 50% duty cycle.
         const val = Math.sin(theta) > dutyCycle ? 1 : -1;
         
         const y = yCenter - (val * amplitude); 
@@ -96,23 +91,45 @@ const generateSawtoothPath = (width: number, yCenter: number, cycles: number, am
 const ElectricConnection = React.memo(({ color }: { color: string }) => {
   const PHASE_SHIFT = (2 * Math.PI) / 3;
 
-  // Pre-calculate animation frames for Square Wave to ensure smooth sliding
-  // This prevents the "morphing/swapping" artifact by providing close intermediate steps
+  // 1. Square Wave Frames (PWM + Sliding)
   const squareWaveFrames = useMemo(() => {
       const frames = [];
-      const steps = 30; // 30 keyframes per cycle
+      const steps = 30; 
       for (let i = 0; i <= steps; i++) {
           const progress = i / steps;
-          const phase = -Math.PI * 2 * progress; // Move Right
-          
-          // PWM Animation: Sine wave oscillation for Pulse Width
-          // Varies threshold from -0.3 (Wide) to 0.3 (Narrow)
-          // 0 is 50% duty cycle.
+          const phase = -Math.PI * 2 * progress; 
           const pwmThreshold = Math.sin(progress * Math.PI * 2) * 0.4; 
-          
           frames.push(generateSquarePath(100, 5, 4, 3, phase, pwmThreshold));
       }
       return frames;
+  }, []);
+
+  // 2. Sine Wave Frames (AM + Sliding + 3-Phase)
+  // We generate 3 sets of frames for the 3 wires to ensure they move perfectly in sync
+  const sineWaveFrames = useMemo(() => {
+      const framesA = [];
+      const framesB = [];
+      const framesC = [];
+      const steps = 60; // Higher framerate for analog smoothness
+      
+      for (let i = 0; i <= steps; i++) {
+          const progress = i / steps;
+          const movePhase = -Math.PI * 2 * progress; // Slide Left to Right
+          
+          // Amplitude Breathing (AM Modulation effect)
+          // Varies between 6 and 9 units
+          const breatheAmp = 7.5 + Math.sin(progress * Math.PI * 4) * 1.5; 
+
+          // Phase A (0 offset)
+          framesA.push(generateSinePath(100, 20, 2, breatheAmp, movePhase));
+          
+          // Phase B (120 deg offset)
+          framesB.push(generateSinePath(100, 20, 2, breatheAmp, movePhase + PHASE_SHIFT));
+          
+          // Phase C (240 deg offset)
+          framesC.push(generateSinePath(100, 20, 2, breatheAmp, movePhase + (PHASE_SHIFT * 2)));
+      }
+      return { A: framesA, B: framesB, C: framesC };
   }, []);
 
   return (
@@ -147,10 +164,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
           />
 
           {/* --- TOP RAIL: SQUARE WAVE (Digital Clock) --- */}
-          {/* 1. The Wire Axis */}
           <path d="M 0 5 L 100 5" stroke={color} strokeWidth="0.5" strokeOpacity="0.2" strokeDasharray="1 2" />
-          
-          {/* 2. The Square Wave Animation */}
           <MotionPath
              stroke={color}
              strokeWidth="1"
@@ -159,17 +173,12 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
              animate={{ d: squareWaveFrames }}
              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
           />
-
-          {/* 3. Digital Electron (Square) moving through the wave */}
           <MotionRect
             width="2"
             height="2"
             fill={color}
             initial={{ x: 0, y: 4, opacity: 0 }}
-            animate={{ 
-                x: [0, 100],
-                opacity: [0, 1, 1, 0]
-            }}
+            animate={{ x: [0, 100], opacity: [0, 1, 1, 0] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
           />
 
@@ -188,75 +197,52 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
              transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* --- CENTER: 3-PHASE SINE WAVES --- */}
-          {/* Phase A */}
+          {/* --- CENTER: 3-PHASE SINE WAVES (Improved) --- */}
+          {/* Phase A - Strongest */}
           <MotionPath
              stroke="url(#stream-fade)"
-             strokeWidth="1.2"
+             strokeWidth="1.5"
              fill="none"
              filter="url(#plasma-glow)"
              strokeOpacity="1"
-             animate={{ 
-                 d: [
-                     generateSinePath(100, 40, 2, 8, 0),
-                     generateSinePath(100, 40, 2, 8, -Math.PI * 2)
-                 ]
-             }}
+             animate={{ d: sineWaveFrames.A }}
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* Phase B */}
+          {/* Phase B - Medium */}
           <MotionPath
              stroke="url(#stream-fade)"
-             strokeWidth="1.2"
+             strokeWidth="1"
              fill="none"
-             filter="url(#plasma-glow)"
-             strokeOpacity="0.6"
-             animate={{ 
-                 d: [
-                     generateSinePath(100, 40, 2, 8, PHASE_SHIFT),
-                     generateSinePath(100, 40, 2, 8, PHASE_SHIFT - Math.PI * 2)
-                 ]
-             }}
+             strokeOpacity="0.5"
+             animate={{ d: sineWaveFrames.B }}
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* Phase C */}
+          {/* Phase C - Subtlest */}
           <MotionPath
              stroke="url(#stream-fade)"
-             strokeWidth="1.2"
+             strokeWidth="0.8"
              fill="none"
-             filter="url(#plasma-glow)"
              strokeOpacity="0.3"
-             animate={{ 
-                 d: [
-                     generateSinePath(100, 40, 2, 8, PHASE_SHIFT * 2),
-                     generateSinePath(100, 40, 2, 8, (PHASE_SHIFT * 2) - Math.PI * 2)
-                 ]
-             }}
+             animate={{ d: sineWaveFrames.C }}
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
           
-          {/* Central Analog Electrons */}
+          {/* Central Analog Electrons - Particle Flow */}
           <MotionCircle 
             r="1.5" 
             fill="white"
             filter="url(#plasma-glow)"
             initial={{ cx: 0, cy: 20, opacity: 0 }}
-            animate={{ 
-                cx: [0, 100], 
-                opacity: [0, 1, 1, 0] 
-            }}
+            animate={{ cx: [0, 100], opacity: [0, 1, 1, 0] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
           />
            <MotionCircle 
             r="1" 
             fill={color}
             initial={{ cx: 0, cy: 20, opacity: 0 }}
-            animate={{ 
-                cx: [0, 100],
-                opacity: [0, 1, 0] 
-            }}
+            animate={{ cx: [0, 100], opacity: [0, 1, 0] }}
             transition={{ duration: 2, repeat: Infinity, ease: "linear", delay: 0.5 }}
           />
 
