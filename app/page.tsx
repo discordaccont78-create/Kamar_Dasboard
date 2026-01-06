@@ -14,51 +14,136 @@ import { Zap, Trash2, Cpu, Laptop, Smartphone, GripHorizontal } from 'lucide-rea
 import { cn, getFontClass } from '../lib/utils';
 import { translations } from '../lib/i18n';
 import { MUSIC_TRACKS } from '../lib/constants';
-import { LightningHexagon } from '../components/Effects/LightningBolt';
+import { LightningBolt } from '../components/Effects/LightningBolt';
 
 // Workaround for Framer Motion types
 const MotionDiv = motion.div as any;
 
-// --- CORE EMBLEM: THE ELECTRIC ROCK ---
+// --- CORE EMBLEM: SPORADIC DISCHARGE ---
+const CoreDischarge = React.memo(() => {
+  const [bolt, setBolt] = useState<{ id: number; angle: number; length: number; duration: number; thickness: number; travelTime: number } | null>(null);
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let clearId: ReturnType<typeof setTimeout>;
+
+    const scheduleNextBolt = () => {
+      // Random delay between 3000ms (3s) and 4000ms (4s)
+      const delay = Math.random() * 1000 + 3000;
+
+      timeoutId = setTimeout(() => {
+        // 1. Calculate Random Properties
+        // Angle: 0 to 360 degrees
+        const angle = Math.random() * 360;
+        
+        // Length: Randomly Short (60px) to Very Long (350px - extends well beyond container)
+        // We use a power curve to favor mid-range but allow extreme outliers
+        const rawLen = Math.random();
+        const length = 60 + (rawLen * rawLen * 400); 
+
+        // THICKNESS LOGIC:
+        // If it's a short "spark" (less than 180px), make it very thin (0.5).
+        // If it's a long powerful bolt, keep it thick (2 or 2.5).
+        const thickness = length < 180 ? 0.5 : 2;
+
+        // DURATION LOGIC (Directionality):
+        // We need enough time for the user to see the bolt move from Center -> Out.
+        // Travel time is proportional to length so speed feels somewhat consistent.
+        // Minimum 0.2s for visibility.
+        const travelTime = 0.2 + (length / 800); // e.g., 400px takes 0.7s to travel
+
+        // Total lifetime is travel time + a brief moment to linger before disappearing
+        const duration = (travelTime * 1000) + 200; 
+
+        setBolt({ id: Date.now(), angle, length, duration, thickness, travelTime });
+
+        // 2. Clear bolt after duration
+        clearId = setTimeout(() => {
+          setBolt(null);
+          // 3. Schedule next one recursively
+          scheduleNextBolt();
+        }, duration);
+
+      }, delay);
+    };
+
+    // Start the loop
+    scheduleNextBolt();
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(clearId);
+    };
+  }, []);
+
+  if (!bolt) return null;
+
+  // Coordinate System:
+  // We render in a large 800x800 box centered on the 280x280 container.
+  // Center point is (400, 400).
+  const center = 400;
+  const rad = (bolt.angle * Math.PI) / 180;
+  
+  // Start slightly offset from center to not overlap the icon completely
+  const startOffset = 30; 
+  const sx = center + startOffset * Math.cos(rad);
+  const sy = center + startOffset * Math.sin(rad);
+
+  const ex = center + bolt.length * Math.cos(rad);
+  const ey = center + bolt.length * Math.sin(rad);
+
+  return (
+    // Large container centered on parent to allow bolts to fly out
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none z-0 overflow-visible">
+      <LightningBolt 
+          key={bolt.id} // Force re-mount for animation
+          startX={sx} startY={sy} 
+          endX={ex} endY={ey}
+          viewBox="0 0 800 800"
+          segments={12 + Math.floor(bolt.length / 20)} // More segments for longer bolts
+          amplitude={15 + Math.random() * 20} // High amplitude for chaotic look
+          glowIntensity={3}
+          thickness={bolt.thickness} // Dynamic thickness
+          animationDuration={bolt.travelTime} // Pass travel time to animate path
+          className="opacity-90 text-primary drop-shadow-[0_0_15px_rgba(var(--primary),0.8)]" 
+          color="hsl(var(--primary))"
+      />
+    </div>
+  );
+});
+
 const CoreEmblem: React.FC = React.memo(() => (
-  <div className="relative flex items-center justify-center">
+  <div className="relative flex items-center justify-center w-[200px] h-[200px] md:w-[280px] md:h-[280px]">
+    
+    {/* 1. The Discharge Effect (Behind the Core but allowed to overflow) */}
+    <CoreDischarge />
+
+    {/* 2. Outer Containment Ring (Subtle rotation) */}
     <MotionDiv
       animate={{ rotate: 360 }}
-      transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-      className="absolute opacity-20"
-    >
-      <div className="border-4 border-dashed border-primary w-[160px] h-[160px] md:w-[240px] md:h-[240px] rounded-full" />
-    </MotionDiv>
-
-    <MotionDiv
-      animate={{ rotate: -360 }}
-      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-      className="absolute"
-    >
-      {/* REPLACED STATIC HEXAGON WITH DYNAMIC LIGHTNING HEXAGON */}
-      <div className="opacity-40">
-         <LightningHexagon 
-            radius={90} // Responsive size handled by parent scaling, base radius for calculation
-            color="hsl(var(--foreground))"
-            thickness={1.5}
-            className="w-[120px] h-[120px] md:w-[180px] md:h-[180px]"
-         />
-      </div>
-    </MotionDiv>
+      transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+      className="absolute inset-0 opacity-10 border border-dashed border-primary rounded-full"
+    />
     
     <MotionDiv
+      animate={{ rotate: -360 }}
+      transition={{ duration: 45, repeat: Infinity, ease: "linear" }}
+      className="absolute inset-4 opacity-5 border border-dotted border-white rounded-full"
+    />
+
+    {/* 3. The Core Source (Zap Icon) */}
+    <MotionDiv
       animate={{ 
-        scale: [1, 1.15, 1],
+        scale: [1, 1.05, 1],
         filter: [
-          'drop-shadow(0 0 0px rgba(218,165,32,0))',
-          'drop-shadow(0 0 10px rgba(218,165,32,0.4))', // Reduced shadow since background is gone
-          'drop-shadow(0 0 0px rgba(218,165,32,0))'
+          'drop-shadow(0 0 10px rgba(var(--primary),0.2))',
+          'drop-shadow(0 0 20px rgba(var(--primary),0.5))', 
+          'drop-shadow(0 0 10px rgba(var(--primary),0.2))'
         ]
       }}
-      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-      className="z-10 relative flex items-center justify-center"
+      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+      className="z-10 relative flex items-center justify-center bg-background/80 backdrop-blur-md rounded-full p-6 border border-primary/20 shadow-2xl"
     >
-      {/* Removed Card Background - Just the Icon Now */}
       <Zap className="text-primary w-12 h-12 md:w-20 md:h-20 fill-current" strokeWidth={0} />
     </MotionDiv>
   </div>
@@ -389,18 +474,23 @@ export default function DashboardPage(): React.JSX.Element {
         <main className="max-w-7xl mx-auto px-3 md:px-6 pt-6 md:pt-12 flex-1 pb-32 md:pb-40 w-full relative">
           {segments.length === 0 ? (
             <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-12 md:py-16 min-h-[60vh]">
-              <MotionDiv onClick={() => setIsMenuOpen(true)} className="relative z-20 cursor-pointer flex flex-col items-center gap-6 md:gap-8">
+              <MotionDiv onClick={() => setIsMenuOpen(true)} className="relative z-20 cursor-pointer flex flex-col items-center gap-8 md:gap-10">
+                {/* REPLACED WITH NEW SPORADIC DISCHARGE EMBLEM */}
                 <CoreEmblem />
-                <div className="text-center max-w-xs md:max-w-2xl px-4 md:px-8">
-                  <h2 className="text-xl md:text-3xl font-black uppercase tracking-[0.2em] text-primary">{t.hardware_intel}</h2>
-                  <div className="h-0.5 w-24 md:w-32 bg-primary mx-auto opacity-40 my-3 md:my-4" />
+                
+                <div className="text-center max-w-xs md:max-w-2xl px-4 md:px-8 space-y-4">
+                  <h2 className="text-xl md:text-3xl font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-primary drop-shadow-md">
+                    THE MOST ELECTRIFYING <br />
+                    <span className="text-foreground/80 text-lg md:text-2xl tracking-[0.4em]">IOT EXPERIENCE</span>
+                  </h2>
+                  <div className="h-0.5 w-24 md:w-40 bg-gradient-to-r from-transparent via-primary to-transparent mx-auto opacity-60 my-4" />
                   <p className="text-xs md:text-sm font-bold text-muted-foreground italic leading-relaxed uppercase tracking-[0.1em] mb-4 md:mb-6">
                     "{t.success_msg} <br/>
                     <span className="text-foreground not-italic border-b-2 border-primary transition-colors">{t.focus_effort}</span> {t.we_control}"
                   </p>
                 </div>
-                <button className="bg-card text-primary border-2 border-primary/40 px-6 py-3 md:px-10 md:py-4 rounded-chip font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[9px] md:text-[10px] hover:bg-primary hover:text-primary-foreground transition-all duration-300 shadow-xl">
-                  <span className="flex items-center gap-2"><Zap size={14} /> {t.init_deploy}</span>
+                <button className="bg-background text-primary border-2 border-primary/50 px-8 py-4 md:px-12 md:py-5 rounded-bevel font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[10px] md:text-xs hover:bg-primary hover:text-black hover:border-primary transition-all duration-300 shadow-[0_0_20px_-5px_rgba(var(--primary),0.5)] hover:shadow-[0_0_40px_-5px_rgba(var(--primary),0.8)] active:scale-95">
+                  <span className="flex items-center gap-3"><Zap size={16} fill="currentColor" /> {t.init_deploy}</span>
                 </button>
               </MotionDiv>
             </MotionDiv>

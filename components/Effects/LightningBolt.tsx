@@ -5,7 +5,6 @@ import { cn } from '../../lib/utils';
 
 // Motion Components Definitions
 const MotionPath = motion.path as any;
-const MotionCircle = motion.circle as any;
 const MotionSvg = motion.svg as any;
 
 // Helper: Generate Jagged Path Data
@@ -17,21 +16,17 @@ export const generateJaggedPath = (startX: number, startY: number, endX: number,
         const y = startY + (endY - startY) * t;
         
         // Calculate perpendicular vector for jitter direction
-        // This ensures jitter is roughly perpendicular to the line direction
         const dx = endX - startX;
         const dy = endY - startY;
-        // Normalize
         const len = Math.sqrt(dx*dx + dy*dy);
         const udx = dx / len;
         const udy = dy / len;
         
-        // Perpendicular: (-y, x)
         const pdx = -udy;
         const pdy = udx;
 
         const offset = (Math.random() - 0.5) * amplitude;
         
-        // Apply jitter along perpendicular vector
         const jx = x + (pdx * offset);
         const jy = y + (pdy * offset);
 
@@ -55,6 +50,7 @@ interface LightningBoltProps {
     preserveAspectRatio?: string;
     glowIntensity?: number;
     thickness?: number;
+    animationDuration?: number; // Time in seconds for the bolt to travel
 }
 
 export const LightningBolt: React.FC<LightningBoltProps> = ({
@@ -68,7 +64,8 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
     viewBox = "0 0 100 20",
     preserveAspectRatio = "none",
     glowIntensity = 2,
-    thickness = 1 
+    thickness = 1,
+    animationDuration = 0
 }) => {
     const filterId = useMemo(() => `bolt-glow-${Math.random().toString(36).substr(2, 9)}`, []);
 
@@ -78,14 +75,37 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
         p3: generateJaggedPath(startX, startY, endX, endY, Math.floor(segments * 0.8), amplitude * 0.5)
     }), [startX, startY, endX, endY, segments, amplitude, active]);
 
+    // Animation variants for drawing the path
+    const drawVariants = {
+        hidden: { pathLength: 0, opacity: 0 },
+        visible: { 
+            pathLength: 1, 
+            opacity: 1,
+            transition: { 
+                pathLength: { duration: animationDuration, ease: "linear" }, // Linear draw for constant speed feel
+                opacity: { duration: 0.05 } // Quick fade in
+            }
+        },
+        exit: { opacity: 0, transition: { duration: 0.2 } }
+    };
+
+    const staticVariants = {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1 },
+        exit: { opacity: 0 }
+    };
+
+    const variants = animationDuration > 0 ? drawVariants : staticVariants;
+
     return (
         <AnimatePresence>
             {active && (
                 <MotionSvg
                     viewBox={viewBox}
                     className={cn("w-full h-full overflow-visible pointer-events-none", className)}
-                    initial={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
                     preserveAspectRatio={preserveAspectRatio}
                 >
                     <defs>
@@ -98,7 +118,9 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                         </filter>
                     </defs>
                     
+                    {/* Outer Glow */}
                     <MotionPath
+                        variants={variants}
                         d={pathData.p1}
                         stroke={color}
                         strokeWidth={6 * thickness}
@@ -108,7 +130,10 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                         strokeLinejoin="round"
                         filter={`url(#${filterId})`}
                     />
+                    
+                    {/* Main Bolt */}
                     <MotionPath
+                        variants={variants}
                         d={pathData.p2}
                         stroke={color}
                         strokeWidth={3 * thickness}
@@ -117,7 +142,10 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                         strokeLinejoin="round"
                         filter={`url(#${filterId})`}
                     />
+                    
+                    {/* Inner White Core */}
                     <MotionPath
+                        variants={variants}
                         d={pathData.p3}
                         stroke="white"
                         strokeWidth={1.5 * thickness}
