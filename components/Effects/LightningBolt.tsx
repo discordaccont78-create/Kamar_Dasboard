@@ -120,7 +120,11 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
         level: number,
         parentEntryDelay: number,   // When THIS segment starts drawing
         parentDuration: number,     // Duration of THIS segment's draw
-        parentExitDelay: number,    // When THIS segment starts fading
+        
+        parentExitDelay: number,    // When THIS segment starts fading (Absolute time)
+        parentExitDuration: number, // How long THIS segment has to fade
+        totalLingerLimit: number,   // The absolute deadline for the entire effect
+        
         maxDepth: number,
         intensity: number
     ): RenderableSegment[] => {
@@ -142,14 +146,8 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
              dCore = pointsToPath(pointsCore);
         }
 
-        // 3. Calculate properties for THIS segment
-        const widthMultiplier = Math.max(0.3, 1 - (level * 0.3));
-        
-        // EXIT DURATION: How long THIS segment takes to fade.
-        // It's proportional to thickness. Thinner segments fade faster.
-        const myExitDuration = lingerDuration * (0.5 + (0.5 * widthMultiplier));
-
-        // 4. Add THIS segment to results
+        // 3. Add THIS segment to results
+        // Note: 'parentExitDuration' passed in IS the calculated duration for this segment from the previous recursion
         results.push({
             id: `lvl${level}-${Math.random().toString(36).substr(2, 5)}`,
             d: pathString,
@@ -159,16 +157,15 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
             delay: parentEntryDelay, 
             duration: parentDuration,
             exitDelay: parentExitDelay,
-            exitDuration: myExitDuration,
-            widthMultiplier: widthMultiplier
+            exitDuration: parentExitDuration, 
+            widthMultiplier: Math.max(0.3, 1 - (level * 0.3))
         });
 
-        // 5. Base Case: Stop if max depth reached or intensity is 0
+        // 4. Base Case
         if (level >= maxDepth || intensity <= 0) return results;
 
-        // 6. Determine number of branches for this level
+        // 5. Determine number of branches
         const numBranches = Math.floor(Math.random() * (intensity * (3 - level)));
-        
         const availableIndices = Array.from({length: points.length - 4}, (_, i) => i + 2);
 
         for (let k = 0; k < numBranches; k++) {
@@ -178,16 +175,24 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
             const pointIndex = availableIndices.splice(randIndex, 1)[0];
             const connectionPoint = points[pointIndex]; 
 
-            // --- TIMING MATH ---
+            // --- TIMING LOGIC (SYNCHRONIZED DEATH) ---
             const splitRatio = pointIndex / points.length;
             
+            // Entry Logic (Draw)
             const myEntryDelay = parentEntryDelay + (parentDuration * splitRatio);
-            
-            // CRITICAL FIX: The child's exit starts when THIS segment's exit reaches the connection point.
-            // We must use 'myExitDuration' (this segment's duration), NOT global lingerDuration.
-            const myExitDelay = parentExitDelay + (myExitDuration * splitRatio);
-            
             const myDuration = Math.min(0.2, parentDuration * 0.6);
+
+            // Exit Logic (Fade)
+            // The child starts fading when the parent's fade reaches the connection point
+            const myExitDelay = parentExitDelay + (parentExitDuration * splitRatio);
+            
+            // CRITICAL CHANGE: The child MUST finish by 'totalLingerLimit'.
+            // Duration = Deadline - StartTime.
+            // This forces deep branches to fade extremely fast to catch up.
+            let myExitDuration = totalLingerLimit - myExitDelay;
+            
+            // Safety clamp: Prevent negative or zero duration (causes visual glitches)
+            if (myExitDuration < 0.05) myExitDuration = 0.05;
 
             // --- GEOMETRY MATH ---
             const dx = pEnd.x - pStart.x;
@@ -198,7 +203,6 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
             const directionSign = Math.random() < 0.5 ? 1 : -1;
             const deviation = (Math.PI / 5) + (Math.random() * (Math.PI / 4)); 
             const branchAngle = parentAngle + (directionSign * deviation);
-
             const branchLen = parentDist * (0.3 + Math.random() * 0.3);
             
             const branchEnd: Point = {
@@ -215,7 +219,11 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                 level + 1,
                 myEntryDelay,
                 myDuration,
+                
                 myExitDelay,
+                myExitDuration,
+                totalLingerLimit, // Pass the global deadline down
+                
                 maxDepth,
                 intensity 
             );
@@ -238,7 +246,12 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
             0, // Start Level
             0, // Start Delay
             animationDuration,
-            0, // Start Exit Delay
+            
+            // Root Exit Params
+            0, // Root Exit Delay
+            lingerDuration, // Root Exit Duration
+            lingerDuration, // Total Linger Limit (Deadline)
+            
             maxDepth,
             branchIntensity
         );
@@ -274,8 +287,7 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
             opacity: 0, 
             transition: { 
                 delay: custom.exitDelay,
-                // Use pre-calculated duration.
-                // Ease must be linear for precise synchronization of the "fade wave"
+                // Using the deadline-calculated duration
                 duration: custom.exitDuration, 
                 ease: "linear" 
             } 
