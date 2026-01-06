@@ -40,12 +40,13 @@ const generateJaggedPath = (startX: number, startY: number, endX: number, endY: 
 
 // --- Helper: Generate Smooth Sine Wave Path ---
 const generateSinePath = (width: number, yCenter: number, cycles: number, amplitude: number, phaseOffset: number) => {
-    const points = 100; // Increased resolution for smoothness
+    const points = 100; // Resolution
     let d = `M 0 ${yCenter}`;
     for (let i = 0; i <= points; i++) {
         const t = i / points;
         const x = t * width;
         // Formula: y = A * sin(Bx + C) + D
+        // We calculate the Y based on the phase offset to simulate travel
         const theta = (t * cycles * Math.PI * 2) + phaseOffset;
         const y = yCenter + Math.sin(theta) * amplitude;
         d += ` L ${x} ${y}`;
@@ -89,7 +90,7 @@ const generateSawtoothPath = (width: number, yCenter: number, cycles: number, am
 
 // --- NEW Electric Connection Component ---
 const ElectricConnection = React.memo(({ color }: { color: string }) => {
-  const PHASE_SHIFT = (2 * Math.PI) / 3;
+  const PHASE_SHIFT = (2 * Math.PI) / 3; // 120 degrees in radians
 
   // 1. Square Wave Frames (PWM + Sliding)
   const squareWaveFrames = useMemo(() => {
@@ -104,30 +105,30 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
       return frames;
   }, []);
 
-  // 2. Sine Wave Frames (AM + Sliding + 3-Phase)
-  // We generate 3 sets of frames for the 3 wires to ensure they move perfectly in sync
+  // 2. Sine Wave Frames (Strict 3-Phase AC)
   const sineWaveFrames = useMemo(() => {
       const framesA = [];
       const framesB = [];
       const framesC = [];
-      const steps = 60; // Higher framerate for analog smoothness
+      const steps = 60; // 60fps equivalent for smoothness
       
       for (let i = 0; i <= steps; i++) {
           const progress = i / steps;
-          const movePhase = -Math.PI * 2 * progress; // Slide Left to Right
+          // Moving full 2PI creates a seamless loop
+          const movePhase = -Math.PI * 2 * progress; 
           
-          // Amplitude Breathing (AM Modulation effect)
-          // Varies between 6 and 9 units
-          const breatheAmp = 7.5 + Math.sin(progress * Math.PI * 4) * 1.5; 
+          // CONSTANT AMPLITUDE (Simulating stable AC Voltage)
+          // No more breathing/pulsing height.
+          const stableAmp = 8; 
 
-          // Phase A (0 offset)
-          framesA.push(generateSinePath(100, 20, 2, breatheAmp, movePhase));
+          // Phase A (0 degrees)
+          framesA.push(generateSinePath(100, 20, 2, stableAmp, movePhase));
           
-          // Phase B (120 deg offset)
-          framesB.push(generateSinePath(100, 20, 2, breatheAmp, movePhase + PHASE_SHIFT));
+          // Phase B (120 degrees offset)
+          framesB.push(generateSinePath(100, 20, 2, stableAmp, movePhase + PHASE_SHIFT));
           
-          // Phase C (240 deg offset)
-          framesC.push(generateSinePath(100, 20, 2, breatheAmp, movePhase + (PHASE_SHIFT * 2)));
+          // Phase C (240 degrees offset)
+          framesC.push(generateSinePath(100, 20, 2, stableAmp, movePhase + (PHASE_SHIFT * 2)));
       }
       return { A: framesA, B: framesB, C: framesC };
   }, []);
@@ -158,7 +159,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
              strokeWidth="1"
              strokeDasharray="3 5"
              fill="none"
-             strokeOpacity="0.3"
+             strokeOpacity="0.1"
              animate={{ strokeDashoffset: [-16, 0] }}
              transition={{ duration: 0.3, repeat: Infinity, ease: "linear" }}
           />
@@ -197,8 +198,10 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
              transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* --- CENTER: 3-PHASE SINE WAVES (Improved) --- */}
-          {/* Phase A - Strongest */}
+          {/* --- CENTER: 3-PHASE AC (Corrected) --- */}
+          {/* Note: In 3-phase, L1, L2, L3 are separate. We show them overlapping but distinct via opacity/width */}
+          
+          {/* Phase A (L1) - Boldest */}
           <MotionPath
              stroke="url(#stream-fade)"
              strokeWidth="1.5"
@@ -209,20 +212,20 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* Phase B - Medium */}
+          {/* Phase B (L2) - Medium */}
           <MotionPath
              stroke="url(#stream-fade)"
-             strokeWidth="1"
+             strokeWidth="1.2"
              fill="none"
-             strokeOpacity="0.5"
+             strokeOpacity="0.6"
              animate={{ d: sineWaveFrames.B }}
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* Phase C - Subtlest */}
+          {/* Phase C (L3) - Lightest */}
           <MotionPath
              stroke="url(#stream-fade)"
-             strokeWidth="0.8"
+             strokeWidth="1"
              fill="none"
              strokeOpacity="0.3"
              animate={{ d: sineWaveFrames.C }}

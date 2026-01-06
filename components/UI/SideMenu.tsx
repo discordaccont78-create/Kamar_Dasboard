@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +16,7 @@ import {
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-import { Slider } from '../ui/slider';
+import { Slider } from '../../components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
