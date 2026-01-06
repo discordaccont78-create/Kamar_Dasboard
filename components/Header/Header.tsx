@@ -9,6 +9,7 @@ import { cn } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
 import { SchedulerDialog } from '../Scheduler/SchedulerDialog';
 import { ConnectionStatus } from './ConnectionStatus';
+import { LightningBolt, generateJaggedPath } from '../Effects/LightningBolt';
 
 // Motion Components Definitions to fix "Cannot find name" errors
 const MotionDiv = motion.div as any;
@@ -22,21 +23,6 @@ const MotionSvg = motion.svg as any;
 interface HeaderProps {
     onOpenMenu: () => void;
 }
-
-// --- Helper: Generate Jagged Path Data ---
-const generateJaggedPath = (startX: number, startY: number, endX: number, endY: number, segments: number, amplitude: number) => {
-    let d = `M ${startX} ${startY}`;
-    for (let i = 1; i < segments; i++) {
-        const t = i / segments;
-        const x = startX + (endX - startX) * t;
-        const y = startY + (endY - startY) * t;
-        const offset = (Math.random() - 0.5) * amplitude;
-        const jitterX = (Math.random() - 0.5) * (amplitude / 3);
-        d += ` L ${x + jitterX} ${y + offset}`;
-    }
-    d += ` L ${endX} ${endY}`;
-    return d;
-};
 
 // --- Helper: Generate Smooth Sine Wave Path ---
 const generateSinePath = (width: number, yCenter: number, cycles: number, amplitude: number, phaseOffset: number) => {
@@ -288,6 +274,21 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
              animate={{ d: sawtoothWaveData.frames, strokeOpacity: sawtoothWaveData.opacities, strokeWidth: sawtoothWaveData.widths }}
              transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
           />
+          {/* Sawtooth Electrons */}
+          <MotionCircle 
+            r="1.2" 
+            fill={color}
+            initial={{ cx: 0, cy: 35, opacity: 0 }}
+            animate={{ cx: [0, 100], opacity: [0, 1, 1, 0] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+          />
+           <MotionCircle 
+            r="0.8" 
+            fill="white"
+            initial={{ cx: 0, cy: 35, opacity: 0 }}
+            animate={{ cx: [0, 100], opacity: [0, 1, 1, 0] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "linear", delay: 1.25 }}
+          />
 
           {/* --- CENTER: 3-PHASE AC (Uniform Style) --- */}
           
@@ -342,212 +343,6 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
     </div>
   )
 });
-
-// --- NEW COMPONENT: TIGHT Lightning Ring (Corrected Size) ---
-const LightningRing = () => (
-  // Reduced negative inset from -24px to -6px to pull the effect tight to the logo box
-  <div className="absolute inset-[-6px] z-0 pointer-events-none flex items-center justify-center">
-    
-    {/* Inner Rotating Bolt Layer */}
-    <div className="absolute inset-0 animate-[spin_8s_linear_infinite]">
-        <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100">
-            <defs>
-                <filter id="bolt-noise-inner">
-                    <feTurbulence type="fractalNoise" baseFrequency="1.5" numOctaves="4" result="noise">
-                        <animate attributeName="seed" values="0;100" dur="0.4s" repeatCount="indefinite" />
-                    </feTurbulence>
-                    {/* Reduced scale from 6 to 3 to prevent lightning from spiking too far out */}
-                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" />
-                    <feGaussianBlur stdDeviation="0.5" result="blur" />
-                    <feMerge>
-                        <feMergeNode in="blur" />
-                        <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                </filter>
-            </defs>
-            
-            {/* Primary Gold/Color Lightning - Radius reduced from 32 to 24 */}
-            <circle cx="50" cy="50" r="24" 
-                fill="none" 
-                stroke="hsl(var(--primary))" 
-                strokeWidth="2" 
-                filter="url(#bolt-noise-inner)"
-                strokeDasharray="40 20 10 30"
-                strokeLinecap="round"
-                opacity="0.9"
-            />
-        </svg>
-    </div>
-    
-    {/* Outer Rotating Bolt Layer (Reverse) */}
-    <div className="absolute inset-0 animate-[spin_12s_linear_infinite_reverse]">
-        <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100">
-            <defs>
-                <filter id="bolt-noise-outer">
-                    <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="3" result="noise">
-                        <animate attributeName="seed" values="100;0" dur="0.6s" repeatCount="indefinite" />
-                    </feTurbulence>
-                    {/* Reduced scale from 8 to 4 */}
-                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" />
-                    <feGaussianBlur stdDeviation="0.8" result="blur" />
-                    <feMerge>
-                        <feMergeNode in="blur" />
-                        <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                </filter>
-            </defs>
-            
-            {/* Secondary White/Blue Lightning - Radius reduced from 40 to 30 */}
-            <circle cx="50" cy="50" r="30" 
-                fill="none" 
-                stroke="white" 
-                strokeWidth="1" 
-                filter="url(#bolt-noise-outer)"
-                strokeDasharray="25 50 15 40"
-                strokeLinecap="round"
-                opacity="0.7"
-            />
-        </svg>
-    </div>
-  </div>
-);
-
-const SparkBolt = ({ active }: { active: boolean }) => {
-    const path1 = generateJaggedPath(100, 10, 0, 10, 8, 15);
-    const path2 = generateJaggedPath(100, 10, 0, 10, 12, 10);
-    const path3 = generateJaggedPath(100, 10, 0, 10, 6, 5);
-
-    return (
-        <div className="absolute top-1/2 left-8 right-0 -translate-y-1/2 h-20 pointer-events-none z-20 overflow-visible">
-            <AnimatePresence>
-                {active && (
-                    <MotionSvg
-                        viewBox="0 0 100 20"
-                        className="w-full h-full overflow-visible"
-                        initial={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                    >
-                        <defs>
-                            <filter id="bolt-glow-dense" x="-50%" y="-50%" width="200%" height="200%">
-                                <feGaussianBlur stdDeviation="2" result="blur" />
-                                <feMerge>
-                                    <feMergeNode in="blur" />
-                                    <feMergeNode in="SourceGraphic" />
-                                </feMerge>
-                            </filter>
-                        </defs>
-                        
-                        <MotionPath
-                            d={path1}
-                            stroke="hsl(var(--primary))"
-                            strokeWidth="6"
-                            strokeOpacity="0.2"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            filter="url(#bolt-glow-dense)"
-                            initial={{ pathLength: 0 }}
-                            animate={{ pathLength: 1 }}
-                            transition={{ duration: 0.1, ease: "linear" }}
-                        />
-
-                        <MotionPath
-                            d={path2}
-                            stroke="hsl(var(--primary))"
-                            strokeWidth="3"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            filter="url(#bolt-glow-dense)"
-                            initial={{ pathLength: 0, opacity: 0.5 }}
-                            animate={{ pathLength: 1, opacity: 1 }}
-                            transition={{ duration: 0.15, ease: "easeOut" }}
-                        />
-
-                        <MotionPath
-                            d={path3}
-                            stroke="white"
-                            strokeWidth="1.5"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            initial={{ pathLength: 0, opacity: 0 }}
-                            animate={{ pathLength: 1, opacity: 1 }}
-                            transition={{ duration: 0.2, ease: "easeOut" }}
-                        />
-
-                        <MotionCircle cx="80" cy="10" r="1.5" fill="white" initial={{ opacity:0, cx:90 }} animate={{ opacity: [0,1,0], cx: 60, cy: 5 }} transition={{ duration: 0.3 }} />
-                        <MotionCircle cx="50" cy="10" r="1" fill="hsl(var(--primary))" initial={{ opacity:0 }} animate={{ opacity: [0,1,0], cx: 40, cy: 15 }} transition={{ duration: 0.3, delay: 0.05 }} />
-                        <MotionCircle cx="20" cy="10" r="1.5" fill="white" initial={{ opacity:0 }} animate={{ opacity: [0,1,0], cx: 10, cy: 2 }} transition={{ duration: 0.3, delay: 0.1 }} />
-                    </MotionSvg>
-                )}
-            </AnimatePresence>
-        </div>
-    );
-};
-
-const CursorDischargeBolt = ({ start, end }: { start: {x:number, y:number} | null, end: {x:number, y:number} | null }) => {
-    if (!start || !end) return null;
-
-    const path1 = generateJaggedPath(start.x, start.y, end.x, end.y, 8, 40);
-    const path2 = generateJaggedPath(start.x, start.y, end.x, end.y, 12, 20);
-    const path3 = generateJaggedPath(start.x, start.y, end.x, end.y, 6, 10);
-
-    return (
-        <div className="fixed inset-0 pointer-events-none z-[100] overflow-visible">
-             <svg className="w-full h-full overflow-visible">
-                <defs>
-                    <filter id="cursor-bolt-glow-dense">
-                        <feGaussianBlur stdDeviation="4" result="blur" />
-                        <feMerge>
-                            <feMergeNode in="blur" />
-                            <feMergeNode in="SourceGraphic" />
-                        </feMerge>
-                    </filter>
-                </defs>
-                
-                <MotionPath
-                    d={path1}
-                    stroke="hsl(var(--primary))"
-                    strokeWidth="8"
-                    strokeOpacity="0.2"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    filter="url(#cursor-bolt-glow-dense)"
-                    initial={{ pathLength: 0, opacity: 1 }}
-                    animate={{ pathLength: 1, opacity: [1, 0] }}
-                    transition={{ duration: 0.2, ease: "linear" }}
-                />
-
-                <MotionPath
-                    d={path2}
-                    stroke="hsl(var(--primary))"
-                    strokeWidth="4"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    filter="url(#cursor-bolt-glow-dense)"
-                    initial={{ pathLength: 0, opacity: 1, strokeWidth: 1 }}
-                    animate={{ pathLength: 1, opacity: [1, 0], strokeWidth: [2, 5, 0] }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                />
-
-                <MotionPath
-                    d={path3}
-                    stroke="white"
-                    strokeWidth="2"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    initial={{ pathLength: 0, opacity: 1 }}
-                    animate={{ pathLength: 1, opacity: [1, 0] }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                />
-             </svg>
-        </div>
-    )
-}
 
 const GlitchTitle = ({ text, active, discharging }: { text: string, active: boolean, discharging: boolean }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -739,28 +534,24 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     }
   };
 
+  // Simplified Logo Variants: Only handles movement/scale, NO background color
   const logoVariants = {
-    idle: {
-      scale: 1,
-      rotate: 0,
-      filter: 'drop-shadow(0 0 0px rgba(218,165,32,0))',
-      color: "hsl(var(--primary))",
-    },
+    idle: { scale: 1, rotate: 0 },
     impact: {
       scale: [1, 1.3, 1.1, 1],
       rotate: [0, -10, 10, 0],
-      filter: [
-          'drop-shadow(0 0 0px rgba(218,165,32,0))',
-          'drop-shadow(0 0 20px rgba(255,255,255,0.9))', 
-          'drop-shadow(0 0 10px rgba(218,165,32,0.5))'
-      ],
-      color: ["hsl(var(--primary))", "#ffffff", "hsl(var(--primary))"], 
       transition: { duration: 0.4, ease: "backOut" }
     },
     charged: {
-        scale: [1, 1.05, 1],
-        filter: 'drop-shadow(0 0 8px rgba(218,165,32,0.8))',
-        transition: { duration: 1, repeat: Infinity, repeatType: "reverse" }
+        scale: 1.1,
+        // Simple jitter
+        x: [0, -1, 1, -1, 0],
+        y: [0, 1, -1, 1, 0],
+        transition: { 
+            scale: { duration: 0.2 },
+            x: { duration: 0.1, repeat: Infinity },
+            y: { duration: 0.1, repeat: Infinity }
+        }
     }
   };
 
@@ -774,7 +565,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
         className="max-w-[1400px] mx-auto flex items-stretch justify-between relative pointer-events-auto h-[60px] md:h-[72px]"
         style={{ gap: `${gapSize}px` }}
       >
-        {cursorBolt && <CursorDischargeBolt start={cursorBolt.start} end={cursorBolt.end} />}
+        {cursorBolt && (
+            <div className="fixed inset-0 pointer-events-none z-[100] overflow-visible">
+                <LightningBolt 
+                    startX={cursorBolt.start.x} startY={cursorBolt.start.y} 
+                    endX={cursorBolt.end.x} endY={cursorBolt.end.y}
+                    viewBox={`0 0 ${window.innerWidth} ${window.innerHeight}`}
+                    className="w-full h-full"
+                    amplitude={40}
+                    segments={12}
+                    glowIntensity={4}
+                    thickness={1}
+                />
+            </div>
+        )}
         <MotionDiv
           variants={islandVariants}
           initial="hidden"
@@ -787,41 +591,60 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
            </div>
            <div className="relative h-full w-full flex items-center pl-6 pr-10 md:pl-8 md:pr-14">
               <div className="flex items-center gap-3 md:gap-4 z-10 relative w-full">
-                  <div ref={logoRef} className="relative z-30 group">
-                    {/* Realistic Rotating Lightning Frame - Visible when NOT charged */}
-                    {!isLogoCharged && <LightningRing />}
-
+                  <div ref={logoRef} className="relative z-30 group flex items-center justify-center">
+                    
+                    {/* Logo Container - Clean, No Border/Background */}
                     <MotionDiv 
-                        className={cn(
-                            "relative p-1.5 md:p-2 rounded-xl cursor-pointer transition-all duration-500",
-                            // If charged: Solid border + background glow (Plasma Core idea)
-                            isLogoCharged 
-                                ? "bg-primary/20 border-2 border-primary shadow-[0_0_30px_rgba(218,165,32,0.6)]" 
-                                : "bg-background/80" // Transparent-ish background to show sparks better
-                        )}
+                        className="relative w-8 h-8 md:w-10 md:h-10 flex items-center justify-center cursor-pointer"
                         animate={sparkState === 'impact' ? 'impact' : (isLogoCharged ? 'charged' : 'idle')}
                         variants={logoVariants}
                     >
-                        {/* Plasma Core Glow (Implementation of "Plasma Core" idea) - Only when charged */}
-                        {isLogoCharged && (
-                            <MotionDiv 
-                                layoutId="plasma-core"
-                                className="absolute inset-0 bg-primary/30 blur-md rounded-xl"
-                                animate={{ opacity: [0.5, 1, 0.5] }}
-                                transition={{ duration: 1.5, repeat: Infinity }}
-                            />
-                        )}
-
+                        {/* Layer 1: Base Outline (Always visible, low opacity) */}
                         <Zap 
-                            className={cn(
-                                "w-4 h-4 md:w-6 md:h-6 transition-all duration-500 z-10 relative",
-                                isLogoCharged ? "fill-primary text-white drop-shadow-[0_0_10px_white]" : "fill-transparent text-primary"
-                            )} 
-                            strokeWidth={isLogoCharged ? 0 : 2} 
+                            className="absolute inset-0 w-full h-full text-primary/20" 
+                            strokeWidth={1} 
                         />
+
+                        {/* Layer 2: Filled Charging State (Masked from Bottom to Top) */}
+                        <MotionDiv
+                            className="absolute inset-0 w-full h-full overflow-hidden"
+                            initial={{ clipPath: "inset(100% 0 0 0)" }}
+                            animate={{
+                                clipPath: (isLogoCharged || sparkState === 'impact') 
+                                    ? "inset(0% 0 0 0)"   // Fully Visible
+                                    : "inset(100% 0 0 0)", // Hidden at bottom
+                                filter: sparkState === 'impact' ? "brightness(1.5)" : "brightness(1)"
+                            }}
+                            transition={{ duration: 1.5, ease: "easeInOut" }}
+                        >
+                             <Zap 
+                                className="w-full h-full text-primary fill-current drop-shadow-[0_0_15px_rgba(218,165,32,0.6)]" 
+                                strokeWidth={0} 
+                             />
+                        </MotionDiv>
                     </MotionDiv>
                   </div>
-                  <SparkBolt active={sparkState === 'discharge'} />
+                  
+                  {/* REPLACED WITH REUSABLE COMPONENT - ADJUSTED FOR REALISM */}
+                  {/* Reduced height to 12 (48px) to contain the bolt vertically */}
+                  <div className="absolute top-1/2 left-8 right-0 -translate-y-1/2 h-12 pointer-events-none z-20">
+                      <LightningBolt 
+                          active={sparkState === 'discharge'} 
+                          startX={100} endX={0} // Right to Left
+                          startY={10} endY={10} 
+                          // More segments = finer, higher frequency jitter
+                          segments={20} 
+                          // Reduced amplitude = tighter beam, less cartoonish
+                          amplitude={3}
+                          // Tighter glow radius for a sharper look
+                          glowIntensity={1}
+                          // Finer stroke lines using new prop
+                          thickness={0.6}
+                          viewBox="0 0 100 20"
+                          className="opacity-90"
+                      />
+                  </div>
+
                   <div className="flex flex-col justify-center gap-0.5 relative z-30">
                     <div className="flex items-center gap-2">
                         <div className="p-0.5 bg-primary/20 rounded-sm">

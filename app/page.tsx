@@ -10,10 +10,11 @@ import { useSchedulerStore } from '../lib/store/scheduler';
 import { CMD, Segment } from '../types/index';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useSchedulerEngine } from '../hooks/useSchedulerEngine';
-import { Zap, Trash2, Hexagon, Cpu, Laptop, Smartphone, GripHorizontal } from 'lucide-react';
+import { Zap, Trash2, Cpu, Laptop, Smartphone, GripHorizontal } from 'lucide-react';
 import { cn, getFontClass } from '../lib/utils';
 import { translations } from '../lib/i18n';
 import { MUSIC_TRACKS } from '../lib/constants';
+import { LightningHexagon } from '../components/Effects/LightningBolt';
 
 // Workaround for Framer Motion types
 const MotionDiv = motion.div as any;
@@ -34,7 +35,15 @@ const CoreEmblem: React.FC = React.memo(() => (
       transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
       className="absolute"
     >
-      <Hexagon className="text-foreground/40 w-[120px] h-[120px] md:w-[180px] md:h-[180px]" strokeWidth={2} />
+      {/* REPLACED STATIC HEXAGON WITH DYNAMIC LIGHTNING HEXAGON */}
+      <div className="opacity-40">
+         <LightningHexagon 
+            radius={90} // Responsive size handled by parent scaling, base radius for calculation
+            color="hsl(var(--foreground))"
+            thickness={1.5}
+            className="w-[120px] h-[120px] md:w-[180px] md:h-[180px]"
+         />
+      </div>
     </MotionDiv>
     
     <MotionDiv
@@ -42,19 +51,15 @@ const CoreEmblem: React.FC = React.memo(() => (
         scale: [1, 1.15, 1],
         filter: [
           'drop-shadow(0 0 0px rgba(218,165,32,0))',
-          'drop-shadow(0 0 25px rgba(218,165,32,0.6))',
+          'drop-shadow(0 0 10px rgba(218,165,32,0.4))', // Reduced shadow since background is gone
           'drop-shadow(0 0 0px rgba(218,165,32,0))'
         ]
       }}
       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-      className="bg-card border-4 border-primary p-5 md:p-8 rounded-full shadow-2xl z-10 relative"
+      className="z-10 relative flex items-center justify-center"
     >
-      <MotionDiv
-         animate={{ opacity: [0.5, 1, 0.5] }}
-         transition={{ duration: 0.1, repeat: Infinity, repeatDelay: 1.5 }}
-         className="absolute inset-0 bg-primary/20 rounded-full"
-      />
-      <Zap className="text-primary w-10 h-10 md:w-16 md:h-16 fill-current" strokeWidth={0} />
+      {/* Removed Card Background - Just the Icon Now */}
+      <Zap className="text-primary w-12 h-12 md:w-20 md:h-20 fill-current" strokeWidth={0} />
     </MotionDiv>
   </div>
 ));
