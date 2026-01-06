@@ -43,35 +43,40 @@ const generateJaggedPath = (startX: number, startY: number, endX: number, endY: 
     return d;
 };
 
-// --- Helper: Generate Smooth Sine Wave Path (NEW FOR ISLAND CONNECTION) ---
-const generateSinePath = (width: number, height: number, cycles: number, amplitude: number, phase: number) => {
-    const points = 50; // Resolution
+// --- Helper: Generate Smooth Sine Wave Path (Refined for 3-Phase Flow) ---
+const generateSinePath = (width: number, height: number, cycles: number, amplitude: number, phaseOffset: number) => {
+    const points = 60; 
     let d = `M 0 ${height / 2}`;
     
     for (let i = 0; i <= points; i++) {
         const t = i / points;
         const x = t * width;
-        // Math: Sine wave equation
-        const y = (height / 2) + Math.sin((t * cycles * Math.PI * 2) + phase) * amplitude;
+        // 3-Phase Logic: y = Amp * sin(kx + phase)
+        // theta = (normalized_x * total_cycles * 2PI) + animation_phase_offset
+        const theta = (t * cycles * Math.PI * 2) + phaseOffset;
+        const y = (height / 2) + Math.sin(theta) * amplitude;
         d += ` L ${x} ${y}`;
     }
     return d;
 };
 
-// --- NEW Electric Connection Component (Harmonic Plasma Stream) ---
+// --- NEW Electric Connection Component (3-Phase Harmonic Flow) ---
 const ElectricConnection = React.memo(({ color }: { color: string }) => {
+  // 120 degrees = 2 * PI / 3 radians
+  const PHASE_SHIFT = (2 * Math.PI) / 3;
+
   return (
     <div className="absolute top-0 bottom-0 -left-6 w-12 flex items-center justify-center overflow-visible pointer-events-none z-0">
        <svg viewBox="0 0 100 40" className="w-[300%] h-full overflow-visible opacity-90" preserveAspectRatio="none">
           <defs>
             <linearGradient id="stream-fade" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor={color} stopOpacity="0" />
-                <stop offset="20%" stopColor={color} stopOpacity="1" />
-                <stop offset="80%" stopColor={color} stopOpacity="1" />
+                <stop offset="15%" stopColor={color} stopOpacity="0.8" />
+                <stop offset="85%" stopColor={color} stopOpacity="0.8" />
                 <stop offset="100%" stopColor={color} stopOpacity="0" />
             </linearGradient>
             <filter id="plasma-glow">
-                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
                 <feMerge>
                     <feMergeNode in="coloredBlur"/>
                     <feMergeNode in="SourceGraphic"/>
@@ -79,80 +84,87 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
             </filter>
           </defs>
           
-          {/* Layer 1: The Core Data Stream (Fast straight dashed line) */}
+          {/* Layer 0: Central Data Bus (Direct Current / Neutral) */}
           <MotionPath
              d="M 0 20 L 100 20"
              stroke={color}
-             strokeWidth="1.5"
-             strokeDasharray="4 6"
+             strokeWidth="1"
+             strokeDasharray="3 5"
              fill="none"
-             strokeOpacity="0.8"
-             animate={{ strokeDashoffset: [-20, 0] }}
-             transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
+             strokeOpacity="0.3"
+             animate={{ strokeDashoffset: [-16, 0] }}
+             transition={{ duration: 0.3, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* Layer 2: The Hot Core (White center) */}
-          <MotionPath
-             d="M 0 20 L 100 20"
-             stroke="white"
-             strokeWidth="0.5"
-             strokeDasharray="10 20"
-             fill="none"
-             strokeOpacity="0.9"
-             animate={{ strokeDashoffset: [-30, 0] }}
-             transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-          />
-
-          {/* Layer 3: Upper Harmonic Wave (Sine) */}
+          {/* Phase A (0 degrees) - The Primary Carrier */}
           <MotionPath
              stroke="url(#stream-fade)"
-             strokeWidth="1"
+             strokeWidth="1.2"
              fill="none"
              filter="url(#plasma-glow)"
-             animate={{ d: [
-                 generateSinePath(100, 40, 1.5, 6, 0),
-                 generateSinePath(100, 40, 1.5, 6, Math.PI * 2)
-             ]}}
-             transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+             strokeOpacity="1"
+             animate={{ 
+                 d: [
+                     generateSinePath(100, 40, 2, 8, 0),
+                     generateSinePath(100, 40, 2, 8, -Math.PI * 2) // Negative phase for Rightward travel
+                 ]
+             }}
+             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* Layer 4: Lower Harmonic Wave (Cosine/Phase Shifted) */}
+          {/* Phase B (120 degrees) - Secondary */}
           <MotionPath
              stroke="url(#stream-fade)"
-             strokeWidth="1"
+             strokeWidth="1.2"
              fill="none"
              filter="url(#plasma-glow)"
              strokeOpacity="0.6"
-             animate={{ d: [
-                 generateSinePath(100, 40, 2, 8, Math.PI),
-                 generateSinePath(100, 40, 2, 8, Math.PI + (Math.PI * 2))
-             ]}}
-             transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+             animate={{ 
+                 d: [
+                     generateSinePath(100, 40, 2, 8, PHASE_SHIFT),
+                     generateSinePath(100, 40, 2, 8, PHASE_SHIFT - Math.PI * 2)
+                 ]
+             }}
+             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          />
+
+          {/* Phase C (240 degrees) - Tertiary */}
+          <MotionPath
+             stroke="url(#stream-fade)"
+             strokeWidth="1.2"
+             fill="none"
+             filter="url(#plasma-glow)"
+             strokeOpacity="0.3"
+             animate={{ 
+                 d: [
+                     generateSinePath(100, 40, 2, 8, PHASE_SHIFT * 2),
+                     generateSinePath(100, 40, 2, 8, (PHASE_SHIFT * 2) - Math.PI * 2)
+                 ]
+             }}
+             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
           
-          {/* Layer 5: Floating Particles */}
+          {/* Electron Particles - Synced with wave direction */}
           <MotionCircle 
             r="1.5" 
             fill="white"
             filter="url(#plasma-glow)"
             initial={{ cx: 0, cy: 20, opacity: 0 }}
             animate={{ 
-                cx: [0, 50, 100], 
-                cy: [20, 14, 20], // Slight arc
-                opacity: [0, 1, 0] 
+                cx: [0, 100], 
+                opacity: [0, 1, 1, 0] 
             }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0 }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
           />
            <MotionCircle 
             r="1" 
             fill={color}
             initial={{ cx: 0, cy: 20, opacity: 0 }}
             animate={{ 
-                cx: [0, 50, 100], 
-                cy: [20, 26, 20], // Inverse arc
+                cx: [0, 100],
                 opacity: [0, 1, 0] 
             }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear", delay: 0.5 }}
           />
 
        </svg>
