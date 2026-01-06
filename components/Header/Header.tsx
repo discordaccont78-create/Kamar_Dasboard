@@ -54,9 +54,9 @@ const generateSinePath = (width: number, yCenter: number, cycles: number, amplit
     return d;
 };
 
-// --- Helper: Generate Square Wave Path with PWM ---
-const generateSquarePath = (width: number, yCenter: number, cycles: number, amplitude: number, phaseOffset: number, dutyCycle: number = 0) => {
-    const points = 200; // Increased resolution for cleaner vertical lines during interpolation
+// --- Helper: Generate Soft Square Wave Path (High Quality) ---
+const generateSquarePath = (width: number, yCenter: number, cycles: number, amplitude: number, phaseOffset: number) => {
+    const points = 200; 
     let d = `M 0 ${yCenter}`;
     
     for (let i = 0; i <= points; i++) {
@@ -64,8 +64,10 @@ const generateSquarePath = (width: number, yCenter: number, cycles: number, ampl
         const x = t * width;
         const theta = (t * cycles * Math.PI * 2) + phaseOffset;
         
-        // PWM Logic: 
-        const val = Math.sin(theta) > dutyCycle ? 1 : -1;
+        // Use Hyperbolic Tangent of Sine to create a "Soft Square" wave.
+        // This removes aliasing artifacts and vertical jitter, making it look like a high-quality analog signal.
+        // Multiplier (5) controls the sharpness of the edges.
+        const val = Math.tanh(Math.sin(theta) * 5);
         
         const y = yCenter - (val * amplitude); 
         d += ` L ${x} ${y}`;
@@ -92,15 +94,14 @@ const generateSawtoothPath = (width: number, yCenter: number, cycles: number, am
 const ElectricConnection = React.memo(({ color }: { color: string }) => {
   const PHASE_SHIFT = (2 * Math.PI) / 3; // 120 degrees in radians
 
-  // 1. Square Wave Frames (PWM + Sliding)
+  // 1. Square Wave Frames (Soft Analog Style)
   const squareWaveFrames = useMemo(() => {
       const frames = [];
-      const steps = 30; 
+      const steps = 60; // Increased steps for fluidity
       for (let i = 0; i <= steps; i++) {
           const progress = i / steps;
           const phase = -Math.PI * 2 * progress; 
-          const pwmThreshold = Math.sin(progress * Math.PI * 2) * 0.4; 
-          frames.push(generateSquarePath(100, 5, 4, 3, phase, pwmThreshold));
+          frames.push(generateSquarePath(100, 5, 4, 3, phase));
       }
       return frames;
   }, []);
@@ -133,9 +134,22 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
       return { A: framesA, B: framesB, C: framesC };
   }, []);
 
+  // 3. Sawtooth Wave Frames (Ramp) - Pre-calculated for smooth sliding animation
+  const sawtoothWaveFrames = useMemo(() => {
+      const frames = [];
+      const steps = 60; // Higher steps for smoother ramp transitions
+      for (let i = 0; i <= steps; i++) {
+          const progress = i / steps;
+          const phase = -Math.PI * 2 * progress; // Slide backwards 1 full cycle
+          frames.push(generateSawtoothPath(100, 35, 3, 3, phase));
+      }
+      return frames;
+  }, []);
+
   return (
-    <div className="absolute top-0 bottom-0 -left-6 w-12 flex items-center justify-center overflow-visible pointer-events-none z-0">
-       <svg viewBox="0 0 100 40" className="w-[300%] h-full overflow-visible opacity-90" preserveAspectRatio="none">
+    // Update positioning to extend deeply to the left, under the first island
+    <div className="absolute top-0 bottom-0 -left-[5rem] md:-left-[14rem] w-[7rem] md:w-[18rem] flex items-center justify-center overflow-visible pointer-events-none z-0">
+       <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible opacity-90" preserveAspectRatio="none">
           <defs>
             <linearGradient id="stream-fade" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor={color} stopOpacity="0" />
@@ -189,12 +203,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
              strokeWidth="0.8"
              fill="none"
              strokeOpacity="0.4"
-             animate={{ 
-                 d: [
-                     generateSawtoothPath(100, 35, 3, 3, 0),
-                     generateSawtoothPath(100, 35, 3, 3, -Math.PI * 2)
-                 ]
-             }}
+             animate={{ d: sawtoothWaveFrames }}
              transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
           />
 
@@ -606,13 +615,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
 
   return (
     <header className="sticky top-2 md:top-6 z-50 px-2 md:px-8 transition-all duration-500 pointer-events-none">
-      <div className="max-w-[1400px] mx-auto flex items-stretch justify-between gap-2 md:gap-4 relative pointer-events-auto h-[60px] md:h-[72px]">
+      {/* Increased GAP heavily here: gap-12 md:gap-40 */}
+      <div className="max-w-[1400px] mx-auto flex items-stretch justify-between gap-12 md:gap-40 relative pointer-events-auto h-[60px] md:h-[72px]">
         {cursorBolt && <CursorDischargeBolt start={cursorBolt.start} end={cursorBolt.end} />}
         <MotionDiv
           variants={islandVariants}
           initial="hidden"
           animate="visible"
-          className="relative min-w-[180px] md:min-w-[280px] drop-shadow-xl filter group" 
+          className="relative min-w-[180px] md:min-w-[280px] drop-shadow-xl filter group z-30" 
         >
            <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl" style={{ clipPath: CLIP_LEFT }} />
            <div className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl overflow-hidden" style={{ clipPath: CLIP_LEFT }}>
@@ -657,7 +667,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
             transition={{ delay: 0.1 }}
             className="relative flex-1 drop-shadow-xl filter"
         >
-            <ElectricConnection color={settings.cursorColor || "#daa520"} />
+            {/* CONDITIONAL RENDER: Only show electric waves if animations are enabled */}
+            {settings.animations && <ElectricConnection color={settings.cursorColor || "#daa520"} />}
+            
             <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl" style={{ clipPath: CLIP_RIGHT }} />
             <div className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl overflow-hidden" style={{ clipPath: CLIP_RIGHT }}>
                <div className="absolute inset-0 bg-gradient-to-l from-transparent via-primary/5 to-transparent opacity-50" />
