@@ -12,6 +12,12 @@ interface Point {
     y: number;
 }
 
+interface BranchData {
+    d: string;
+    delay: number; // Time in seconds to wait before drawing
+    duration: number; // How fast the branch draws
+}
+
 // 1. Generate Points Function (Returns Array of {x,y} instead of string)
 export const generateLightningPoints = (
     startX: number, 
@@ -101,8 +107,8 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
         // A. Generate Main Spine Points
         const mainPoints = generateLightningPoints(startX, startY, endX, endY, segments, amplitude);
         
-        // B. Generate Branches
-        const branches: string[] = [];
+        // B. Generate Branches with Timing Data
+        const branches: BranchData[] = [];
         
         if (branchIntensity > 0) {
             // Determine number of branches based on length and intensity
@@ -120,6 +126,17 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                 const pointIndex = availableIndices.splice(randIndex, 1)[0];
                 const startNode = mainPoints[pointIndex];
                 
+                // --- TIMING CALCULATION ---
+                // Calculate how far along the main path this point is (0.0 to 1.0)
+                const splitRatio = pointIndex / mainPoints.length;
+                
+                // The branch should start drawing exactly when the main bolt reaches this point.
+                // If animationDuration is 0 (instant), delay is 0.
+                const delay = animationDuration * splitRatio;
+
+                // Branches draw faster than the main bolt (snappier)
+                const branchDrawDuration = Math.min(0.2, animationDuration * 0.5);
+
                 // Calculate main direction angle
                 const mainAngle = Math.atan2(endY - startY, endX - startX);
                 
@@ -142,31 +159,27 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                     amplitude * 0.6
                 );
                 
-                branches.push(pointsToPath(branchPoints));
+                branches.push({
+                    d: pointsToPath(branchPoints),
+                    delay,
+                    duration: branchDrawDuration
+                });
             }
         }
 
         // C. Create Variations for Animation (Jitter Effect)
-        // We create slightly different versions of the main path for the "Inner Core" vs "Outer Glow"
-        // to make it look vibrating.
-        
-        // Main Body (Standard)
         const p2 = pointsToPath(mainPoints);
-        
-        // Outer Glow (Slightly wilder)
         const p1Points = generateLightningPoints(startX, startY, endX, endY, segments, amplitude * 1.5);
         const p1 = pointsToPath(p1Points);
-
-        // Core (Straighter)
         const p3Points = generateLightningPoints(startX, startY, endX, endY, segments, amplitude * 0.5);
         const p3 = pointsToPath(p3Points);
 
         return { p1, p2, p3, branches };
 
-    }, [startX, startY, endX, endY, segments, amplitude, active, branchIntensity]);
+    }, [startX, startY, endX, endY, segments, amplitude, active, branchIntensity, animationDuration]);
 
-    // Animation variants
-    const drawVariants = {
+    // MAIN PATH Variants
+    const mainVariants = {
         hidden: { pathLength: 0, opacity: 0 },
         visible: { 
             pathLength: 1, 
@@ -176,7 +189,35 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                 opacity: { duration: 0.05 } 
             }
         },
-        exit: { opacity: 0, transition: { duration: 0.2 } }
+        exit: { opacity: 0, transition: { duration: 0.3 } } // Smooth fade out
+    };
+
+    // BRANCH Variants (Dynamic)
+    const branchVariants = {
+        hidden: { pathLength: 0, opacity: 0 },
+        visible: (custom: BranchData) => ({ 
+            pathLength: 1, 
+            opacity: 1,
+            transition: { 
+                pathLength: { 
+                    delay: custom.delay, // Wait for main bolt to reach this point
+                    duration: custom.duration, // Fast draw
+                    ease: "easeOut"
+                }, 
+                opacity: { 
+                    delay: custom.delay, // Don't show until draw starts
+                    duration: 0.01 
+                } 
+            }
+        }),
+        exit: (custom: BranchData) => ({ 
+            opacity: 0, 
+            transition: { 
+                // Allow branches to linger slightly longer than main bolt
+                // Randomize decay to look organic
+                duration: 0.4 + Math.random() * 0.3 
+            } 
+        })
     };
 
     const staticVariants = {
@@ -184,8 +225,6 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
         visible: { opacity: 1 },
         exit: { opacity: 0 }
     };
-
-    const variants = animationDuration > 0 ? drawVariants : staticVariants;
 
     return (
         <AnimatePresence>
@@ -209,11 +248,12 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                     </defs>
                     
                     {/* 1. BRANCHES (Rendered first so they are behind main bolt) */}
-                    {boltData.branches.map((d, i) => (
+                    {boltData.branches.map((b, i) => (
                         <MotionPath
                             key={`branch-${i}`}
-                            variants={variants}
-                            d={d}
+                            custom={b} // Pass data to variants
+                            variants={animationDuration > 0 ? branchVariants : staticVariants}
+                            d={b.d}
                             stroke={color}
                             strokeWidth={1.5 * thickness} // Thinner than main
                             strokeOpacity="0.6"
@@ -226,7 +266,7 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
 
                     {/* 2. MAIN BOLT: Outer Glow */}
                     <MotionPath
-                        variants={variants}
+                        variants={animationDuration > 0 ? mainVariants : staticVariants}
                         d={boltData.p1}
                         stroke={color}
                         strokeWidth={6 * thickness}
@@ -239,7 +279,7 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                     
                     {/* 3. MAIN BOLT: Body */}
                     <MotionPath
-                        variants={variants}
+                        variants={animationDuration > 0 ? mainVariants : staticVariants}
                         d={boltData.p2}
                         stroke={color}
                         strokeWidth={3 * thickness}
@@ -251,7 +291,7 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                     
                     {/* 4. MAIN BOLT: White Core */}
                     <MotionPath
-                        variants={variants}
+                        variants={animationDuration > 0 ? mainVariants : staticVariants}
                         d={boltData.p3}
                         stroke="white"
                         strokeWidth={1.5 * thickness}
