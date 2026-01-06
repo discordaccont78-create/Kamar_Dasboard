@@ -1,42 +1,36 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun, Settings, Zap, CalendarClock, Hash } from 'lucide-react';
-import { ConnectionStatus } from './ConnectionStatus';
 import { useSettingsStore } from '../../lib/store/settings';
 import { useCursorStore } from '../../lib/store/cursorStore';
-import { SchedulerDialog } from '../Scheduler/SchedulerDialog';
-import { Button } from '../ui/button';
+import { useSoundFx } from '../../hooks/useSoundFx';
 import { cn } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
-import { useSoundFx } from '../../hooks/useSoundFx';
+import { SchedulerDialog } from '../Scheduler/SchedulerDialog';
+import { ConnectionStatus } from './ConnectionStatus';
 
-interface HeaderProps {
-  onOpenMenu: () => void;
-}
-
-// Workaround for Framer Motion types compatibility
+// Motion Components Definitions to fix "Cannot find name" errors
 const MotionDiv = motion.div as any;
+const MotionSpan = motion.span as any;
 const MotionButton = motion.button as any;
 const MotionPath = motion.path as any;
-const MotionSpan = motion.span as any;
-const MotionSvg = motion.svg as any;
+const MotionRect = motion.rect as any;
 const MotionCircle = motion.circle as any;
+const MotionSvg = motion.svg as any;
 
-// --- Helper: Generate Jagged Path Data (KEPT FOR TITLE SPARK) ---
+interface HeaderProps {
+    onOpenMenu: () => void;
+}
+
+// --- Helper: Generate Jagged Path Data ---
 const generateJaggedPath = (startX: number, startY: number, endX: number, endY: number, segments: number, amplitude: number) => {
     let d = `M ${startX} ${startY}`;
     for (let i = 1; i < segments; i++) {
         const t = i / segments;
         const x = startX + (endX - startX) * t;
         const y = startY + (endY - startY) * t;
-        
-        // Calculate perpendicular offset
         const offset = (Math.random() - 0.5) * amplitude;
-        
-        // For a horizontal-ish line, simple Y offset works best for lightning look
-        const jitterX = (Math.random() - 0.5) * (amplitude / 3); // Reduced X jitter to keep forward momentum
-        
+        const jitterX = (Math.random() - 0.5) * (amplitude / 3);
         d += ` L ${x + jitterX} ${y + offset}`;
     }
     d += ` L ${endX} ${endY}`;
@@ -47,11 +41,9 @@ const generateJaggedPath = (startX: number, startY: number, endX: number, endY: 
 const generateSinePath = (width: number, height: number, cycles: number, amplitude: number, phaseOffset: number) => {
     const points = 60; 
     let d = `M 0 ${height / 2}`;
-    
     for (let i = 0; i <= points; i++) {
         const t = i / points;
         const x = t * width;
-        // 3-Phase Logic: y = Amp * sin(kx + phase)
         const theta = (t * cycles * Math.PI * 2) + phaseOffset;
         const y = (height / 2) + Math.sin(theta) * amplitude;
         d += ` L ${x} ${y}`;
@@ -59,47 +51,69 @@ const generateSinePath = (width: number, height: number, cycles: number, amplitu
     return d;
 };
 
-// --- Helper: Generate Square Wave Path (Top Rail) ---
-const generateSquarePath = (width: number, yCenter: number, cycles: number, amplitude: number, phaseOffset: number) => {
-    const points = 100; // Higher resolution for sharp edges
+// --- Helper: Generate Square Wave Path with PWM ---
+const generateSquarePath = (width: number, yCenter: number, cycles: number, amplitude: number, phaseOffset: number, dutyCycle: number = 0) => {
+    const points = 200; // Increased resolution for cleaner vertical lines during interpolation
     let d = `M 0 ${yCenter}`;
+    
+    // We want crisp vertical lines. Using Math.sin directly in a loop with low resolution makes slopes.
+    // However, SVG Path interpolation (morph) handles slopes better than instant jumps for "sliding".
+    // High resolution is the key.
     
     for (let i = 0; i <= points; i++) {
         const t = i / points;
         const x = t * width;
         const theta = (t * cycles * Math.PI * 2) + phaseOffset;
-        // Square wave logic: Math.sign(sin(theta))
-        const val = Math.sin(theta) >= 0 ? 1 : -1;
-        const y = yCenter + (val * amplitude);
+        
+        // PWM Logic: 
+        // dutyCycle > 0 means SHORTER High pulses (Narrow 1s)
+        // dutyCycle < 0 means WIDER High pulses (Wide 1s)
+        // 0 is 50% duty cycle.
+        const val = Math.sin(theta) > dutyCycle ? 1 : -1;
+        
+        const y = yCenter - (val * amplitude); 
         d += ` L ${x} ${y}`;
     }
     return d;
 };
 
-// --- Helper: Generate Sawtooth Wave Path (Bottom Rail) ---
+// --- Helper: Generate Sawtooth Wave Path ---
 const generateSawtoothPath = (width: number, yCenter: number, cycles: number, amplitude: number, phaseOffset: number) => {
-    const points = 80;
+    const points = 100;
     let d = `M 0 ${yCenter}`;
-    
     for (let i = 0; i <= points; i++) {
         const t = i / points;
         const x = t * width;
-        // Sawtooth logic: (x % period) linear ramp
-        // Normalized phase (0 to 1)
         const rawPhase = ((t * cycles) + (phaseOffset / (Math.PI * 2))) % 1;
-        // Adjust negative phase for movement
-        const ramp = (rawPhase < 0 ? 1 + rawPhase : rawPhase) * 2 - 1; // -1 to 1
-        
-        const y = yCenter - (ramp * amplitude); // Inverted to look like ascending ramp
+        const ramp = (rawPhase < 0 ? 1 + rawPhase : rawPhase) * 2 - 1;
+        const y = yCenter - (ramp * amplitude);
         d += ` L ${x} ${y}`;
     }
     return d;
 };
 
-// --- NEW Electric Connection Component (3-Phase + Digital/Analog Rails) ---
+// --- NEW Electric Connection Component ---
 const ElectricConnection = React.memo(({ color }: { color: string }) => {
-  // 120 degrees = 2 * PI / 3 radians
   const PHASE_SHIFT = (2 * Math.PI) / 3;
+
+  // Pre-calculate animation frames for Square Wave to ensure smooth sliding
+  // This prevents the "morphing/swapping" artifact by providing close intermediate steps
+  const squareWaveFrames = useMemo(() => {
+      const frames = [];
+      const steps = 30; // 30 keyframes per cycle
+      for (let i = 0; i <= steps; i++) {
+          const progress = i / steps;
+          const phase = -Math.PI * 2 * progress; // Move Right
+          
+          // PWM Animation: Sine wave oscillation for Pulse Width
+          // Varies threshold from -0.3 (Wide) to 0.3 (Narrow)
+          // 0 is 50% duty cycle.
+          const pwmThreshold = Math.sin(progress * Math.PI * 2) * 0.4; 
+          
+          frames.push(generateSquarePath(100, 5, 4, 3, phase, pwmThreshold));
+      }
+      return frames;
+  }, []);
 
   return (
     <div className="absolute top-0 bottom-0 -left-6 w-12 flex items-center justify-center overflow-visible pointer-events-none z-0">
@@ -120,7 +134,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
             </filter>
           </defs>
           
-          {/* Layer 0: Central Data Bus (Electron Path) */}
+          {/* Layer 0: Central Data Bus (Main Wire) */}
           <MotionPath
              d="M 0 20 L 100 20"
              stroke={color}
@@ -133,18 +147,30 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
           />
 
           {/* --- TOP RAIL: SQUARE WAVE (Digital Clock) --- */}
+          {/* 1. The Wire Axis */}
+          <path d="M 0 5 L 100 5" stroke={color} strokeWidth="0.5" strokeOpacity="0.2" strokeDasharray="1 2" />
+          
+          {/* 2. The Square Wave Animation */}
           <MotionPath
              stroke={color}
-             strokeWidth="0.8"
+             strokeWidth="1"
              fill="none"
-             strokeOpacity="0.4"
-             animate={{ 
-                 d: [
-                     generateSquarePath(100, 5, 4, 3, 0),
-                     generateSquarePath(100, 5, 4, 3, -Math.PI * 2)
-                 ]
-             }}
+             strokeOpacity="0.6"
+             animate={{ d: squareWaveFrames }}
              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+          />
+
+          {/* 3. Digital Electron (Square) moving through the wave */}
+          <MotionRect
+            width="2"
+            height="2"
+            fill={color}
+            initial={{ x: 0, y: 4, opacity: 0 }}
+            animate={{ 
+                x: [0, 100],
+                opacity: [0, 1, 1, 0]
+            }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
           />
 
           {/* --- BOTTOM RAIL: SAWTOOTH WAVE (Ramp) --- */}
@@ -163,8 +189,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
           />
 
           {/* --- CENTER: 3-PHASE SINE WAVES --- */}
-          
-          {/* Phase A (0 degrees) - The Primary Carrier */}
+          {/* Phase A */}
           <MotionPath
              stroke="url(#stream-fade)"
              strokeWidth="1.2"
@@ -180,7 +205,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* Phase B (120 degrees) - Secondary */}
+          {/* Phase B */}
           <MotionPath
              stroke="url(#stream-fade)"
              strokeWidth="1.2"
@@ -196,7 +221,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* Phase C (240 degrees) - Tertiary */}
+          {/* Phase C */}
           <MotionPath
              stroke="url(#stream-fade)"
              strokeWidth="1.2"
@@ -212,7 +237,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
           
-          {/* Electron Particles - Strictly on Center Line (Inside the Current) */}
+          {/* Central Analog Electrons */}
           <MotionCircle 
             r="1.5" 
             fill="white"
@@ -240,9 +265,7 @@ const ElectricConnection = React.memo(({ color }: { color: string }) => {
   )
 });
 
-// --- SPARK BOLT (For Title -> Logo interaction) ---
 const SparkBolt = ({ active }: { active: boolean }) => {
-    // We keep this JAGGED because the user likes it for the title spark
     const path1 = generateJaggedPath(100, 10, 0, 10, 8, 15);
     const path2 = generateJaggedPath(100, 10, 0, 10, 12, 10);
     const path3 = generateJaggedPath(100, 10, 0, 10, 6, 5);
@@ -316,7 +339,6 @@ const SparkBolt = ({ active }: { active: boolean }) => {
     );
 };
 
-// --- CURSOR DISCHARGE BOLT ---
 const CursorDischargeBolt = ({ start, end }: { start: {x:number, y:number} | null, end: {x:number, y:number} | null }) => {
     if (!start || !end) return null;
 
@@ -380,7 +402,6 @@ const CursorDischargeBolt = ({ start, end }: { start: {x:number, y:number} | nul
     )
 }
 
-// --- GLITCH TITLE COMPONENT ---
 const GlitchTitle = ({ text, active, discharging }: { text: string, active: boolean, discharging: boolean }) => {
   const [isHovered, setIsHovered] = useState(false);
   const trigger = active && (isHovered || discharging);
@@ -436,8 +457,6 @@ const GlitchTitle = ({ text, active, discharging }: { text: string, active: bool
   );
 };
 
-// --- ANIMATED CLOCK COMPONENTS ---
-
 const TimeDigit = ({ val }: { val: string }) => (
   <div className="relative h-6 w-3.5 md:h-8 md:w-5 overflow-hidden flex items-center justify-center">
     <AnimatePresence mode="popLayout">
@@ -470,13 +489,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const { setCharged } = useCursorStore();
   const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
   
-  // Clock state split for animations
   const [timeParts, setTimeParts] = useState<{h: string[], m: string[], s: string[]}>({ h:['0','0'], m:['0','0'], s:['0','0'] });
-  
-  // --- SPARK SYSTEM STATE ---
   const [sparkState, setSparkState] = useState<'idle' | 'discharge' | 'impact'>('idle');
-  
-  // --- INTERACTIVE CHARGE STATE ---
   const [isLogoCharged, setIsLogoCharged] = useState(false);
   const logoRef = useRef<HTMLDivElement>(null);
   const [cursorBolt, setCursorBolt] = useState<{start: {x:number, y:number}, end: {x:number, y:number}} | null>(null);
@@ -485,8 +499,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const t = translations[settings.language];
 
   useEffect(() => {
-    // Clock Logic
-    const locale = 'en-US'; // Force EN for consistent digit animation, format manually for aesthetics
     const updateTime = () => {
         const now = new Date();
         const h = now.getHours().toString().padStart(2, '0').split('');
@@ -499,77 +511,51 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // --- 1. THE "ALIVE" INTERVAL (Text -> Logo) ---
   useEffect(() => {
       if (!settings.animations) return;
-
       const loop = setInterval(() => {
           setSparkState('discharge');
-          playSpark(); // Zip sound
-
+          playSpark(); 
           setTimeout(() => {
               setSparkState('impact');
-              playCharge(); // Thud sound
-              // LOGO GETS CHARGED HERE
+              playCharge();
               setIsLogoCharged(true);
-              
-              // Charge lasts for 3 seconds max, then dissipates if not touched
               setTimeout(() => {
                   setIsLogoCharged(false);
               }, 3000);
-
           }, 250);
-
           setTimeout(() => {
               setSparkState('idle');
           }, 750);
-
       }, 6000); 
-
       return () => clearInterval(loop);
   }, [settings.animations, playSpark, playCharge]);
 
-  // --- 2. THE INTERACTIVE DISCHARGE (Logo -> Cursor) ---
   useEffect(() => {
       if (!isLogoCharged || !logoRef.current) return;
-
       const handleMouseMove = (e: MouseEvent) => {
-          if (!isLogoCharged) return; // Double check inside closure
-
+          if (!isLogoCharged) return; 
           const rect = logoRef.current!.getBoundingClientRect();
           const logoCenterX = rect.left + rect.width / 2;
           const logoCenterY = rect.top + rect.height / 2;
-
-          // Calculate distance
           const dist = Math.hypot(e.clientX - logoCenterX, e.clientY - logoCenterY);
-          
-          // Trigger threshold (e.g., 150px)
           if (dist < 150) {
-              // FIRE THE BOLT!
-              playSpark(); // Play zap sound again
+              playSpark();
               setCursorBolt({
                   start: { x: logoCenterX, y: logoCenterY },
                   end: { x: e.clientX, y: e.clientY }
               });
-              
-              // Remove charge from Logo immediately
               setIsLogoCharged(false);
-
-              // CHARGE THE CURSOR
               setCharged(true);
               setTimeout(() => {
                   setCharged(false);
-              }, 1500); // Cursor stays charged for 1.5s
-
-              // Clear the visual bolt after animation
+              }, 1500);
               setTimeout(() => setCursorBolt(null), 300);
           }
       };
-
       window.addEventListener('mousemove', handleMouseMove);
       return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [isLogoCharged, playSpark, setCharged]);
-
 
   const toggleTheme = () => {
     playToggle(settings.theme === 'light');
@@ -601,7 +587,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     }
   };
 
-  // Logo Animation Variants
   const logoVariants = {
     idle: {
       scale: 1,
@@ -610,11 +595,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
       color: "hsl(var(--primary))",
     },
     impact: {
-      scale: [1, 1.3, 1.1, 1], // Violent shake
+      scale: [1, 1.3, 1.1, 1],
       rotate: [0, -10, 10, 0],
       filter: [
           'drop-shadow(0 0 0px rgba(218,165,32,0))',
-          'drop-shadow(0 0 20px rgba(255,255,255,0.9))', // Bright white flash
+          'drop-shadow(0 0 20px rgba(255,255,255,0.9))', 
           'drop-shadow(0 0 10px rgba(218,165,32,0.5))'
       ],
       color: ["hsl(var(--primary))", "#ffffff", "hsl(var(--primary))"], 
@@ -622,7 +607,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     },
     charged: {
         scale: [1, 1.05, 1],
-        filter: 'drop-shadow(0 0 8px rgba(218,165,32,0.8))', // Steady Glow
+        filter: 'drop-shadow(0 0 8px rgba(218,165,32,0.8))',
         transition: { duration: 1, repeat: Infinity, repeatType: "reverse" }
     }
   };
@@ -633,29 +618,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   return (
     <header className="sticky top-2 md:top-6 z-50 px-2 md:px-8 transition-all duration-500 pointer-events-none">
       <div className="max-w-[1400px] mx-auto flex items-stretch justify-between gap-2 md:gap-4 relative pointer-events-auto h-[60px] md:h-[72px]">
-        
-        {/* === VISUAL FX LAYER === */}
         {cursorBolt && <CursorDischargeBolt start={cursorBolt.start} end={cursorBolt.end} />}
-
-        {/* === ISLAND 1: IDENTITY (Spark System) === */}
         <MotionDiv
           variants={islandVariants}
           initial="hidden"
           animate="visible"
           className="relative min-w-[180px] md:min-w-[280px] drop-shadow-xl filter group" 
         >
-           {/* Border & Background Layers */}
            <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl" style={{ clipPath: CLIP_LEFT }} />
            <div className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl overflow-hidden" style={{ clipPath: CLIP_LEFT }}>
-              {/* Optional: Subtle scanning line in background */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent -translate-x-full animate-[shimmer_4s_infinite]" />
            </div>
-
-           {/* Content */}
            <div className="relative h-full w-full flex items-center pl-6 pr-10 md:pl-8 md:pr-14">
               <div className="flex items-center gap-3 md:gap-4 z-10 relative w-full">
-                  
-                  {/* LOGO: The Target of the Spark */}
                   <div ref={logoRef} className="relative z-30">
                     <MotionDiv 
                         className="bg-background border-2 border-primary p-1.5 md:p-2 rounded-xl cursor-pointer"
@@ -666,23 +641,18 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                         <Zap className="w-4 h-4 md:w-6 md:h-6 fill-current transition-colors" strokeWidth={0} />
                     </MotionDiv>
                   </div>
-                  
-                  {/* SPARK ANIMATION: Bridges the gap (Absolute to avoid layout shift) */}
                   <SparkBolt active={sparkState === 'discharge'} />
-
                   <div className="flex flex-col justify-center gap-0.5 relative z-30">
                     <div className="flex items-center gap-2">
                         <div className="p-0.5 bg-primary/20 rounded-sm">
                             <Hash size={10} className="text-primary" strokeWidth={3} />
                         </div>
-                        {/* TEXT: The Source of the Spark */}
                         <GlitchTitle 
                             text={settings.title} 
                             active={settings.animations} 
                             discharging={sparkState === 'discharge'} 
                         />
                     </div>
-                    
                     <div className="hidden md:flex items-center gap-1.5 mt-0.5 text-[8px] font-black uppercase tracking-[0.25em] text-muted-foreground/60">
                       <span className={cn("w-1.5 h-1.5 rounded-sm transition-colors", sparkState === 'impact' ? "bg-white shadow-[0_0_5px_white]" : "bg-primary")} /> 
                       {t.node_controller}
@@ -691,8 +661,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
               </div>
            </div>
         </MotionDiv>
-        
-        {/* === ISLAND 2: COMMAND CENTER === */}
         <MotionDiv
             variants={islandVariants}
             initial="hidden"
@@ -700,25 +668,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
             transition={{ delay: 0.1 }}
             className="relative flex-1 drop-shadow-xl filter"
         >
-            {/* NEW HARMONIC CONNECTION: Island-to-Island */}
             <ElectricConnection color={settings.cursorColor || "#daa520"} />
-
             <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl" style={{ clipPath: CLIP_RIGHT }} />
             <div className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl overflow-hidden" style={{ clipPath: CLIP_RIGHT }}>
                <div className="absolute inset-0 bg-gradient-to-l from-transparent via-primary/5 to-transparent opacity-50" />
             </div>
-
             <div className="relative h-full w-full flex items-center justify-between pl-10 pr-6 md:pl-14 md:pr-8">
                <div className="hidden lg:flex flex-col items-start justify-center pl-4 border-l-2 border-border/30 h-auto py-1">
-                  
-                  {/* NEW ANIMATED CLOCK CONTAINER */}
                   <MotionDiv 
                     whileHover={{ scale: 1.05 }}
                     className="group relative px-2 py-1 rounded-lg border border-transparent hover:border-primary/30 transition-all duration-300 cursor-default overflow-hidden"
                   >
-                      {/* Removed background glow div, using text-clip instead */}
-                      
-                      {/* FORCE LTR FOR CLOCK DISPLAY TO FIX RTL BUG */}
                       <div className="relative z-10 flex items-center gap-0.5 md:gap-1 drop-shadow-sm select-none" dir="ltr">
                           <TimeDigit val={timeParts.h[0]} />
                           <TimeDigit val={timeParts.h[1]} />
@@ -730,10 +690,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                           <TimeDigit val={timeParts.s[1]} />
                       </div>
                   </MotionDiv>
-
                   <div className="text-[7px] font-black uppercase tracking-[0.4em] text-primary/70 mt-0.5 ml-3">{t.system_time}</div>
                </div>
-
                <div className="flex items-center gap-2 md:gap-3 z-10 ml-auto">
                   <ControlButton onClick={handleOpenScheduler} icon={CalendarClock} title={t.scheduler} active={isSchedulerOpen} />
                   <div className="w-px h-8 bg-border/40 mx-1 hidden sm:block" />
@@ -746,15 +704,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                </div>
             </div>
         </MotionDiv>
-
       </div>
-      
       <SchedulerDialog isOpen={isSchedulerOpen} onClose={() => setIsSchedulerOpen(false)} />
     </header>
   );
 };
 
-// --- Custom "Charged" Button Component ---
 const ControlButton = ({ onClick, icon: Icon, label, title, active, variant = 'default' }: any) => {
     return (
         <MotionButton
