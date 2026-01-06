@@ -1,5 +1,5 @@
 
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { GripVertical } from 'lucide-react';
 import { SegmentCard } from '../Segment/SegmentCard';
@@ -233,7 +233,7 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
   }, [segments]);
 
 
-  const moveItem = (fromIndex: number, toIndex: number) => {
+  const moveItem = useCallback((fromIndex: number, toIndex: number) => {
     // 1. Reorder the DisplayItems
     const newItems = [...displayItems];
     const [movedItem] = newItems.splice(fromIndex, 1);
@@ -250,7 +250,7 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
     });
 
     onReorder(flattenedSegments);
-  };
+  }, [displayItems, onReorder]);
 
   // Memoize style to prevent object creation on render
   const containerStyle = useMemo(() => ({

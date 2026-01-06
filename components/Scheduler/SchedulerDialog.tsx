@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,6 +9,7 @@ import { useSettingsStore } from '../../lib/store/settings';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
+// CORRECTED IMPORT: Points explicitly to the lowercase 'ui' folder from 2 levels up to avoid 'UI' folder conflict
 import { Slider } from '../../components/ui/slider';
 import { translations } from '../../lib/i18n';
 import { cn } from '../../lib/utils';

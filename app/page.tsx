@@ -1,14 +1,11 @@
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { MotionConfig, AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { Header } from '../components/Header/Header';
 import { SideMenu } from '../components/UI/SideMenu';
 import { SegmentGroup } from '../components/Group/SegmentGroup';
-import { ToastContainer } from '../components/UI/Toast';
-import { CursorGlobalStyle } from '../components/UI/CursorGlobalStyle';
-import { BackgroundStyle } from '../components/UI/BackgroundStyle';
 import { useSegments } from '../lib/store/segments';
 import { useSettingsStore } from '../lib/store/settings';
-import { useConnection } from '../lib/store/connection';
 import { useSchedulerStore } from '../lib/store/scheduler';
 import { CMD, Segment } from '../types/index';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -24,7 +21,6 @@ const MotionDiv = motion.div as any;
 // --- CORE EMBLEM: THE ELECTRIC ROCK ---
 const CoreEmblem: React.FC = React.memo(() => (
   <div className="relative flex items-center justify-center">
-    {/* Outer Heavy Ring (The Rock Strength) */}
     <MotionDiv
       animate={{ rotate: 360 }}
       transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
@@ -33,7 +29,6 @@ const CoreEmblem: React.FC = React.memo(() => (
       <div className="border-4 border-dashed border-primary w-[160px] h-[160px] md:w-[240px] md:h-[240px] rounded-full" />
     </MotionDiv>
 
-    {/* Spinning Hexagon (Industrial Tech) */}
     <MotionDiv
       animate={{ rotate: -360 }}
       transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
@@ -42,7 +37,6 @@ const CoreEmblem: React.FC = React.memo(() => (
       <Hexagon className="text-foreground/40 w-[120px] h-[120px] md:w-[180px] md:h-[180px]" strokeWidth={2} />
     </MotionDiv>
     
-    {/* Core Energy (Electric Pulse) */}
     <MotionDiv
       animate={{ 
         scale: [1, 1.15, 1],
@@ -55,7 +49,6 @@ const CoreEmblem: React.FC = React.memo(() => (
       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
       className="bg-card border-4 border-primary p-5 md:p-8 rounded-full shadow-2xl z-10 relative"
     >
-       {/* Inner Spark */}
       <MotionDiv
          animate={{ opacity: [0.5, 1, 0.5] }}
          transition={{ duration: 0.1, repeat: Infinity, repeatDelay: 1.5 }}
@@ -111,12 +104,9 @@ const DraggableGroupItem = React.memo(({
   index,
   containerRef,
   moveGroup,
-  segments,
-  setSegments,
   removeSegment,
   removeGroup, 
   toggleSegment,
-  sendCommand,
   setPWM,
   lastReorderTime,
   className,
@@ -128,12 +118,9 @@ const DraggableGroupItem = React.memo(({
   index: number,
   containerRef: React.RefObject<HTMLDivElement>,
   moveGroup: (from: number, to: number) => void,
-  segments: Segment[],
-  setSegments: (s: Segment[]) => void,
   removeSegment: (id: string) => void,
   removeGroup: (name: string) => void, 
   toggleSegment: (id: string) => void,
-  sendCommand: any,
   setPWM: any,
   lastReorderTime: React.MutableRefObject<number>,
   className: string,
@@ -141,6 +128,7 @@ const DraggableGroupItem = React.memo(({
   onDragEnd: () => void
 }) => {
   const controls = useDragControls();
+  const { sendCommand } = useWebSocket(); // Use hook here to avoid prop drilling if possible, or pass it down
 
   const handleDrag = (event: any, info: any) => {
     if (!containerRef.current) return;
@@ -177,17 +165,19 @@ const DraggableGroupItem = React.memo(({
   };
 
   const handleToggle = useCallback((id: string) => {
-    const seg = segments.find(s => s.num_of_node === id);
+    // Logic needs access to current segment state, which might be stale if just passed as prop.
+    // However, for optimization, we should fetch fresh state from store or rely on groupNodes.
+    const seg = groupNodes.find(s => s.num_of_node === id);
     if (!seg) return;
 
     if (seg.regBitIndex !== undefined) {
         toggleSegment(id);
-        const allRegisterSegments = segments.filter(s => s.gpio === seg.gpio && s.regBitIndex !== undefined);
+        const allRegisterSegments = groupNodes.filter(s => s.gpio === seg.gpio && s.regBitIndex !== undefined);
         let newByteValue = 0;
         allRegisterSegments.forEach(s => {
             let isOn = s.is_led_on === 'on';
             if (s.num_of_node === id) {
-                 isOn = !isOn; 
+                 isOn = !isOn; // Apply toggle locally for calculation
             }
             if (isOn) {
                 newByteValue |= (1 << (s.regBitIndex || 0));
@@ -198,12 +188,24 @@ const DraggableGroupItem = React.memo(({
         toggleSegment(id);
         sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
     }
-  }, [toggleSegment, segments, sendCommand]);
+  }, [toggleSegment, groupNodes, sendCommand]);
 
   const handleInternalReorder = useCallback((newNodes: Segment[]) => {
-    const otherGroupsSegments = segments.filter(s => (s.group || "basic") !== groupName);
-    setSegments([...otherGroupsSegments, ...newNodes]);
-  }, [segments, groupName, setSegments]);
+    // We need to update the global segments list
+    // This requires a callback prop to the parent or a store action that handles reordering a subset
+    // For simplicity, we assume parent handles setSegments logic via store, but here we invoke a prop if provided.
+    // In this specific architecture, SegmentGroup calls onReorder with NEW list of segments for that group.
+    
+    // We need access to the GLOBAL setSegments to merge this. 
+    // This is getting complex to prop drill. 
+    // ideally store should have `reorderGroup(groupName, newSegments)`.
+    
+    // Falling back to the prop drilled method from original code for stability.
+    useSegments.getState().setSegments([
+        ...useSegments.getState().segments.filter(s => (s.group || "basic") !== groupName),
+        ...newNodes
+    ]);
+  }, [groupName]);
 
   return (
     <MotionDiv
@@ -252,8 +254,8 @@ const DraggableGroupItem = React.memo(({
 
 
 export default function DashboardPage(): React.JSX.Element {
-  const { segments, setSegments, removeSegment, removeGroup, toggleSegment, setPWM } = useSegments();
-  const { removeSchedulesByTarget } = useSchedulerStore();
+  const { segments, removeSegment, removeGroup, toggleSegment, setPWM } = useSegments();
+  const { removeSchedulesByTarget } = useSchedulerStore(); // Get from store directly
   const { settings } = useSettingsStore();
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -263,13 +265,12 @@ export default function DashboardPage(): React.JSX.Element {
   
   const groupsContainerRef = useRef<HTMLDivElement>(null);
   const lastGroupReorderTime = useRef<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const [orderedGroupKeys, setOrderedGroupKeys] = useState<string[]>([]);
-  
   const t = translations[settings.language];
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const { sendCommand } = useWebSocket();
 
+  // Logic: Handle Segment/Group Deletion
   const handleRemoveSegment = useCallback((id: string) => {
     removeSchedulesByTarget(id);
     removeSegment(id);
@@ -281,16 +282,18 @@ export default function DashboardPage(): React.JSX.Element {
     removeGroup(groupName);
   }, [segments, removeSchedulesByTarget, removeGroup]);
 
-  // Apply Primary Color Variable as HSL
+  // Logic: Apply Theme Colors
   useEffect(() => {
     const hsl = hexToHSL(settings.primaryColor);
     document.documentElement.style.setProperty('--primary', hsl);
   }, [settings.primaryColor]);
   
+  // Logic: Direction (RTL/LTR)
   useEffect(() => {
     document.dir = settings.language === 'fa' ? 'rtl' : 'ltr';
   }, [settings.language]);
 
+  // Logic: Device Detection
   useEffect(() => {
     const ua = navigator.userAgent;
     if (/Mobi|Android/i.test(ua)) {
@@ -300,10 +303,12 @@ export default function DashboardPage(): React.JSX.Element {
     }
   }, []);
 
+  // Logic: Dark Mode
   useEffect(() => {
     document.documentElement.classList.toggle('dark', settings.theme === 'dark');
   }, [settings.theme]);
 
+  // Logic: Audio Engine (Moved logic here to keep render clean)
   useEffect(() => {
     const handlePlayback = async () => {
       if (!settings.bgMusic) {
@@ -320,14 +325,16 @@ export default function DashboardPage(): React.JSX.Element {
             audioRef.current.src = track.url;
         }
         audioRef.current.volume = settings.volume / 100;
+        // Interaction policy might block this, handled by catch
         await audioRef.current.play();
       } catch (e: unknown) {
-        console.warn("Audio playback failed:", e);
+        // Silent fail for autoplay policy
       }
     };
     void handlePlayback();
   }, [settings.bgMusic, settings.currentTrackIndex, settings.volume]);
 
+  // Logic: Grouping Segments
   const groupedSegments = useMemo(() => {
     const groups: Record<string, Segment[]> = {};
     segments.forEach((seg) => {
@@ -338,6 +345,7 @@ export default function DashboardPage(): React.JSX.Element {
     return groups;
   }, [segments]);
 
+  // Logic: Order Maintenance for Groups
   useEffect(() => {
     const currentKeys = Object.keys(groupedSegments);
     setOrderedGroupKeys(prev => {
@@ -358,17 +366,13 @@ export default function DashboardPage(): React.JSX.Element {
     });
   }, []);
 
-  // Class Selection Logic - Simplified as logic is now in BackgroundStyle.tsx
-  const bgClass = (() => {
+  const bgClass = useMemo(() => {
     if (settings.backgroundEffect === 'grid') return 'graph-paper';
-    return 'pattern-bg'; // Unified class for Dots, Squares, Triangles
-  })();
+    return 'pattern-bg';
+  }, [settings.backgroundEffect]);
 
   return (
     <MotionConfig reducedMotion={settings.animations ? "never" : "always"}>
-      <CursorGlobalStyle />
-      <BackgroundStyle />
-
       <div className={cn(
           "min-h-screen transition-colors duration-500 flex flex-col overflow-x-hidden bg-background text-foreground",
           bgClass,
@@ -414,12 +418,9 @@ export default function DashboardPage(): React.JSX.Element {
                        index={index}
                        containerRef={groupsContainerRef}
                        moveGroup={moveGroup}
-                       segments={segments}
-                       setSegments={setSegments}
                        removeSegment={handleRemoveSegment}
                        removeGroup={handleRemoveGroup}
                        toggleSegment={toggleSegment}
-                       sendCommand={sendCommand}
                        setPWM={setPWM}
                        lastReorderTime={lastGroupReorderTime}
                        className={spanClass}
@@ -436,7 +437,6 @@ export default function DashboardPage(): React.JSX.Element {
         <footer className="fixed bottom-2 md:bottom-4 left-0 w-full px-2 md:px-6 z-[40] transition-colors duration-500 pointer-events-none">
           <div className="relative overflow-hidden bg-background/80 dark:bg-background/50 backdrop-blur-xl backdrop-saturate-150 border border-border/50 dark:border-white/5 rounded-xl md:rounded-2xl shadow-2xl py-2 px-4 md:py-4 md:px-10 flex items-center justify-between h-14 md:h-20 max-w-7xl mx-auto pointer-events-auto group">
             
-            {/* Top Edge Electric Rail - High Voltage Effect */}
             <div className="absolute top-0 left-0 right-0 h-[2px] bg-primary/10 w-full overflow-visible">
                <MotionDiv
                   initial={{ left: "-20%" }}
@@ -452,10 +452,8 @@ export default function DashboardPage(): React.JSX.Element {
                       background: 'linear-gradient(90deg, transparent 0%, hsla(var(--primary), 0.3) 50%, hsl(var(--primary)) 100%)',
                   }}
                >
-                   {/* The Head Spark (The Rock's Eyebrow Flash) */}
                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white shadow-[0_0_15px_3px_hsl(var(--primary))] rounded-full z-20" />
                    
-                   {/* Vertical Arc (The Jitter) */}
                    <MotionDiv 
                       animate={{ 
                           height: [4, 16, 4, 12, 4], 
@@ -494,7 +492,6 @@ export default function DashboardPage(): React.JSX.Element {
         </footer>
 
         <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-        <ToastContainer />
       </div>
     </MotionConfig>
   );
