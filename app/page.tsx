@@ -21,8 +21,6 @@ const MotionDiv = motion.div as any;
 
 // --- CORE EMBLEM: SPORADIC DISCHARGE ---
 const CoreDischarge = React.memo(() => {
-  // We separate the 'data' (bolt geometry) from the 'active' state (visibility)
-  // This allows us to keep the component mounted while it fades out internally.
   const [boltData, setBoltData] = useState<{ 
       id: number; 
       angle: number; 
@@ -31,7 +29,7 @@ const CoreDischarge = React.memo(() => {
       travelTime: number; 
       branchIntensity: number; 
       lingerDuration: number;
-      fadeDuration: number; // New: Explicit fade time
+      fadeDuration: number; 
   } | null>(null);
 
   const [isActive, setIsActive] = useState(false);
@@ -55,50 +53,49 @@ const CoreDischarge = React.memo(() => {
         const length = 120 + (rawLen * rawLen * 480); 
 
         let thickness = 0.8;
-        let branchIntensity = 0;
-        let lingerDuration = 0.3; // Time it stays fully visible
-        let fadeDuration = 0.5;   // Time it takes to fade out
+        let branchIntensity = 0.5; // Default some branching
+        let lingerDuration = 0.3; 
+        let fadeDuration = 0.5;   
 
         if (length > 300) {
-            // Big Bolt: Heavy, branches, long linger, slow fade
+            // Big Bolt: Heavy, recursive branches, long linger
             thickness = 2.5;
-            branchIntensity = 1 + Math.random(); 
-            lingerDuration = 0.5 + Math.random() * 1.0; // Stay visible for 0.5-1.5s
-            fadeDuration = 1.0 + Math.random();         // Fade takes 1-2s
+            branchIntensity = 1.0 + Math.random(); // High intensity = more recursive depth
+            lingerDuration = 0.5 + Math.random() * 1.0; 
+            fadeDuration = 1.0 + Math.random();         
         } else if (length > 200) {
             // Medium Bolt
             thickness = 1.5;
-            branchIntensity = Math.random() > 0.5 ? 0.5 : 0;
+            branchIntensity = 0.6 + Math.random() * 0.5;
             lingerDuration = 0.3 + Math.random() * 0.4;
             fadeDuration = 0.6 + Math.random() * 0.4;
         } else {
-            // Small Bolt
+            // Small Bolt - NOW ALLOWS BRANCHING
+            // Previously was 0 branching. Now we allow it but keep duration short.
+            thickness = 1.0;
+            branchIntensity = Math.random() > 0.4 ? 0.5 : 0; // 60% chance of small branches
             lingerDuration = 0.1 + Math.random() * 0.2;
             fadeDuration = 0.3 + Math.random() * 0.3;
         }
 
         const travelTime = 0.15 + (length / 900); 
 
-        // Set Data and Activate
         setBoltData({ 
             id: Date.now(), 
             angle, length, thickness, travelTime, branchIntensity, lingerDuration, fadeDuration 
         });
         setIsActive(true);
 
-        // 3. LIFECYCLE: Wait for Travel + Linger, then deactivate (Trigger Fade)
         const visibleTime = (travelTime * 1000) + (lingerDuration * 1000);
         
         phase2Timeout = setTimeout(() => {
-            // Trigger Fade Out (Internal AnimatePresence in LightningBolt will handle this)
             setIsActive(false);
 
-            // 4. CLEANUP: Wait for Fade to complete, then clear data and restart
             const fadeTimeMs = fadeDuration * 1000;
             phase3Timeout = setTimeout(() => {
                 setBoltData(null);
                 runCycle(); // Loop
-            }, fadeTimeMs + 100); // Small buffer
+            }, fadeTimeMs + 100); 
 
         }, visibleTime);
 
@@ -114,8 +111,6 @@ const CoreDischarge = React.memo(() => {
     };
   }, []);
 
-  // Always render the container. If boltData exists, render the bolt.
-  // We control visibility via the 'active' prop.
   if (!boltData) return <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none z-0" />;
 
   // Coordinate System
@@ -131,7 +126,7 @@ const CoreDischarge = React.memo(() => {
     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none z-0 overflow-visible">
       <LightningBolt 
           key={boltData.id} 
-          active={isActive} // Controlled by our lifecycle
+          active={isActive} 
           startX={sx} startY={sy} 
           endX={ex} endY={ey}
           viewBox="0 0 800 800"
@@ -141,7 +136,7 @@ const CoreDischarge = React.memo(() => {
           thickness={boltData.thickness} 
           branchIntensity={boltData.branchIntensity} 
           animationDuration={boltData.travelTime} 
-          lingerDuration={boltData.fadeDuration} // Pass the fade duration here
+          lingerDuration={boltData.fadeDuration} 
           className="opacity-90 text-primary drop-shadow-[0_0_15px_rgba(var(--primary),0.8)]" 
           color="hsl(var(--primary))"
       />

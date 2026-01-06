@@ -12,14 +12,21 @@ interface Point {
     y: number;
 }
 
-interface BranchData {
-    d: string;
-    delay: number; // Time in seconds to wait before drawing (Entry)
-    duration: number; // How fast the branch draws (Entry)
-    splitRatio: number; // Position (0-1) along the main bolt where this branch connects
+// Updated Interface for Recursive Segments
+interface RenderableSegment {
+    id: string; 
+    d: string; 
+    dGlow: string; 
+    dCore: string; 
+    level: number; 
+    delay: number; 
+    duration: number; 
+    exitDelay: number; 
+    exitDuration: number; // Added to store precise duration for this segment
+    widthMultiplier: number; 
 }
 
-// 1. Generate Points Function (Returns Array of {x,y} instead of string)
+// 1. Generate Points Function
 export const generateLightningPoints = (
     startX: number, 
     startY: number, 
@@ -39,9 +46,8 @@ export const generateLightningPoints = (
         // Calculate perpendicular vector
         const dx = endX - startX;
         const dy = endY - startY;
-        const len = Math.sqrt(dx*dx + dy*dy) || 1; // Avoid divide by zero
+        const len = Math.sqrt(dx*dx + dy*dy) || 1; 
         
-        // Normal vector (-dy, dx)
         const udx = -dy / len;
         const udy = dx / len;
         
@@ -83,8 +89,8 @@ interface LightningBoltProps {
     glowIntensity?: number;
     thickness?: number;
     animationDuration?: number;
-    branchIntensity?: number; // New: 0 = No branches, 1 = High branching
-    lingerDuration?: number; // How long it stays visible while fading
+    branchIntensity?: number; 
+    lingerDuration?: number; 
 }
 
 export const LightningBolt: React.FC<LightningBoltProps> = ({
@@ -100,128 +106,152 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
     glowIntensity = 2,
     thickness = 1,
     animationDuration = 0,
-    branchIntensity = 0, // Default none
-    lingerDuration = 0.3 // Default fade out
+    branchIntensity = 0, 
+    lingerDuration = 0.3 
 }) => {
     const filterId = useMemo(() => `bolt-glow-${Math.random().toString(36).substr(2, 9)}`, []);
 
-    // Generate Main Bolt and Branches
-    const boltData = useMemo(() => {
-        // A. Generate Main Spine Points
-        const mainPoints = generateLightningPoints(startX, startY, endX, endY, segments, amplitude);
-        
-        // B. Generate Branches with Timing Data
-        const branches: BranchData[] = [];
-        
-        if (branchIntensity > 0) {
-            // Determine number of branches based on length and intensity
-            const dist = Math.hypot(endX - startX, endY - startY);
-            const numBranches = Math.floor(Math.random() * branchIntensity * 3); 
-            
-            // We need indices from mainPoints (exclude first and last few points to avoid ugly starts)
-            const availableIndices = Array.from({length: mainPoints.length - 4}, (_, i) => i + 2);
-            
-            for (let k = 0; k < numBranches; k++) {
-                if (availableIndices.length === 0) break;
-                
-                // Pick a random spot on the main bolt
-                const randIndex = Math.floor(Math.random() * availableIndices.length);
-                const pointIndex = availableIndices.splice(randIndex, 1)[0];
-                const startNode = mainPoints[pointIndex];
-                
-                // --- TIMING & POSITION CALCULATION ---
-                // Calculate how far along the main path this point is (0.0 to 1.0)
-                const splitRatio = pointIndex / mainPoints.length;
-                
-                // The branch should start drawing exactly when the main bolt reaches this point.
-                // If animationDuration is 0 (instant), delay is 0.
-                const delay = animationDuration * splitRatio;
+    // Recursive Generator Function
+    const generateRecursiveSegments = (
+        pStart: Point,
+        pEnd: Point,
+        currentSegments: number,
+        currentAmp: number,
+        level: number,
+        parentEntryDelay: number,   // When THIS segment starts drawing
+        parentDuration: number,     // Duration of THIS segment's draw
+        parentExitDelay: number,    // When THIS segment starts fading
+        maxDepth: number,
+        intensity: number
+    ): RenderableSegment[] => {
+        const results: RenderableSegment[] = [];
 
-                // Branches draw faster than the main bolt (snappier)
-                const branchDrawDuration = Math.min(0.2, animationDuration * 0.5);
+        // 1. Generate Points for this segment (Main Spine)
+        const points = generateLightningPoints(pStart.x, pStart.y, pEnd.x, pEnd.y, currentSegments, currentAmp);
+        const pathString = pointsToPath(points);
 
-                // Calculate main direction angle
-                const mainAngle = Math.atan2(endY - startY, endX - startX);
-                
-                // Branch direction: Main Angle +/- (30 to 60 degrees)
-                const directionSign = Math.random() < 0.5 ? 1 : -1;
-                const deviation = (Math.PI / 6) + (Math.random() * (Math.PI / 6)); // 30-60 deg
-                const branchAngle = mainAngle + (directionSign * deviation);
-                
-                // Branch Length: 20% to 40% of total length
-                const branchLen = dist * (0.2 + Math.random() * 0.2);
-                
-                const branchEndX = startNode.x + Math.cos(branchAngle) * branchLen;
-                const branchEndY = startNode.y + Math.sin(branchAngle) * branchLen;
-                
-                // Generate points for this branch (fewer segments, less amplitude)
-                const branchPoints = generateLightningPoints(
-                    startNode.x, startNode.y, 
-                    branchEndX, branchEndY, 
-                    Math.floor(segments / 3), 
-                    amplitude * 0.6
-                );
-                
-                branches.push({
-                    d: pointsToPath(branchPoints),
-                    delay,
-                    duration: branchDrawDuration,
-                    splitRatio // Crucial: Store where this branch is relative to main bolt
-                });
-            }
+        let dGlow = pathString;
+        let dCore = pathString;
+
+        // 2. Generate Variations for Volume
+        if (level <= 1) {
+             const pointsGlow = generateLightningPoints(pStart.x, pStart.y, pEnd.x, pEnd.y, currentSegments, currentAmp * 1.5);
+             dGlow = pointsToPath(pointsGlow);
+             
+             const pointsCore = generateLightningPoints(pStart.x, pStart.y, pEnd.x, pEnd.y, currentSegments, currentAmp * 0.5);
+             dCore = pointsToPath(pointsCore);
         }
 
-        // C. Create Variations for Animation (Jitter Effect)
-        const p2 = pointsToPath(mainPoints);
-        const p1Points = generateLightningPoints(startX, startY, endX, endY, segments, amplitude * 1.5);
-        const p1 = pointsToPath(p1Points);
-        const p3Points = generateLightningPoints(startX, startY, endX, endY, segments, amplitude * 0.5);
-        const p3 = pointsToPath(p3Points);
+        // 3. Calculate properties for THIS segment
+        const widthMultiplier = Math.max(0.3, 1 - (level * 0.3));
+        
+        // EXIT DURATION: How long THIS segment takes to fade.
+        // It's proportional to thickness. Thinner segments fade faster.
+        const myExitDuration = lingerDuration * (0.5 + (0.5 * widthMultiplier));
 
-        return { p1, p2, p3, branches };
+        // 4. Add THIS segment to results
+        results.push({
+            id: `lvl${level}-${Math.random().toString(36).substr(2, 5)}`,
+            d: pathString,
+            dGlow: dGlow,
+            dCore: dCore,
+            level: level,
+            delay: parentEntryDelay, 
+            duration: parentDuration,
+            exitDelay: parentExitDelay,
+            exitDuration: myExitDuration,
+            widthMultiplier: widthMultiplier
+        });
 
-    }, [startX, startY, endX, endY, segments, amplitude, active, branchIntensity, animationDuration]);
+        // 5. Base Case: Stop if max depth reached or intensity is 0
+        if (level >= maxDepth || intensity <= 0) return results;
 
-    // MAIN PATH Variants (Retract from Tail Logic)
-    const mainVariants = {
-        hidden: { 
-            pathLength: 0, 
-            pathOffset: 0, 
-            opacity: 0 
-        },
-        visible: { 
-            pathLength: 1, 
-            pathOffset: 0,
-            opacity: 1,
-            transition: { 
-                pathLength: { duration: animationDuration, ease: "linear" }, 
-                opacity: { duration: 0.05 },
-                pathOffset: { duration: 0 }
-            }
-        },
-        exit: { 
-            // LOGIC: As pathLength goes to 0 AND pathOffset goes to 1,
-            // the stroke shrinks towards the end of the path.
-            pathLength: 0,
-            pathOffset: 1, 
-            opacity: 0,
-            transition: { 
-                pathLength: { duration: lingerDuration, ease: "easeInOut" },
-                pathOffset: { duration: lingerDuration, ease: "easeInOut" },
-                // Keep opacity high for most of the exit so we see the movement, then fade at the very end
-                opacity: { duration: lingerDuration, ease: "easeIn", times: [0, 0.8, 1], values: [1, 1, 0] } 
-            } 
+        // 6. Determine number of branches for this level
+        const numBranches = Math.floor(Math.random() * (intensity * (3 - level)));
+        
+        const availableIndices = Array.from({length: points.length - 4}, (_, i) => i + 2);
+
+        for (let k = 0; k < numBranches; k++) {
+            if (availableIndices.length === 0) break;
+
+            const randIndex = Math.floor(Math.random() * availableIndices.length);
+            const pointIndex = availableIndices.splice(randIndex, 1)[0];
+            const connectionPoint = points[pointIndex]; 
+
+            // --- TIMING MATH ---
+            const splitRatio = pointIndex / points.length;
+            
+            const myEntryDelay = parentEntryDelay + (parentDuration * splitRatio);
+            
+            // CRITICAL FIX: The child's exit starts when THIS segment's exit reaches the connection point.
+            // We must use 'myExitDuration' (this segment's duration), NOT global lingerDuration.
+            const myExitDelay = parentExitDelay + (myExitDuration * splitRatio);
+            
+            const myDuration = Math.min(0.2, parentDuration * 0.6);
+
+            // --- GEOMETRY MATH ---
+            const dx = pEnd.x - pStart.x;
+            const dy = pEnd.y - pStart.y;
+            const parentAngle = Math.atan2(dy, dx);
+            const parentDist = Math.sqrt(dx*dx + dy*dy);
+
+            const directionSign = Math.random() < 0.5 ? 1 : -1;
+            const deviation = (Math.PI / 5) + (Math.random() * (Math.PI / 4)); 
+            const branchAngle = parentAngle + (directionSign * deviation);
+
+            const branchLen = parentDist * (0.3 + Math.random() * 0.3);
+            
+            const branchEnd: Point = {
+                x: connectionPoint.x + Math.cos(branchAngle) * branchLen,
+                y: connectionPoint.y + Math.sin(branchAngle) * branchLen
+            };
+
+            // RECURSIVE CALL
+            const childSegments = generateRecursiveSegments(
+                connectionPoint,
+                branchEnd,
+                Math.max(4, Math.floor(currentSegments / 2)),
+                currentAmp * 0.5, 
+                level + 1,
+                myEntryDelay,
+                myDuration,
+                myExitDelay,
+                maxDepth,
+                intensity 
+            );
+
+            results.push(...childSegments);
         }
+
+        return results;
     };
 
-    // BRANCH Variants (Physics-based Sequential Fading)
-    const branchVariants = {
+    // Memoize the entire tree generation
+    const allSegments = useMemo(() => {
+        const maxDepth = branchIntensity > 0.8 ? 3 : (branchIntensity > 0.3 ? 2 : 1);
+        
+        return generateRecursiveSegments(
+            { x: startX, y: startY },
+            { x: endX, y: endY },
+            segments,
+            amplitude,
+            0, // Start Level
+            0, // Start Delay
+            animationDuration,
+            0, // Start Exit Delay
+            maxDepth,
+            branchIntensity
+        );
+    }, [startX, startY, endX, endY, segments, amplitude, active, branchIntensity, animationDuration, lingerDuration]);
+
+    // Segment Variants
+    const segmentVariants = {
         hidden: { 
             pathLength: 0, 
             pathOffset: 0,
             opacity: 0 
         },
-        visible: (custom: BranchData) => ({ 
+        visible: (custom: RenderableSegment) => ({ 
             pathLength: 1, 
             pathOffset: 0,
             opacity: 1,
@@ -238,20 +268,16 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                 pathOffset: { duration: 0 }
             }
         }),
-        exit: (custom: BranchData) => ({ 
+        exit: (custom: RenderableSegment) => ({ 
             pathLength: 0, 
             pathOffset: 1,
             opacity: 0, 
             transition: { 
-                // CRITICAL: The branch starts fading ONLY when the main bolt's fade (which takes lingerDuration)
-                // reaches the splitRatio point.
-                delay: lingerDuration * custom.splitRatio,
-                
-                // Once triggered, the branch fades faster than the main bolt (it's smaller/thinner).
-                // We use a fraction of the lingerDuration, ensuring it looks like power loss.
-                duration: lingerDuration * 0.25, 
-                
-                ease: "circOut" // Sudden drop looks more like electrical cutoff
+                delay: custom.exitDelay,
+                // Use pre-calculated duration.
+                // Ease must be linear for precise synchronization of the "fade wave"
+                duration: custom.exitDuration, 
+                ease: "linear" 
             } 
         })
     };
@@ -261,9 +287,6 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
         visible: { opacity: 1 },
         exit: { opacity: 0 }
     };
-
-    // SCALE GLOW: Large bolts should have massive glows
-    const dynamicGlow = glowIntensity * (thickness * 0.8);
 
     return (
         <AnimatePresence>
@@ -278,7 +301,7 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                 >
                     <defs>
                         <filter id={filterId} x="-50%" y="-50%" width="200%" height="200%">
-                            <feGaussianBlur stdDeviation={dynamicGlow} result="blur" />
+                            <feGaussianBlur stdDeviation={glowIntensity} result="blur" />
                             <feMerge>
                                 <feMergeNode in="blur" />
                                 <feMergeNode in="SourceGraphic" />
@@ -286,64 +309,60 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                         </filter>
                     </defs>
                     
-                    {/* 1. BRANCHES */}
-                    {boltData.branches.map((b, i) => (
-                        <MotionPath
-                            key={`branch-${i}`}
-                            custom={b} 
-                            variants={animationDuration > 0 ? branchVariants : staticVariants}
-                            d={b.d}
-                            stroke={color}
-                            strokeWidth={1.5 * thickness}
-                            strokeOpacity="0.6"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            filter={`url(#${filterId})`}
-                        />
-                    ))}
+                    {allSegments.map((seg) => (
+                        <g key={seg.id}>
+                            {/* Layer 1: Glow (Uses dGlow for volume) */}
+                            {seg.level < 2 && (
+                                <MotionPath
+                                    custom={seg}
+                                    variants={animationDuration > 0 ? segmentVariants : staticVariants}
+                                    d={seg.dGlow} 
+                                    stroke={color}
+                                    strokeWidth={Math.max(1, 6 * thickness * seg.widthMultiplier)}
+                                    strokeOpacity={0.2 * seg.widthMultiplier}
+                                    fill="none"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    filter={`url(#${filterId})`}
+                                />
+                            )}
 
-                    {/* 2. MAIN BOLT: Outer Glow */}
-                    <MotionPath
-                        variants={animationDuration > 0 ? mainVariants : staticVariants}
-                        d={boltData.p1}
-                        stroke={color}
-                        strokeWidth={6 * thickness}
-                        strokeOpacity="0.2"
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        filter={`url(#${filterId})`}
-                    />
-                    
-                    {/* 3. MAIN BOLT: Body */}
-                    <MotionPath
-                        variants={animationDuration > 0 ? mainVariants : staticVariants}
-                        d={boltData.p2}
-                        stroke={color}
-                        strokeWidth={3 * thickness}
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        filter={`url(#${filterId})`}
-                    />
-                    
-                    {/* 4. MAIN BOLT: White Core */}
-                    <MotionPath
-                        variants={animationDuration > 0 ? mainVariants : staticVariants}
-                        d={boltData.p3}
-                        stroke="white"
-                        strokeWidth={1.5 * thickness}
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    />
+                            {/* Layer 2: Core Bolt (Uses main d) */}
+                            <MotionPath
+                                custom={seg}
+                                variants={animationDuration > 0 ? segmentVariants : staticVariants}
+                                d={seg.d}
+                                stroke={color}
+                                strokeWidth={Math.max(0.5, 2.5 * thickness * seg.widthMultiplier)}
+                                fill="none"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                filter={`url(#${filterId})`}
+                            />
+
+                            {/* Layer 3: White Hot Center (Uses dCore for intensity) */}
+                            {seg.level < 2 && (
+                                <MotionPath
+                                    custom={seg}
+                                    variants={animationDuration > 0 ? segmentVariants : staticVariants}
+                                    d={seg.dCore} 
+                                    stroke="white"
+                                    strokeWidth={Math.max(0.2, 1 * thickness * seg.widthMultiplier)}
+                                    strokeOpacity={0.8}
+                                    fill="none"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                />
+                            )}
+                        </g>
+                    ))}
                 </MotionSvg>
             )}
         </AnimatePresence>
     )
 }
 
+// Hexagon Component remains mostly unchanged but uses legacy generator for simplicity
 interface LightningHexagonProps {
     radius?: number;
     color?: string;
@@ -357,7 +376,7 @@ export const LightningHexagon: React.FC<LightningHexagonProps> = ({
     color = "hsl(var(--foreground))", 
     className,
     thickness = 1,
-    glowIntensity = 3 // Standard glow
+    glowIntensity = 3 
 }) => {
     const [tick, setTick] = useState(0);
 
@@ -389,7 +408,6 @@ export const LightningHexagon: React.FC<LightningHexagonProps> = ({
     const paths = useMemo(() => {
         return points.map((p, i) => {
             const nextP = points[(i + 1) % 6];
-            // Using legacy generator here since we just need simple string
             return pointsToPath(generateLightningPoints(p.x, p.y, nextP.x, nextP.y, 8, radius * 0.06)); 
         });
     }, [points, tick, radius]);
