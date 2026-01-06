@@ -28,32 +28,39 @@ const CoreDischarge = React.memo(() => {
     let clearId: ReturnType<typeof setTimeout>;
 
     const scheduleNextBolt = () => {
-      // Random delay between 3000ms (3s) and 4000ms (4s)
-      const delay = Math.random() * 1000 + 3000;
+      // CHAOTIC TIMING LOGIC:
+      // The user wants unpredictable discharges.
+      // We implement a "Burst vs Calm" mechanism.
+      // 30% chance of a "Burst" (short delay: 0.5s - 1.5s)
+      // 70% chance of "Calm" (long delay: 2.5s - 6s)
+      const isBurst = Math.random() < 0.3;
+      const delay = isBurst 
+        ? Math.random() * 1000 + 500  
+        : Math.random() * 3500 + 2500;
 
       timeoutId = setTimeout(() => {
         // 1. Calculate Random Properties
         // Angle: 0 to 360 degrees
         const angle = Math.random() * 360;
         
-        // Length: Randomly Short (60px) to Very Long (350px - extends well beyond container)
-        // We use a power curve to favor mid-range but allow extreme outliers
+        // LENGTH LOGIC:
+        // User requested to increase the minimum size limit ("if 0, make it 5").
+        // We set a substantial minimum pixel length (120px) so no tiny sparks are emitted.
+        // Range: 120px to ~600px
         const rawLen = Math.random();
-        const length = 60 + (rawLen * rawLen * 400); 
+        const length = 120 + (rawLen * rawLen * 480); 
 
         // THICKNESS LOGIC:
-        // If it's a short "spark" (less than 180px), make it very thin (0.5).
-        // If it's a long powerful bolt, keep it thick (2 or 2.5).
-        const thickness = length < 180 ? 0.5 : 2;
+        // Small bolts (< 300px) are thinner (0.8) but visible.
+        // Large bolts (> 300px) are powerful and thick (2.5).
+        const thickness = length < 300 ? 0.8 : 2.5;
 
         // DURATION LOGIC (Directionality):
-        // We need enough time for the user to see the bolt move from Center -> Out.
-        // Travel time is proportional to length so speed feels somewhat consistent.
-        // Minimum 0.2s for visibility.
-        const travelTime = 0.2 + (length / 800); // e.g., 400px takes 0.7s to travel
+        // Travel time is proportional to length so speed feels consistent (approx 800px/s).
+        const travelTime = 0.15 + (length / 900); 
 
-        // Total lifetime is travel time + a brief moment to linger before disappearing
-        const duration = (travelTime * 1000) + 200; 
+        // Total lifetime is travel time + linger time
+        const duration = (travelTime * 1000) + 150; 
 
         setBolt({ id: Date.now(), angle, length, duration, thickness, travelTime });
 
@@ -85,7 +92,7 @@ const CoreDischarge = React.memo(() => {
   const rad = (bolt.angle * Math.PI) / 180;
   
   // Start slightly offset from center to not overlap the icon completely
-  const startOffset = 30; 
+  const startOffset = 35; 
   const sx = center + startOffset * Math.cos(rad);
   const sy = center + startOffset * Math.sin(rad);
 
@@ -100,8 +107,8 @@ const CoreDischarge = React.memo(() => {
           startX={sx} startY={sy} 
           endX={ex} endY={ey}
           viewBox="0 0 800 800"
-          segments={12 + Math.floor(bolt.length / 20)} // More segments for longer bolts
-          amplitude={15 + Math.random() * 20} // High amplitude for chaotic look
+          segments={12 + Math.floor(bolt.length / 25)} // Dynamic segments based on length
+          amplitude={10 + Math.random() * 20} // Chaotic amplitude
           glowIntensity={3}
           thickness={bolt.thickness} // Dynamic thickness
           animationDuration={bolt.travelTime} // Pass travel time to animate path
