@@ -21,91 +21,127 @@ const MotionDiv = motion.div as any;
 
 // --- CORE EMBLEM: SPORADIC DISCHARGE ---
 const CoreDischarge = React.memo(() => {
-  const [bolt, setBolt] = useState<{ id: number; angle: number; length: number; duration: number; thickness: number; travelTime: number; branchIntensity: number } | null>(null);
+  // We separate the 'data' (bolt geometry) from the 'active' state (visibility)
+  // This allows us to keep the component mounted while it fades out internally.
+  const [boltData, setBoltData] = useState<{ 
+      id: number; 
+      angle: number; 
+      length: number; 
+      thickness: number; 
+      travelTime: number; 
+      branchIntensity: number; 
+      lingerDuration: number;
+      fadeDuration: number; // New: Explicit fade time
+  } | null>(null);
+
+  const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-    let clearId: ReturnType<typeof setTimeout>;
+    let phase1Timeout: ReturnType<typeof setTimeout>;
+    let phase2Timeout: ReturnType<typeof setTimeout>;
+    let phase3Timeout: ReturnType<typeof setTimeout>;
 
-    const scheduleNextBolt = () => {
-      // CHAOTIC TIMING LOGIC:
+    const runCycle = () => {
+      // 1. TIMING: Determine Delay before next bolt
       const isBurst = Math.random() < 0.3;
-      const delay = isBurst 
-        ? Math.random() * 1000 + 500  
-        : Math.random() * 3500 + 2500;
+      const delayBeforeStart = isBurst 
+        ? Math.random() * 800 + 300  
+        : Math.random() * 3000 + 2000;
 
-      timeoutId = setTimeout(() => {
-        // 1. Calculate Random Properties
+      phase1Timeout = setTimeout(() => {
+        // 2. GENERATION: Create Bolt Data
         const angle = Math.random() * 360;
-        
-        // Length Logic
         const rawLen = Math.random();
         const length = 120 + (rawLen * rawLen * 480); 
 
-        // THICKNESS & BRANCHING LOGIC:
         let thickness = 0.8;
         let branchIntensity = 0;
+        let lingerDuration = 0.3; // Time it stays fully visible
+        let fadeDuration = 0.5;   // Time it takes to fade out
 
         if (length > 300) {
-            // Big Bolt: Thicker and has branches
+            // Big Bolt: Heavy, branches, long linger, slow fade
             thickness = 2.5;
-            branchIntensity = 1 + Math.random(); // 1 to 2 intensity (means 3 to 6 branches roughly)
+            branchIntensity = 1 + Math.random(); 
+            lingerDuration = 0.5 + Math.random() * 1.0; // Stay visible for 0.5-1.5s
+            fadeDuration = 1.0 + Math.random();         // Fade takes 1-2s
         } else if (length > 200) {
-            // Medium Bolt: Slightly thicker, maybe 1 branch
+            // Medium Bolt
             thickness = 1.5;
             branchIntensity = Math.random() > 0.5 ? 0.5 : 0;
+            lingerDuration = 0.3 + Math.random() * 0.4;
+            fadeDuration = 0.6 + Math.random() * 0.4;
+        } else {
+            // Small Bolt
+            lingerDuration = 0.1 + Math.random() * 0.2;
+            fadeDuration = 0.3 + Math.random() * 0.3;
         }
 
-        // Duration Logic
         const travelTime = 0.15 + (length / 900); 
-        const duration = (travelTime * 1000) + 150; 
 
-        setBolt({ id: Date.now(), angle, length, duration, thickness, travelTime, branchIntensity });
+        // Set Data and Activate
+        setBoltData({ 
+            id: Date.now(), 
+            angle, length, thickness, travelTime, branchIntensity, lingerDuration, fadeDuration 
+        });
+        setIsActive(true);
 
-        // 2. Clear bolt after duration
-        clearId = setTimeout(() => {
-          setBolt(null);
-          scheduleNextBolt();
-        }, duration);
+        // 3. LIFECYCLE: Wait for Travel + Linger, then deactivate (Trigger Fade)
+        const visibleTime = (travelTime * 1000) + (lingerDuration * 1000);
+        
+        phase2Timeout = setTimeout(() => {
+            // Trigger Fade Out (Internal AnimatePresence in LightningBolt will handle this)
+            setIsActive(false);
 
-      }, delay);
+            // 4. CLEANUP: Wait for Fade to complete, then clear data and restart
+            const fadeTimeMs = fadeDuration * 1000;
+            phase3Timeout = setTimeout(() => {
+                setBoltData(null);
+                runCycle(); // Loop
+            }, fadeTimeMs + 100); // Small buffer
+
+        }, visibleTime);
+
+      }, delayBeforeStart);
     };
 
-    scheduleNextBolt();
+    runCycle();
 
     return () => {
-      clearTimeout(timeoutId);
-      clearTimeout(clearId);
+      clearTimeout(phase1Timeout);
+      clearTimeout(phase2Timeout);
+      clearTimeout(phase3Timeout);
     };
   }, []);
 
-  if (!bolt) return null;
+  // Always render the container. If boltData exists, render the bolt.
+  // We control visibility via the 'active' prop.
+  if (!boltData) return <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none z-0" />;
 
-  // Coordinate System: Center point is (400, 400).
+  // Coordinate System
   const center = 400;
-  const rad = (bolt.angle * Math.PI) / 180;
-  
+  const rad = (boltData.angle * Math.PI) / 180;
   const startOffset = 35; 
   const sx = center + startOffset * Math.cos(rad);
   const sy = center + startOffset * Math.sin(rad);
-
-  const ex = center + bolt.length * Math.cos(rad);
-  const ey = center + bolt.length * Math.sin(rad);
+  const ex = center + boltData.length * Math.cos(rad);
+  const ey = center + boltData.length * Math.sin(rad);
 
   return (
-    // Large container centered on parent to allow bolts to fly out
     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none z-0 overflow-visible">
       <LightningBolt 
-          key={bolt.id} 
+          key={boltData.id} 
+          active={isActive} // Controlled by our lifecycle
           startX={sx} startY={sy} 
           endX={ex} endY={ey}
           viewBox="0 0 800 800"
-          segments={12 + Math.floor(bolt.length / 25)} 
+          segments={12 + Math.floor(boltData.length / 25)} 
           amplitude={10 + Math.random() * 20} 
           glowIntensity={3}
-          thickness={bolt.thickness} 
-          branchIntensity={bolt.branchIntensity} // New Prop for Branches
-          animationDuration={bolt.travelTime} 
+          thickness={boltData.thickness} 
+          branchIntensity={boltData.branchIntensity} 
+          animationDuration={boltData.travelTime} 
+          lingerDuration={boltData.fadeDuration} // Pass the fade duration here
           className="opacity-90 text-primary drop-shadow-[0_0_15px_rgba(var(--primary),0.8)]" 
           color="hsl(var(--primary))"
       />

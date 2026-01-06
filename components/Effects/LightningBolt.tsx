@@ -83,6 +83,7 @@ interface LightningBoltProps {
     thickness?: number;
     animationDuration?: number;
     branchIntensity?: number; // New: 0 = No branches, 1 = High branching
+    lingerDuration?: number; // How long it stays visible while fading
 }
 
 export const LightningBolt: React.FC<LightningBoltProps> = ({
@@ -98,7 +99,8 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
     glowIntensity = 2,
     thickness = 1,
     animationDuration = 0,
-    branchIntensity = 0 // Default none
+    branchIntensity = 0, // Default none
+    lingerDuration = 0.3 // Default fade out
 }) => {
     const filterId = useMemo(() => `bolt-glow-${Math.random().toString(36).substr(2, 9)}`, []);
 
@@ -178,7 +180,7 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
 
     }, [startX, startY, endX, endY, segments, amplitude, active, branchIntensity, animationDuration]);
 
-    // MAIN PATH Variants
+    // MAIN PATH Variants (Refined for Smoother Exit)
     const mainVariants = {
         hidden: { pathLength: 0, opacity: 0 },
         visible: { 
@@ -189,10 +191,16 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                 opacity: { duration: 0.05 } 
             }
         },
-        exit: { opacity: 0, transition: { duration: 0.3 } } // Smooth fade out
+        exit: { 
+            opacity: 0,
+            transition: { 
+                duration: lingerDuration, // Dynamic fade time from prop
+                ease: "easeInOut" // Smoother fade curve
+            } 
+        }
     };
 
-    // BRANCH Variants (Dynamic)
+    // BRANCH Variants (Refined for Smoother Exit)
     const branchVariants = {
         hidden: { pathLength: 0, opacity: 0 },
         visible: (custom: BranchData) => ({ 
@@ -200,24 +208,23 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
             opacity: 1,
             transition: { 
                 pathLength: { 
-                    delay: custom.delay, // Wait for main bolt to reach this point
-                    duration: custom.duration, // Fast draw
+                    delay: custom.delay, // Wait for main bolt
+                    duration: custom.duration, 
                     ease: "easeOut"
                 }, 
                 opacity: { 
-                    delay: custom.delay, // Don't show until draw starts
+                    delay: custom.delay, 
                     duration: 0.01 
                 } 
             }
         }),
-        exit: (custom: BranchData) => ({ 
+        exit: { 
             opacity: 0, 
             transition: { 
-                // Allow branches to linger slightly longer than main bolt
-                // Randomize decay to look organic
-                duration: 0.4 + Math.random() * 0.3 
+                duration: lingerDuration * 0.9, // Slightly faster fade for branches
+                ease: "easeInOut"
             } 
-        })
+        }
     };
 
     const staticVariants = {
@@ -225,6 +232,9 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
         visible: { opacity: 1 },
         exit: { opacity: 0 }
     };
+
+    // SCALE GLOW: Large bolts should have massive glows
+    const dynamicGlow = glowIntensity * (thickness * 0.8);
 
     return (
         <AnimatePresence>
@@ -239,7 +249,7 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                 >
                     <defs>
                         <filter id={filterId} x="-50%" y="-50%" width="200%" height="200%">
-                            <feGaussianBlur stdDeviation={glowIntensity} result="blur" />
+                            <feGaussianBlur stdDeviation={dynamicGlow} result="blur" />
                             <feMerge>
                                 <feMergeNode in="blur" />
                                 <feMergeNode in="SourceGraphic" />
@@ -247,15 +257,15 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                         </filter>
                     </defs>
                     
-                    {/* 1. BRANCHES (Rendered first so they are behind main bolt) */}
+                    {/* 1. BRANCHES */}
                     {boltData.branches.map((b, i) => (
                         <MotionPath
                             key={`branch-${i}`}
-                            custom={b} // Pass data to variants
+                            custom={b} 
                             variants={animationDuration > 0 ? branchVariants : staticVariants}
                             d={b.d}
                             stroke={color}
-                            strokeWidth={1.5 * thickness} // Thinner than main
+                            strokeWidth={1.5 * thickness}
                             strokeOpacity="0.6"
                             fill="none"
                             strokeLinecap="round"
