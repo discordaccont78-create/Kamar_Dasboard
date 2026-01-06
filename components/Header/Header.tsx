@@ -343,6 +343,75 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
   )
 });
 
+// --- NEW COMPONENT: TIGHT Lightning Ring (Corrected Size) ---
+const LightningRing = () => (
+  // Reduced negative inset from -24px to -6px to pull the effect tight to the logo box
+  <div className="absolute inset-[-6px] z-0 pointer-events-none flex items-center justify-center">
+    
+    {/* Inner Rotating Bolt Layer */}
+    <div className="absolute inset-0 animate-[spin_8s_linear_infinite]">
+        <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100">
+            <defs>
+                <filter id="bolt-noise-inner">
+                    <feTurbulence type="fractalNoise" baseFrequency="1.5" numOctaves="4" result="noise">
+                        <animate attributeName="seed" values="0;100" dur="0.4s" repeatCount="indefinite" />
+                    </feTurbulence>
+                    {/* Reduced scale from 6 to 3 to prevent lightning from spiking too far out */}
+                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" />
+                    <feGaussianBlur stdDeviation="0.5" result="blur" />
+                    <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+            
+            {/* Primary Gold/Color Lightning - Radius reduced from 32 to 24 */}
+            <circle cx="50" cy="50" r="24" 
+                fill="none" 
+                stroke="hsl(var(--primary))" 
+                strokeWidth="2" 
+                filter="url(#bolt-noise-inner)"
+                strokeDasharray="40 20 10 30"
+                strokeLinecap="round"
+                opacity="0.9"
+            />
+        </svg>
+    </div>
+    
+    {/* Outer Rotating Bolt Layer (Reverse) */}
+    <div className="absolute inset-0 animate-[spin_12s_linear_infinite_reverse]">
+        <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100">
+            <defs>
+                <filter id="bolt-noise-outer">
+                    <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="3" result="noise">
+                        <animate attributeName="seed" values="100;0" dur="0.6s" repeatCount="indefinite" />
+                    </feTurbulence>
+                    {/* Reduced scale from 8 to 4 */}
+                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" />
+                    <feGaussianBlur stdDeviation="0.8" result="blur" />
+                    <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+            
+            {/* Secondary White/Blue Lightning - Radius reduced from 40 to 30 */}
+            <circle cx="50" cy="50" r="30" 
+                fill="none" 
+                stroke="white" 
+                strokeWidth="1" 
+                filter="url(#bolt-noise-outer)"
+                strokeDasharray="25 50 15 40"
+                strokeLinecap="round"
+                opacity="0.7"
+            />
+        </svg>
+    </div>
+  </div>
+);
+
 const SparkBolt = ({ active }: { active: boolean }) => {
     const path1 = generateJaggedPath(100, 10, 0, 10, 8, 15);
     const path2 = generateJaggedPath(100, 10, 0, 10, 12, 10);
@@ -718,14 +787,38 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
            </div>
            <div className="relative h-full w-full flex items-center pl-6 pr-10 md:pl-8 md:pr-14">
               <div className="flex items-center gap-3 md:gap-4 z-10 relative w-full">
-                  <div ref={logoRef} className="relative z-30">
+                  <div ref={logoRef} className="relative z-30 group">
+                    {/* Realistic Rotating Lightning Frame - Visible when NOT charged */}
+                    {!isLogoCharged && <LightningRing />}
+
                     <MotionDiv 
-                        className="bg-background border-2 border-primary p-1.5 md:p-2 rounded-xl cursor-pointer"
+                        className={cn(
+                            "relative p-1.5 md:p-2 rounded-xl cursor-pointer transition-all duration-500",
+                            // If charged: Solid border + background glow (Plasma Core idea)
+                            isLogoCharged 
+                                ? "bg-primary/20 border-2 border-primary shadow-[0_0_30px_rgba(218,165,32,0.6)]" 
+                                : "bg-background/80" // Transparent-ish background to show sparks better
+                        )}
                         animate={sparkState === 'impact' ? 'impact' : (isLogoCharged ? 'charged' : 'idle')}
                         variants={logoVariants}
-                        style={{ borderColor: sparkState === 'impact' ? 'white' : '' }} 
                     >
-                        <Zap className="w-4 h-4 md:w-6 md:h-6 fill-current transition-colors" strokeWidth={0} />
+                        {/* Plasma Core Glow (Implementation of "Plasma Core" idea) - Only when charged */}
+                        {isLogoCharged && (
+                            <MotionDiv 
+                                layoutId="plasma-core"
+                                className="absolute inset-0 bg-primary/30 blur-md rounded-xl"
+                                animate={{ opacity: [0.5, 1, 0.5] }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                            />
+                        )}
+
+                        <Zap 
+                            className={cn(
+                                "w-4 h-4 md:w-6 md:h-6 transition-all duration-500 z-10 relative",
+                                isLogoCharged ? "fill-primary text-white drop-shadow-[0_0_10px_white]" : "fill-transparent text-primary"
+                            )} 
+                            strokeWidth={isLogoCharged ? 0 : 2} 
+                        />
                     </MotionDiv>
                   </div>
                   <SparkBolt active={sparkState === 'discharge'} />
