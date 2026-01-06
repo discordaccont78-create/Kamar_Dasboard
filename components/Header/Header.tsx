@@ -9,7 +9,7 @@ import { cn } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
 import { SchedulerDialog } from '../Scheduler/SchedulerDialog';
 import { ConnectionStatus } from './ConnectionStatus';
-import { LightningBolt, generateJaggedPath } from '../Effects/LightningBolt';
+import { LightningBolt } from '../Effects/LightningBolt';
 
 // Motion Components Definitions to fix "Cannot find name" errors
 const MotionDiv = motion.div as any;

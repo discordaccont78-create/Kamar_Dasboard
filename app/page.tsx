@@ -21,7 +21,7 @@ const MotionDiv = motion.div as any;
 
 // --- CORE EMBLEM: SPORADIC DISCHARGE ---
 const CoreDischarge = React.memo(() => {
-  const [bolt, setBolt] = useState<{ id: number; angle: number; length: number; duration: number; thickness: number; travelTime: number } | null>(null);
+  const [bolt, setBolt] = useState<{ id: number; angle: number; length: number; duration: number; thickness: number; travelTime: number; branchIntensity: number } | null>(null);
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
@@ -29,10 +29,6 @@ const CoreDischarge = React.memo(() => {
 
     const scheduleNextBolt = () => {
       // CHAOTIC TIMING LOGIC:
-      // The user wants unpredictable discharges.
-      // We implement a "Burst vs Calm" mechanism.
-      // 30% chance of a "Burst" (short delay: 0.5s - 1.5s)
-      // 70% chance of "Calm" (long delay: 2.5s - 6s)
       const isBurst = Math.random() < 0.3;
       const delay = isBurst 
         ? Math.random() * 1000 + 500  
@@ -40,41 +36,41 @@ const CoreDischarge = React.memo(() => {
 
       timeoutId = setTimeout(() => {
         // 1. Calculate Random Properties
-        // Angle: 0 to 360 degrees
         const angle = Math.random() * 360;
         
-        // LENGTH LOGIC:
-        // User requested to increase the minimum size limit ("if 0, make it 5").
-        // We set a substantial minimum pixel length (120px) so no tiny sparks are emitted.
-        // Range: 120px to ~600px
+        // Length Logic
         const rawLen = Math.random();
         const length = 120 + (rawLen * rawLen * 480); 
 
-        // THICKNESS LOGIC:
-        // Small bolts (< 300px) are thinner (0.8) but visible.
-        // Large bolts (> 300px) are powerful and thick (2.5).
-        const thickness = length < 300 ? 0.8 : 2.5;
+        // THICKNESS & BRANCHING LOGIC:
+        let thickness = 0.8;
+        let branchIntensity = 0;
 
-        // DURATION LOGIC (Directionality):
-        // Travel time is proportional to length so speed feels consistent (approx 800px/s).
+        if (length > 300) {
+            // Big Bolt: Thicker and has branches
+            thickness = 2.5;
+            branchIntensity = 1 + Math.random(); // 1 to 2 intensity (means 3 to 6 branches roughly)
+        } else if (length > 200) {
+            // Medium Bolt: Slightly thicker, maybe 1 branch
+            thickness = 1.5;
+            branchIntensity = Math.random() > 0.5 ? 0.5 : 0;
+        }
+
+        // Duration Logic
         const travelTime = 0.15 + (length / 900); 
-
-        // Total lifetime is travel time + linger time
         const duration = (travelTime * 1000) + 150; 
 
-        setBolt({ id: Date.now(), angle, length, duration, thickness, travelTime });
+        setBolt({ id: Date.now(), angle, length, duration, thickness, travelTime, branchIntensity });
 
         // 2. Clear bolt after duration
         clearId = setTimeout(() => {
           setBolt(null);
-          // 3. Schedule next one recursively
           scheduleNextBolt();
         }, duration);
 
       }, delay);
     };
 
-    // Start the loop
     scheduleNextBolt();
 
     return () => {
@@ -85,13 +81,10 @@ const CoreDischarge = React.memo(() => {
 
   if (!bolt) return null;
 
-  // Coordinate System:
-  // We render in a large 800x800 box centered on the 280x280 container.
-  // Center point is (400, 400).
+  // Coordinate System: Center point is (400, 400).
   const center = 400;
   const rad = (bolt.angle * Math.PI) / 180;
   
-  // Start slightly offset from center to not overlap the icon completely
   const startOffset = 35; 
   const sx = center + startOffset * Math.cos(rad);
   const sy = center + startOffset * Math.sin(rad);
@@ -103,15 +96,16 @@ const CoreDischarge = React.memo(() => {
     // Large container centered on parent to allow bolts to fly out
     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none z-0 overflow-visible">
       <LightningBolt 
-          key={bolt.id} // Force re-mount for animation
+          key={bolt.id} 
           startX={sx} startY={sy} 
           endX={ex} endY={ey}
           viewBox="0 0 800 800"
-          segments={12 + Math.floor(bolt.length / 25)} // Dynamic segments based on length
-          amplitude={10 + Math.random() * 20} // Chaotic amplitude
+          segments={12 + Math.floor(bolt.length / 25)} 
+          amplitude={10 + Math.random() * 20} 
           glowIntensity={3}
-          thickness={bolt.thickness} // Dynamic thickness
-          animationDuration={bolt.travelTime} // Pass travel time to animate path
+          thickness={bolt.thickness} 
+          branchIntensity={bolt.branchIntensity} // New Prop for Branches
+          animationDuration={bolt.travelTime} 
           className="opacity-90 text-primary drop-shadow-[0_0_15px_rgba(var(--primary),0.8)]" 
           color="hsl(var(--primary))"
       />

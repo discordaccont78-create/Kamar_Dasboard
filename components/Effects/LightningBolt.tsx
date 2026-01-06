@@ -7,32 +7,57 @@ import { cn } from '../../lib/utils';
 const MotionPath = motion.path as any;
 const MotionSvg = motion.svg as any;
 
-// Helper: Generate Jagged Path Data
-export const generateJaggedPath = (startX: number, startY: number, endX: number, endY: number, segments: number, amplitude: number) => {
-    let d = `M ${startX} ${startY}`;
+interface Point {
+    x: number;
+    y: number;
+}
+
+// 1. Generate Points Function (Returns Array of {x,y} instead of string)
+export const generateLightningPoints = (
+    startX: number, 
+    startY: number, 
+    endX: number, 
+    endY: number, 
+    segments: number, 
+    amplitude: number
+): Point[] => {
+    const points: Point[] = [{ x: startX, y: startY }];
+    
     for (let i = 1; i < segments; i++) {
         const t = i / segments;
+        // Linear position
         const x = startX + (endX - startX) * t;
         const y = startY + (endY - startY) * t;
         
-        // Calculate perpendicular vector for jitter direction
+        // Calculate perpendicular vector
         const dx = endX - startX;
         const dy = endY - startY;
-        const len = Math.sqrt(dx*dx + dy*dy);
-        const udx = dx / len;
-        const udy = dy / len;
+        const len = Math.sqrt(dx*dx + dy*dy) || 1; // Avoid divide by zero
         
-        const pdx = -udy;
-        const pdy = udx;
-
+        // Normal vector (-dy, dx)
+        const udx = -dy / len;
+        const udy = dx / len;
+        
+        // Jitter offset
         const offset = (Math.random() - 0.5) * amplitude;
         
-        const jx = x + (pdx * offset);
-        const jy = y + (pdy * offset);
-
-        d += ` L ${jx} ${jy}`;
+        points.push({
+            x: x + (udx * offset),
+            y: y + (udy * offset)
+        });
     }
-    d += ` L ${endX} ${endY}`;
+    
+    points.push({ x: endX, y: endY });
+    return points;
+};
+
+// 2. Convert Points to SVG Path String
+const pointsToPath = (points: Point[]): string => {
+    if (points.length === 0) return "";
+    let d = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+        d += ` L ${points[i].x} ${points[i].y}`;
+    }
     return d;
 };
 
@@ -50,7 +75,8 @@ interface LightningBoltProps {
     preserveAspectRatio?: string;
     glowIntensity?: number;
     thickness?: number;
-    animationDuration?: number; // Time in seconds for the bolt to travel
+    animationDuration?: number;
+    branchIntensity?: number; // New: 0 = No branches, 1 = High branching
 }
 
 export const LightningBolt: React.FC<LightningBoltProps> = ({
@@ -65,25 +91,89 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
     preserveAspectRatio = "none",
     glowIntensity = 2,
     thickness = 1,
-    animationDuration = 0
+    animationDuration = 0,
+    branchIntensity = 0 // Default none
 }) => {
     const filterId = useMemo(() => `bolt-glow-${Math.random().toString(36).substr(2, 9)}`, []);
 
-    const pathData = useMemo(() => ({
-        p1: generateJaggedPath(startX, startY, endX, endY, segments, amplitude * 1.5),
-        p2: generateJaggedPath(startX, startY, endX, endY, Math.floor(segments * 1.5), amplitude),
-        p3: generateJaggedPath(startX, startY, endX, endY, Math.floor(segments * 0.8), amplitude * 0.5)
-    }), [startX, startY, endX, endY, segments, amplitude, active]);
+    // Generate Main Bolt and Branches
+    const boltData = useMemo(() => {
+        // A. Generate Main Spine Points
+        const mainPoints = generateLightningPoints(startX, startY, endX, endY, segments, amplitude);
+        
+        // B. Generate Branches
+        const branches: string[] = [];
+        
+        if (branchIntensity > 0) {
+            // Determine number of branches based on length and intensity
+            const dist = Math.hypot(endX - startX, endY - startY);
+            const numBranches = Math.floor(Math.random() * branchIntensity * 3); 
+            
+            // We need indices from mainPoints (exclude first and last few points to avoid ugly starts)
+            const availableIndices = Array.from({length: mainPoints.length - 4}, (_, i) => i + 2);
+            
+            for (let k = 0; k < numBranches; k++) {
+                if (availableIndices.length === 0) break;
+                
+                // Pick a random spot on the main bolt
+                const randIndex = Math.floor(Math.random() * availableIndices.length);
+                const pointIndex = availableIndices.splice(randIndex, 1)[0];
+                const startNode = mainPoints[pointIndex];
+                
+                // Calculate main direction angle
+                const mainAngle = Math.atan2(endY - startY, endX - startX);
+                
+                // Branch direction: Main Angle +/- (30 to 60 degrees)
+                const directionSign = Math.random() < 0.5 ? 1 : -1;
+                const deviation = (Math.PI / 6) + (Math.random() * (Math.PI / 6)); // 30-60 deg
+                const branchAngle = mainAngle + (directionSign * deviation);
+                
+                // Branch Length: 20% to 40% of total length
+                const branchLen = dist * (0.2 + Math.random() * 0.2);
+                
+                const branchEndX = startNode.x + Math.cos(branchAngle) * branchLen;
+                const branchEndY = startNode.y + Math.sin(branchAngle) * branchLen;
+                
+                // Generate points for this branch (fewer segments, less amplitude)
+                const branchPoints = generateLightningPoints(
+                    startNode.x, startNode.y, 
+                    branchEndX, branchEndY, 
+                    Math.floor(segments / 3), 
+                    amplitude * 0.6
+                );
+                
+                branches.push(pointsToPath(branchPoints));
+            }
+        }
 
-    // Animation variants for drawing the path
+        // C. Create Variations for Animation (Jitter Effect)
+        // We create slightly different versions of the main path for the "Inner Core" vs "Outer Glow"
+        // to make it look vibrating.
+        
+        // Main Body (Standard)
+        const p2 = pointsToPath(mainPoints);
+        
+        // Outer Glow (Slightly wilder)
+        const p1Points = generateLightningPoints(startX, startY, endX, endY, segments, amplitude * 1.5);
+        const p1 = pointsToPath(p1Points);
+
+        // Core (Straighter)
+        const p3Points = generateLightningPoints(startX, startY, endX, endY, segments, amplitude * 0.5);
+        const p3 = pointsToPath(p3Points);
+
+        return { p1, p2, p3, branches };
+
+    }, [startX, startY, endX, endY, segments, amplitude, active, branchIntensity]);
+
+    // Animation variants
     const drawVariants = {
         hidden: { pathLength: 0, opacity: 0 },
         visible: { 
             pathLength: 1, 
             opacity: 1,
             transition: { 
-                pathLength: { duration: animationDuration, ease: "linear" }, // Linear draw for constant speed feel
-                opacity: { duration: 0.05 } // Quick fade in
+                pathLength: { duration: animationDuration, ease: "linear" }, 
+                opacity: { duration: 0.05 } 
             }
         },
         exit: { opacity: 0, transition: { duration: 0.2 } }
@@ -118,10 +208,26 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                         </filter>
                     </defs>
                     
-                    {/* Outer Glow */}
+                    {/* 1. BRANCHES (Rendered first so they are behind main bolt) */}
+                    {boltData.branches.map((d, i) => (
+                        <MotionPath
+                            key={`branch-${i}`}
+                            variants={variants}
+                            d={d}
+                            stroke={color}
+                            strokeWidth={1.5 * thickness} // Thinner than main
+                            strokeOpacity="0.6"
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            filter={`url(#${filterId})`}
+                        />
+                    ))}
+
+                    {/* 2. MAIN BOLT: Outer Glow */}
                     <MotionPath
                         variants={variants}
-                        d={pathData.p1}
+                        d={boltData.p1}
                         stroke={color}
                         strokeWidth={6 * thickness}
                         strokeOpacity="0.2"
@@ -131,10 +237,10 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                         filter={`url(#${filterId})`}
                     />
                     
-                    {/* Main Bolt */}
+                    {/* 3. MAIN BOLT: Body */}
                     <MotionPath
                         variants={variants}
-                        d={pathData.p2}
+                        d={boltData.p2}
                         stroke={color}
                         strokeWidth={3 * thickness}
                         fill="none"
@@ -143,10 +249,10 @@ export const LightningBolt: React.FC<LightningBoltProps> = ({
                         filter={`url(#${filterId})`}
                     />
                     
-                    {/* Inner White Core */}
+                    {/* 4. MAIN BOLT: White Core */}
                     <MotionPath
                         variants={variants}
-                        d={pathData.p3}
+                        d={boltData.p3}
                         stroke="white"
                         strokeWidth={1.5 * thickness}
                         fill="none"
@@ -179,14 +285,13 @@ export const LightningHexagon: React.FC<LightningHexagonProps> = ({
     useEffect(() => {
         const interval = setInterval(() => {
             setTick(t => t + 1);
-        }, 60); // Slightly slower tick for better visibility of the bolt structure
+        }, 60); 
         return () => clearInterval(interval);
     }, []);
 
     const filterId = useMemo(() => `hex-glow-${Math.random().toString(36).substr(2, 9)}`, []);
 
     const center = radius;
-    // Slightly shrink drawing radius to keep glow inside viewbox
     const drawRadius = radius * 0.85; 
 
     const points = useMemo(() => {
@@ -205,8 +310,8 @@ export const LightningHexagon: React.FC<LightningHexagonProps> = ({
     const paths = useMemo(() => {
         return points.map((p, i) => {
             const nextP = points[(i + 1) % 6];
-            // Medium amplitude to look energetic but not messy
-            return generateJaggedPath(p.x, p.y, nextP.x, nextP.y, 8, radius * 0.06); 
+            // Using legacy generator here since we just need simple string
+            return pointsToPath(generateLightningPoints(p.x, p.y, nextP.x, nextP.y, 8, radius * 0.06)); 
         });
     }, [points, tick, radius]);
 
@@ -228,7 +333,6 @@ export const LightningHexagon: React.FC<LightningHexagonProps> = ({
 
                 {paths.map((d, i) => (
                     <g key={i}>
-                        {/* Layer 1: Wide Outer Glow (The Aura) */}
                         <path 
                             d={d} 
                             stroke={color} 
@@ -239,8 +343,6 @@ export const LightningHexagon: React.FC<LightningHexagonProps> = ({
                             strokeLinecap="round"
                             strokeLinejoin="round"
                         />
-                        
-                        {/* Layer 2: Main Bolt Body (Color) */}
                         <path 
                             d={d} 
                             stroke={color} 
@@ -251,8 +353,6 @@ export const LightningHexagon: React.FC<LightningHexagonProps> = ({
                             strokeLinecap="round"
                             strokeLinejoin="round"
                         />
-                        
-                        {/* Layer 3: White Hot Core (Electricity) */}
                         <path 
                             d={d} 
                             stroke="white" 
