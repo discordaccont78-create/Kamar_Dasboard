@@ -12,7 +12,7 @@ import {
   Settings as SettingsIcon, X, Zap, Play, Activity, Monitor, 
   SkipBack, SkipForward, Clock, Plus, ChevronDown, Cpu, Cloud, Type, TableProperties,
   Grid3X3, CircleDot, MousePointer2, Palette, Volume2, Square, Triangle, Circle, Sticker, Droplets,
-  Ruler, PenTool, Hash, MonitorSmartphone, GripHorizontal
+  Ruler, PenTool, Hash, MonitorSmartphone, GripHorizontal, Waves
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -728,9 +728,19 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
 
                     {/* NEW: Electric Wave Management */}
                     <div className="space-y-4 pt-2 border-t border-border/50">
-                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                            <Zap size={12} className="text-primary" /> Header Energy Flow
-                        </label>
+                        <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                <Zap size={12} className="text-primary" /> Header Energy Flow
+                            </label>
+                            {/* NEW: Dynamic Intensity Toggle */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-[8px] font-bold text-muted-foreground uppercase">Dynamic</span>
+                                <Switch 
+                                    checked={settings.headerDynamicIntensity} 
+                                    onCheckedChange={(c) => updateSettings({ headerDynamicIntensity: c })} 
+                                />
+                            </div>
+                        </div>
                         
                         <div className="space-y-2 px-1">
                             {/* Gap Size Slider */}
@@ -739,14 +749,14 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
                                     <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                                         <GripHorizontal size={10} /> Island Gap
                                     </label>
-                                    <span className="text-[8px] font-mono font-bold text-foreground">{settings.headerGap ?? 160}px</span>
+                                    <span className="text-[8px] font-mono font-bold text-foreground">{settings.headerGap ?? 40}px</span>
                                 </div>
                                 <Slider 
-                                    value={[settings.headerGap ?? 160]}
+                                    value={[settings.headerGap ?? 40]}
                                     onValueChange={(val) => updateSettings({ headerGap: val[0] })}
-                                    min={40}
-                                    max={400}
-                                    step={10}
+                                    min={0}
+                                    max={80}
+                                    step={1}
                                     className="h-3"
                                 />
                             </div>

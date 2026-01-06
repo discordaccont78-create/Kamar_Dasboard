@@ -126,6 +126,7 @@ export interface AppSettings {
   // Header / Waves Config
   headerGap?: number; // Distance between islands in px
   headerWaveOpacity?: number; // Opacity 0-100
+  headerDynamicIntensity?: boolean; // Toggles dynamic pulse effects on waves
 
   // Advanced Pattern Config
   dualColorBackground: boolean;
