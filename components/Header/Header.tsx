@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Settings, Zap, Terminal, CalendarClock, Activity, Hash, Monitor } from 'lucide-react';
+import { Moon, Sun, Settings, Zap, CalendarClock, Hash } from 'lucide-react';
 import { ConnectionStatus } from './ConnectionStatus';
 import { useSettingsStore } from '../../lib/store/settings';
 import { useCursorStore } from '../../lib/store/cursorStore';
@@ -22,7 +23,7 @@ const MotionSpan = motion.span as any;
 const MotionSvg = motion.svg as any;
 const MotionCircle = motion.circle as any;
 
-// --- Helper: Generate Jagged Path Data ---
+// --- Helper: Generate Jagged Path Data (KEPT FOR TITLE SPARK) ---
 const generateJaggedPath = (startX: number, startY: number, endX: number, endY: number, segments: number, amplitude: number) => {
     let d = `M ${startX} ${startY}`;
     for (let i = 1; i < segments; i++) {
@@ -34,7 +35,7 @@ const generateJaggedPath = (startX: number, startY: number, endX: number, endY: 
         const offset = (Math.random() - 0.5) * amplitude;
         
         // For a horizontal-ish line, simple Y offset works best for lightning look
-        const jitterX = (Math.random() - 0.5) * (amplitude / 2);
+        const jitterX = (Math.random() - 0.5) * (amplitude / 3); // Reduced X jitter to keep forward momentum
         
         d += ` L ${x + jitterX} ${y + offset}`;
     }
@@ -42,88 +43,126 @@ const generateJaggedPath = (startX: number, startY: number, endX: number, endY: 
     return d;
 };
 
-// --- Electric Connection Component (Animated Realistic Arc) ---
-const ElectricConnection = React.memo(({ color }: { color: string }) => {
-  const [bolts, setBolts] = useState<{ id: number, d: string }[]>([]);
-
-  useEffect(() => {
-    // Generate 3 distinct parallel paths
-    const gen = () => {
-        // Add slight randomness to anchors so they aren't perfectly static
-        const r = () => (Math.random() * 6 - 3); 
-        
-        return [
-            { id: 1, d: generateJaggedPath(0, 25 + r(), 100, 25 + r(), 8, 12) },
-            { id: 2, d: generateJaggedPath(0, 50 + r(), 100, 50 + r(), 8, 12) },
-            { id: 3, d: generateJaggedPath(0, 75 + r(), 100, 75 + r(), 8, 12) }
-        ];
-    };
+// --- Helper: Generate Smooth Sine Wave Path (NEW FOR ISLAND CONNECTION) ---
+const generateSinePath = (width: number, height: number, cycles: number, amplitude: number, phase: number) => {
+    const points = 50; // Resolution
+    let d = `M 0 ${height / 2}`;
     
-    setBolts(gen());
+    for (let i = 0; i <= points; i++) {
+        const t = i / points;
+        const x = t * width;
+        // Math: Sine wave equation
+        const y = (height / 2) + Math.sin((t * cycles * Math.PI * 2) + phase) * amplitude;
+        d += ` L ${x} ${y}`;
+    }
+    return d;
+};
 
-    const interval = setInterval(() => {
-        setBolts(gen());
-    }, 80); // 80ms for high-energy jitter
-
-    return () => clearInterval(interval);
-  }, []);
-
+// --- NEW Electric Connection Component (Harmonic Plasma Stream) ---
+const ElectricConnection = React.memo(({ color }: { color: string }) => {
   return (
-    <div className="absolute top-0 bottom-0 -left-3 md:-left-5 w-4 md:w-6 flex items-center justify-center overflow-visible pointer-events-none z-50">
-       <svg viewBox="0 0 100 100" className="w-[400%] h-full overflow-visible" preserveAspectRatio="none">
+    <div className="absolute top-0 bottom-0 -left-6 w-12 flex items-center justify-center overflow-visible pointer-events-none z-0">
+       <svg viewBox="0 0 100 40" className="w-[300%] h-full overflow-visible opacity-90" preserveAspectRatio="none">
           <defs>
-            <filter id="connection-glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="2.5" result="blur"/>
-              <feMerge>
-                <feMergeNode in="blur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
+            <linearGradient id="stream-fade" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor={color} stopOpacity="0" />
+                <stop offset="20%" stopColor={color} stopOpacity="1" />
+                <stop offset="80%" stopColor={color} stopOpacity="1" />
+                <stop offset="100%" stopColor={color} stopOpacity="0" />
+            </linearGradient>
+            <filter id="plasma-glow">
+                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                </feMerge>
             </filter>
           </defs>
           
-          {bolts.map((bolt) => (
-            <g key={bolt.id}>
-                {/* Outer Atmosphere (Faint Glow) */}
-                <path 
-                    d={bolt.d} 
-                    stroke={color} 
-                    strokeWidth="4" 
-                    strokeOpacity="0.15"
-                    fill="none" 
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    filter="url(#connection-glow)"
-                />
+          {/* Layer 1: The Core Data Stream (Fast straight dashed line) */}
+          <MotionPath
+             d="M 0 20 L 100 20"
+             stroke={color}
+             strokeWidth="1.5"
+             strokeDasharray="4 6"
+             fill="none"
+             strokeOpacity="0.8"
+             animate={{ strokeDashoffset: [-20, 0] }}
+             transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
+          />
 
-                {/* Main Bolt Body */}
-                <path 
-                    d={bolt.d} 
-                    stroke={color} 
-                    strokeWidth="1.2" 
-                    strokeOpacity="0.8"
-                    fill="none" 
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                />
+          {/* Layer 2: The Hot Core (White center) */}
+          <MotionPath
+             d="M 0 20 L 100 20"
+             stroke="white"
+             strokeWidth="0.5"
+             strokeDasharray="10 20"
+             fill="none"
+             strokeOpacity="0.9"
+             animate={{ strokeDashoffset: [-30, 0] }}
+             transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+          />
 
-                {/* White Hot Core */}
-                <path 
-                    d={bolt.d} 
-                    stroke="white" 
-                    strokeWidth="0.6" 
-                    fill="none" 
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                />
-            </g>
-          ))}
+          {/* Layer 3: Upper Harmonic Wave (Sine) */}
+          <MotionPath
+             stroke="url(#stream-fade)"
+             strokeWidth="1"
+             fill="none"
+             filter="url(#plasma-glow)"
+             animate={{ d: [
+                 generateSinePath(100, 40, 1.5, 6, 0),
+                 generateSinePath(100, 40, 1.5, 6, Math.PI * 2)
+             ]}}
+             transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+          />
+
+          {/* Layer 4: Lower Harmonic Wave (Cosine/Phase Shifted) */}
+          <MotionPath
+             stroke="url(#stream-fade)"
+             strokeWidth="1"
+             fill="none"
+             filter="url(#plasma-glow)"
+             strokeOpacity="0.6"
+             animate={{ d: [
+                 generateSinePath(100, 40, 2, 8, Math.PI),
+                 generateSinePath(100, 40, 2, 8, Math.PI + (Math.PI * 2))
+             ]}}
+             transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+          />
+          
+          {/* Layer 5: Floating Particles */}
+          <MotionCircle 
+            r="1.5" 
+            fill="white"
+            filter="url(#plasma-glow)"
+            initial={{ cx: 0, cy: 20, opacity: 0 }}
+            animate={{ 
+                cx: [0, 50, 100], 
+                cy: [20, 14, 20], // Slight arc
+                opacity: [0, 1, 0] 
+            }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0 }}
+          />
+           <MotionCircle 
+            r="1" 
+            fill={color}
+            initial={{ cx: 0, cy: 20, opacity: 0 }}
+            animate={{ 
+                cx: [0, 50, 100], 
+                cy: [20, 26, 20], // Inverse arc
+                opacity: [0, 1, 0] 
+            }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          />
+
        </svg>
     </div>
   )
 });
 
-// --- SPARK BOLT ---
+// --- SPARK BOLT (For Title -> Logo interaction) ---
 const SparkBolt = ({ active }: { active: boolean }) => {
+    // We keep this JAGGED because the user likes it for the title spark
     const path1 = generateJaggedPath(100, 10, 0, 10, 8, 15);
     const path2 = generateJaggedPath(100, 10, 0, 10, 12, 10);
     const path3 = generateJaggedPath(100, 10, 0, 10, 6, 5);
@@ -581,6 +620,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
             transition={{ delay: 0.1 }}
             className="relative flex-1 drop-shadow-xl filter"
         >
+            {/* NEW HARMONIC CONNECTION: Island-to-Island */}
             <ElectricConnection color={settings.cursorColor || "#daa520"} />
 
             <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl" style={{ clipPath: CLIP_RIGHT }} />
