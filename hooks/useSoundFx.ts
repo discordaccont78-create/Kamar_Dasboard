@@ -43,6 +43,10 @@ export function useSoundFx() {
     if (settings.enableSFX) soundEngine.playCharge();
   }, [settings.enableSFX]);
 
+  const playLightning = useCallback((intensity: number) => {
+    if (settings.enableSFX) soundEngine.playLightning(intensity);
+  }, [settings.enableSFX]);
+
   return { 
     playClick, 
     playToggle, 
@@ -52,6 +56,7 @@ export function useSoundFx() {
     playBlip, 
     playSweep,
     playSpark,
-    playCharge
+    playCharge,
+    playLightning
   };
 }

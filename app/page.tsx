@@ -15,6 +15,7 @@ import { cn, getFontClass } from '../lib/utils';
 import { translations } from '../lib/i18n';
 import { MUSIC_TRACKS } from '../lib/constants';
 import { LightningBolt } from '../components/Effects/LightningBolt';
+import { useSoundFx } from '../hooks/useSoundFx';
 
 // Workaround for Framer Motion types
 const MotionDiv = motion.div as any;
@@ -33,6 +34,7 @@ const CoreDischarge = React.memo(() => {
   } | null>(null);
 
   const [isActive, setIsActive] = useState(false);
+  const { playLightning } = useSoundFx(); // Access Sound Engine
 
   useEffect(() => {
     let phase1Timeout: ReturnType<typeof setTimeout>;
@@ -78,9 +80,19 @@ const CoreDischarge = React.memo(() => {
         }
 
         // STRIKE SPEED: Extremely fast (Flash)
-        // Previous: 0.15 + (length / 900) -> 0.2s - 0.5s
-        // New: 0.05 + (length / 2000) -> 0.05s - 0.25s
         const travelTime = 0.05 + (length / 2000); 
+
+        // 3. SOUND CALCULATION
+        // Normalize length (approx 120 to 600) to 0-1 range
+        const lenFactor = Math.min((length - 120) / 480, 1); 
+        // Normalize branches (0 to ~2)
+        const branchFactor = Math.min(branchIntensity / 2, 1);
+        
+        // Intensity is weighted average: Length matters more (70%), Branches (30%)
+        const soundIntensity = (lenFactor * 0.7) + (branchFactor * 0.3);
+        
+        // Trigger Sound
+        playLightning(soundIntensity);
 
         setBoltData({ 
             id: Date.now(), 
@@ -112,7 +124,7 @@ const CoreDischarge = React.memo(() => {
       clearTimeout(phase2Timeout);
       clearTimeout(phase3Timeout);
     };
-  }, []);
+  }, [playLightning]);
 
   if (!boltData) return <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none z-0" />;
 

@@ -8,6 +8,7 @@
 class SoundEngine {
     private ctx: AudioContext | null = null;
     private masterGain: GainNode | null = null;
+    private noiseBuffer: AudioBuffer | null = null;
   
     constructor() {
       // Lazy initialization to respect browser autoplay policies
@@ -21,6 +22,14 @@ class SoundEngine {
           this.masterGain = this.ctx.createGain();
           this.masterGain.gain.value = 0.3; // Default volume
           this.masterGain.connect(this.ctx.destination);
+          
+          // Generate White Noise Buffer (Still useful for other potential effects, kept for safety)
+          const bufferSize = this.ctx.sampleRate * 2.0; 
+          this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = this.noiseBuffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+              data[i] = Math.random() * 2 - 1;
+          }
         }
       }
       if (this.ctx && this.ctx.state === 'suspended') {
@@ -248,6 +257,72 @@ class SoundEngine {
 
         osc.start();
         osc.stop(this.ctx.currentTime + 0.4);
+    }
+
+    // 3. Procedural Lightning (Dynamic Intensity)
+    // Uses the EXACT same synthesis method as playSpark (Sawtooth Zap),
+    // but scales Duration and Pitch based on the bolt size (intensity).
+    // intensity: 0.0 (Small/Fast Zap) -> 1.0 (Heavy/Long Zap)
+    public playLightning(intensity: number) {
+        this.init();
+        if (!this.ctx || !this.masterGain) return;
+
+        const t = this.ctx.currentTime;
+        
+        // --- 1. PARAMETER SCALING ---
+        // Duration: Small = 0.15s (Snap) | Big = 0.6s (Heavy Arc)
+        const duration = 0.15 + (intensity * 0.45); 
+        
+        // Volume: 0.1 to 0.35 (Never too loud, but audible)
+        const volume = 0.1 + (intensity * 0.25);
+
+        // Pitch Drop:
+        // All bolts start high (The Snap). 
+        // Big bolts drop LOWER and SLOWER than small bolts.
+        const startFreq = 2500; // Consistent snap
+        const endFreq = 100 - (intensity * 60); // 100Hz -> 40Hz (Deep rumble end)
+
+        // --- 2. PRIMARY LAYER (The Spark) ---
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc.type = 'sawtooth'; // The Signature Sound
+        osc.frequency.setValueAtTime(startFreq, t);
+        osc.frequency.exponentialRampToValueAtTime(endFreq, t + duration);
+
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(volume, t + 0.01); // Instant attack
+        gain.gain.exponentialRampToValueAtTime(0.001, t + duration); // Smooth decay
+
+        osc.start(t);
+        osc.stop(t + duration + 0.05);
+
+        // --- 3. SECONDARY LAYER (The Thickness) ---
+        // Only for Medium-to-Large bolts (intensity > 0.5)
+        // Adds a second, slightly detuned saw wave to create a "tearing" phase effect.
+        if (intensity > 0.5) {
+            const osc2 = this.ctx.createOscillator();
+            const gain2 = this.ctx.createGain();
+            
+            osc2.connect(gain2);
+            gain2.connect(this.masterGain);
+
+            osc2.type = 'sawtooth';
+            // Detuned start (lower)
+            osc2.frequency.setValueAtTime(startFreq * 0.7, t); 
+            // Falls slightly slower to create phase separation
+            osc2.frequency.exponentialRampToValueAtTime(endFreq * 0.8, t + duration * 1.2);
+
+            gain2.gain.setValueAtTime(0, t);
+            gain2.gain.linearRampToValueAtTime(volume * 0.6, t + 0.02);
+            gain2.gain.exponentialRampToValueAtTime(0.001, t + duration * 1.2);
+
+            osc2.start(t);
+            osc2.stop(t + duration * 1.2 + 0.05);
+        }
     }
   }
   
