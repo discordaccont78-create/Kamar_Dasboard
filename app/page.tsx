@@ -10,7 +10,7 @@ import { useSchedulerStore } from '../lib/store/scheduler';
 import { CMD, Segment } from '../types/index';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useSchedulerEngine } from '../hooks/useSchedulerEngine';
-import { Zap, Trash2, Cpu, Laptop, Smartphone, GripHorizontal } from 'lucide-react';
+import { Zap, Trash2, Cpu, Laptop, Smartphone, Tablet, GripHorizontal } from 'lucide-react';
 import { cn, getFontClass } from '../lib/utils';
 import { translations } from '../lib/i18n';
 import { MUSIC_TRACKS } from '../lib/constants';
@@ -396,7 +396,10 @@ export default function DashboardPage(): React.JSX.Element {
   const { settings } = useSettingsStore();
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [deviceType, setDeviceType] = useState<string>("DETECTING");
+  const [deviceInfo, setDeviceInfo] = useState<{ label: string, icon: 'desktop' | 'mobile' | 'tablet' }>({ 
+      label: "ANALYZING...", 
+      icon: 'desktop' 
+  });
   
   useSchedulerEngine();
   
@@ -430,14 +433,45 @@ export default function DashboardPage(): React.JSX.Element {
     document.dir = settings.language === 'fa' ? 'rtl' : 'ltr';
   }, [settings.language]);
 
-  // Logic: Device Detection
+  // Logic: Advanced Device & OS Detection
   useEffect(() => {
     const ua = navigator.userAgent;
-    if (/Mobi|Android/i.test(ua)) {
-        setDeviceType("MOBILE");
+    let os = "WEB";
+    let device = "SYSTEM";
+    let icon: 'desktop' | 'mobile' | 'tablet' = 'desktop';
+
+    // 1. Determine OS
+    if (/Windows/i.test(ua)) os = "WIN";
+    else if (/Mac/i.test(ua)) os = "MAC";
+    else if (/Linux/i.test(ua)) os = "LINUX";
+    else if (/Android/i.test(ua)) os = "ANDROID";
+    else if (/iOS|iPhone|iPad|iPod/i.test(ua)) os = "IOS";
+
+    // 2. Determine Form Factor
+    const isTablet = /Tablet|iPad/i.test(ua) || (/Mac/i.test(ua) && navigator.maxTouchPoints > 1);
+    const isMobile = /Mobi|Android/i.test(ua);
+
+    if (isTablet) {
+        device = "TABLET";
+        icon = 'tablet';
+    } else if (isMobile && !isTablet) {
+        device = "MOBILE";
+        icon = 'mobile';
     } else {
-        setDeviceType("DESKTOP");
+        device = "DESKTOP";
+        icon = 'desktop';
     }
+    
+    // Fix: Android Tablets sometimes don't have "Tablet" in UA, but don't have "Mobile" either
+    if (os === "ANDROID" && !/Mobile/i.test(ua)) {
+        device = "TABLET";
+        icon = 'tablet';
+    }
+
+    setDeviceInfo({
+        label: `${os} ${device}`,
+        icon
+    });
   }, []);
 
   // Logic: Dark Mode
@@ -626,8 +660,10 @@ export default function DashboardPage(): React.JSX.Element {
             <div className="flex flex-col items-end">
                <div className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] md:tracking-[0.4em] opacity-40 hidden sm:block">Secure Link V3.1</div>
                <div className="text-[8px] md:text-[9px] font-bold text-primary mt-0.5 md:mt-1 flex items-center gap-1 md:gap-1.5 opacity-80">
-                  {deviceType === 'MOBILE' ? <Smartphone size={10} /> : <Laptop size={10} />}
-                  <span className="hidden xs:inline">{t.footer_ver} =</span> {deviceType} VER
+                  {deviceInfo.icon === 'mobile' && <Smartphone size={10} />}
+                  {deviceInfo.icon === 'tablet' && <Tablet size={10} />}
+                  {deviceInfo.icon === 'desktop' && <Laptop size={10} />}
+                  <span className="hidden xs:inline">{t.footer_ver} =</span> {deviceInfo.label} VER
                </div>
             </div>
           </div>
