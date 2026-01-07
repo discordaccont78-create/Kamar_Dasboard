@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Settings, Zap, CalendarClock, Hash } from 'lucide-react';
+import { Moon, Sun, Settings, Zap, CalendarClock, Hash, Terminal } from 'lucide-react';
 import { useSettingsStore } from '../../lib/store/settings';
 import { useCursorStore } from '../../lib/store/cursorStore';
 import { useSoundFx } from '../../hooks/useSoundFx';
-import { cn } from '../../lib/utils';
+import { cn, getFontClass } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
 import { SchedulerDialog } from '../Scheduler/SchedulerDialog';
 import { ConnectionStatus } from './ConnectionStatus';
@@ -18,7 +18,6 @@ const MotionButton = motion.button as any;
 const MotionPath = motion.path as any;
 const MotionRect = motion.rect as any;
 const MotionCircle = motion.circle as any;
-const MotionSvg = motion.svg as any;
 
 interface HeaderProps {
     onOpenMenu: () => void;
@@ -31,8 +30,6 @@ const generateSinePath = (width: number, yCenter: number, cycles: number, amplit
     for (let i = 0; i <= points; i++) {
         const t = i / points;
         const x = t * width;
-        // Formula: y = A * sin(Bx + C) + D
-        // We calculate the Y based on the phase offset to simulate travel
         const theta = (t * cycles * Math.PI * 2) + phaseOffset;
         const y = yCenter + Math.sin(theta) * amplitude;
         d += ` L ${x} ${y}`;
@@ -40,7 +37,7 @@ const generateSinePath = (width: number, yCenter: number, cycles: number, amplit
     return d;
 };
 
-// --- Helper: Generate Soft Square Wave Path (High Quality) ---
+// --- Helper: Generate Soft Square Wave Path ---
 const generateSquarePath = (width: number, yCenter: number, cycles: number, amplitude: number, phaseOffset: number) => {
     const points = 200; 
     let d = `M 0 ${yCenter}`;
@@ -49,12 +46,7 @@ const generateSquarePath = (width: number, yCenter: number, cycles: number, ampl
         const t = i / points;
         const x = t * width;
         const theta = (t * cycles * Math.PI * 2) + phaseOffset;
-        
-        // Use Hyperbolic Tangent of Sine to create a "Soft Square" wave.
-        // This removes aliasing artifacts and vertical jitter, making it look like a high-quality analog signal.
-        // Multiplier (5) controls the sharpness of the edges.
         const val = Math.tanh(Math.sin(theta) * 5);
-        
         const y = yCenter - (val * amplitude); 
         d += ` L ${x} ${y}`;
     }
@@ -76,18 +68,17 @@ const generateSawtoothPath = (width: number, yCenter: number, cycles: number, am
     return d;
 };
 
-// --- NEW Electric Connection Component ---
+// --- Electric Connection Component ---
 const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicIntensity }: { color: string, width: number, left: number, opacity: number, dynamicIntensity: boolean }) => {
-  const PHASE_SHIFT = (2 * Math.PI) / 3; // 120 degrees in radians
+  const PHASE_SHIFT = (2 * Math.PI) / 3;
 
-  // 1. Square Wave Frames (Soft Analog Style) with SHARPER Rising Edge Pulse
   const squareWaveData = useMemo(() => {
       const frames = [];
       const opacities = [];
       const widths = [];
       const steps = 60; 
       const baseOpacity = 0.6;
-      const cycles = 4; // Must match generateSquarePath
+      const cycles = 4;
       
       for (let i = 0; i <= steps; i++) {
           const progress = i / steps;
@@ -95,19 +86,10 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
           frames.push(generateSquarePath(100, 5, cycles, 3, phase));
           
           if (dynamicIntensity) {
-              // SMOOTH ANALOG PULSE
-              // Rising Edge happens when cos(phase) approaches 1.
               const cosVal = Math.cos(phase);
-              
-              // Normalize to 0..1
               const proximity = (cosVal + 1) / 2;
-              
-              // SHARPER PULSE: Increased power from 12 to 24
-              // This makes the "glow" duration much shorter/snappier
               const intensity = Math.pow(proximity, 24);
-              
               opacities.push(baseOpacity + (intensity * 0.4)); 
-              // THINNER PULSE: Reduced multiplier from 2 to 1.2
               widths.push(1 + (intensity * 1.2)); 
           } else {
               opacities.push(baseOpacity);
@@ -117,17 +99,14 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
       return { frames, opacities, widths };
   }, [dynamicIntensity]);
 
-  // 2. Sine Wave Frames (Strict 3-Phase AC)
   const sineWaveData = useMemo(() => {
       const framesA = [];
       const framesB = [];
       const framesC = [];
-      
       const opacityA = [];
       const opacityB = [];
       const opacityC = [];
-
-      const steps = 60; // 60fps equivalent for smoothness
+      const steps = 60;
       const baseOpacity = 0.6;
       
       for (let i = 0; i <= steps; i++) {
@@ -135,23 +114,18 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
           const movePhase = -Math.PI * 2 * progress; 
           const stableAmp = 8; 
 
-          // Paths
           framesA.push(generateSinePath(100, 20, 2, stableAmp, movePhase));
           framesB.push(generateSinePath(100, 20, 2, stableAmp, movePhase + PHASE_SHIFT));
           framesC.push(generateSinePath(100, 20, 2, stableAmp, movePhase + (PHASE_SHIFT * 2)));
 
-          // Dynamic Intensity Logic
           if (dynamicIntensity) {
-              const centerT = 0.5; // Center of screen
+              const centerT = 0.5;
               const theta = (centerT * 2 * Math.PI * 2) + movePhase;
-              
               const calcOpacity = (offset: number) => {
                   const val = Math.sin(theta + offset);
-                  // Glow when absolute value is near 1 (Peak positive or negative)
-                  const peakProximity = Math.pow(Math.abs(val), 3); // smooth curve
+                  const peakProximity = Math.pow(Math.abs(val), 3);
                   return baseOpacity + (peakProximity * 0.4); 
               };
-
               opacityA.push(calcOpacity(0));
               opacityB.push(calcOpacity(PHASE_SHIFT));
               opacityC.push(calcOpacity(PHASE_SHIFT * 2));
@@ -167,14 +141,13 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
       };
   }, [dynamicIntensity]);
 
-  // 3. Sawtooth Wave Frames (Ramp) with SHARPER Reset Flash
   const sawtoothWaveData = useMemo(() => {
       const frames = [];
       const opacities = [];
       const widths = [];
       const steps = 60; 
       const baseOpacity = 0.4;
-      const cycles = 3; // Must match generateSawtoothPath
+      const cycles = 3; 
 
       for (let i = 0; i <= steps; i++) {
           const progress = i / steps;
@@ -182,22 +155,12 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
           frames.push(generateSawtoothPath(100, 35, cycles, 3, phase));
 
           if (dynamicIntensity) {
-              // SMOOTH ANALOG RESET
-              // Calculate continuous distance to the "Reset" point.
               const phaseNorm = phase / (Math.PI * 2);
               const rawPos = (0.5 * cycles) + phaseNorm;
-              
-              // Distance to nearest integer (the drop point). Ranges 0 to 0.5
               const dist = Math.abs(rawPos - Math.round(rawPos)); 
-              
-              // Normalize: 1 when at reset
               const proximity = 1 - (dist * 2);
-              
-              // SHARPER PULSE: Increased power from 10 to 24
               const intensity = Math.pow(proximity, 24);
-              
               opacities.push(baseOpacity + (intensity * 0.6));
-              // THINNER PULSE: Reduced multiplier from 1.5 to 1.0
               widths.push(0.8 + (intensity * 1.0)); 
           } else {
               opacities.push(baseOpacity);
@@ -208,7 +171,6 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
   }, [dynamicIntensity]);
 
   return (
-    // Dynamic Positioning based on Header Gap
     <div 
       className="absolute top-0 bottom-0 flex items-center justify-center overflow-visible pointer-events-none z-0"
       style={{
@@ -234,7 +196,6 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
             </filter>
           </defs>
           
-          {/* Layer 0: Central Data Bus (Main Wire) */}
           <MotionPath
              d="M 0 20 L 100 20"
              stroke={color}
@@ -246,13 +207,12 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
              transition={{ duration: 0.3, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* --- TOP RAIL: SQUARE WAVE (Digital Clock) --- */}
           <path d="M 0 5 L 100 5" stroke={color} strokeWidth="0.5" strokeOpacity="0.2" strokeDasharray="1 2" />
           <MotionPath
              stroke={color}
-             strokeWidth={squareWaveData.widths} // Animate Width
+             strokeWidth={squareWaveData.widths}
              fill="none"
-             strokeOpacity={squareWaveData.opacities} // Animate Opacity
+             strokeOpacity={squareWaveData.opacities}
              animate={{ d: squareWaveData.frames, strokeOpacity: squareWaveData.opacities, strokeWidth: squareWaveData.widths }}
              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
           />
@@ -265,16 +225,14 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
             transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
           />
 
-          {/* --- BOTTOM RAIL: SAWTOOTH WAVE (Ramp) --- */}
           <MotionPath
              stroke={color}
-             strokeWidth={sawtoothWaveData.widths} // Animate Width
+             strokeWidth={sawtoothWaveData.widths}
              fill="none"
-             strokeOpacity={sawtoothWaveData.opacities} // Animate Opacity
+             strokeOpacity={sawtoothWaveData.opacities}
              animate={{ d: sawtoothWaveData.frames, strokeOpacity: sawtoothWaveData.opacities, strokeWidth: sawtoothWaveData.widths }}
              transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
           />
-          {/* Sawtooth Electrons */}
           <MotionCircle 
             r="1.2" 
             fill={color}
@@ -290,39 +248,31 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
             transition={{ duration: 2.5, repeat: Infinity, ease: "linear", delay: 1.25 }}
           />
 
-          {/* --- CENTER: 3-PHASE AC (Uniform Style) --- */}
-          
-          {/* Phase A (L1) */}
           <MotionPath
              stroke="url(#stream-fade)"
              strokeWidth="1.2"
              fill="none"
-             strokeOpacity={sineWaveData.opacities.A} // Pulse Opacity
+             strokeOpacity={sineWaveData.opacities.A}
              animate={{ d: sineWaveData.frames.A, strokeOpacity: sineWaveData.opacities.A }}
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
-
-          {/* Phase B (L2) */}
           <MotionPath
              stroke="url(#stream-fade)"
              strokeWidth="1.2"
              fill="none"
-             strokeOpacity={sineWaveData.opacities.B} // Pulse Opacity
+             strokeOpacity={sineWaveData.opacities.B}
              animate={{ d: sineWaveData.frames.B, strokeOpacity: sineWaveData.opacities.B }}
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
-
-          {/* Phase C (L3) */}
           <MotionPath
              stroke="url(#stream-fade)"
              strokeWidth="1.2"
              fill="none"
-             strokeOpacity={sineWaveData.opacities.C} // Pulse Opacity
+             strokeOpacity={sineWaveData.opacities.C}
              animate={{ d: sineWaveData.frames.C, strokeOpacity: sineWaveData.opacities.C }}
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
           
-          {/* Central Analog Electrons - Particle Flow */}
           <MotionCircle 
             r="1.5" 
             fill="white"
@@ -338,63 +288,47 @@ const ElectricConnection = React.memo(({ color, width, left, opacity, dynamicInt
             animate={{ cx: [0, 100], opacity: [0, 1, 0] }}
             transition={{ duration: 2, repeat: Infinity, ease: "linear", delay: 0.5 }}
           />
-
        </svg>
     </div>
   )
 });
 
-const GlitchTitle = ({ text, active, discharging }: { text: string, active: boolean, discharging: boolean }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const trigger = active && (isHovered || discharging);
-
-  const baseClass = "text-sm md:text-lg font-black uppercase tracking-tighter leading-none text-foreground select-none relative inline-block transition-colors duration-100";
-
+// --- UPDATED TITLE COMPONENT: PURE SOLID TEXT ---
+const DynamicTitle = ({ 
+    text, 
+    fontClass, 
+    discharging, 
+    accentColor, 
+    strokeColor 
+}: { 
+    text: string, 
+    fontClass: string, 
+    discharging: boolean, 
+    accentColor: string,
+    strokeColor: string
+}) => {
   return (
-    <div 
-        className="relative group cursor-default"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-    >
-        <h1 className={cn(baseClass, "z-10 relative", discharging && "text-primary/50 mix-blend-hard-light")}>
-            {text}
-        </h1>
-
-        <AnimatePresence>
-            {trigger && (
-                <>
-                    <MotionSpan
-                        className={cn(baseClass, "absolute top-0 left-0 text-red-500 opacity-70 z-0 mix-blend-screen")}
-                        initial={{ x: 0, opacity: 0 }}
-                        animate={{ 
-                            x: [-2, 2, -1, 0], 
-                            y: [1, -1, 0],
-                            opacity: [0.8, 1, 0],
-                            clipPath: ["inset(0 0 0 0)", "inset(10% 0 80% 0)", "inset(80% 0 10% 0)", "inset(0 0 0 0)"]
-                        }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        {text}
-                    </MotionSpan>
-
-                    <MotionSpan
-                        className={cn(baseClass, "absolute top-0 left-0 text-blue-500 opacity-70 z-0 mix-blend-screen")}
-                        initial={{ x: 0, opacity: 0 }}
-                        animate={{ 
-                            x: [2, -2, 1, 0], 
-                            y: [-1, 1, 0],
-                            opacity: [0.8, 1, 0],
-                            clipPath: ["inset(0 0 0 0)", "inset(80% 0 5% 0)", "inset(10% 0 60% 0)", "inset(0 0 0 0)"]
-                        }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        {text}
-                    </MotionSpan>
-                </>
+    <div className="relative group cursor-default select-none flex items-center">
+        {/* 
+            STEP 1: CLEAN SOLID TEXT
+            - Idle: Solid Foreground Color (No Strokes, No Transparency)
+            - Discharging: Solid Accent Color + Scale Animation
+        */}
+        <MotionDiv
+            className={cn(
+                "text-xl md:text-3xl font-black uppercase tracking-[0.15em] leading-none transition-all duration-300 relative z-10",
+                fontClass
             )}
-        </AnimatePresence>
+            style={{
+                color: discharging ? accentColor : "hsl(var(--foreground))",
+            }}
+            animate={discharging 
+                ? { scale: 1.05 } 
+                : { scale: 1 } 
+            }
+        >
+            {text}
+        </MotionDiv>
     </div>
   );
 };
@@ -440,10 +374,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const { playClick, playToggle, playSpark, playCharge } = useSoundFx();
   const t = translations[settings.language];
 
+  // Dynamic font class based on settings
+  const titleFontClass = getFontClass(settings.dashboardFont);
+  // Get 3rd color (Cursor Color) for the title accent
+  const thirdColor = settings.cursorColor || '#daa520';
+  
+  // Calculate Stroke Color based on Theme (Opposite)
+  const strokeColor = settings.theme === 'dark' ? '#ffffff' : '#000000';
+
   const gapSize = settings.headerGap ?? 160;
-  // Calculate dynamic dimensions to ensure wave covers the gap + overlap
-  const waveWidth = gapSize + 120; // Gap + 120px overlap total
-  const waveLeft = -(gapSize + 60); // Offset to the left to reach other island
+  const waveWidth = gapSize + 120;
+  const waveLeft = -(gapSize + 60);
 
   useEffect(() => {
     const updateTime = () => {
@@ -534,7 +475,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     }
   };
 
-  // Simplified Logo Variants: Only handles movement/scale, NO background color
   const logoVariants = {
     idle: { scale: 1, rotate: 0 },
     impact: {
@@ -544,7 +484,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     },
     charged: {
         scale: 1.1,
-        // Simple jitter
         x: [0, -1, 1, -1, 0],
         y: [0, 1, -1, 1, 0],
         transition: { 
@@ -560,7 +499,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
 
   return (
     <header className="sticky top-2 md:top-6 z-50 px-2 md:px-8 transition-all duration-500 pointer-events-none">
-      {/* Dynamic Gap applied via style */}
       <div 
         className="max-w-[1400px] mx-auto flex items-stretch justify-between relative pointer-events-auto h-[60px] md:h-[72px]"
         style={{ gap: `${gapSize}px` }}
@@ -583,36 +521,33 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
           variants={islandVariants}
           initial="hidden"
           animate="visible"
-          className="relative min-w-[180px] md:min-w-[280px] drop-shadow-xl filter group z-30" 
+          className="relative min-w-[200px] md:min-w-[320px] drop-shadow-xl filter group z-30" 
         >
            <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl" style={{ clipPath: CLIP_LEFT }} />
            <div className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl overflow-hidden" style={{ clipPath: CLIP_LEFT }}>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent -translate-x-full animate-[shimmer_4s_infinite]" />
            </div>
            <div className="relative h-full w-full flex items-center pl-6 pr-10 md:pl-8 md:pr-14">
-              <div className="flex items-center gap-3 md:gap-4 z-10 relative w-full">
+              <div className="flex items-center gap-4 md:gap-5 z-10 relative w-full">
                   <div ref={logoRef} className="relative z-30 group flex items-center justify-center">
                     
-                    {/* Logo Container - Clean, No Border/Background */}
                     <MotionDiv 
-                        className="relative w-8 h-8 md:w-10 md:h-10 flex items-center justify-center cursor-pointer"
+                        className="relative w-9 h-9 md:w-11 md:h-11 flex items-center justify-center cursor-pointer"
                         animate={sparkState === 'impact' ? 'impact' : (isLogoCharged ? 'charged' : 'idle')}
                         variants={logoVariants}
                     >
-                        {/* Layer 1: Base Outline (Always visible, low opacity) */}
                         <Zap 
                             className="absolute inset-0 w-full h-full text-primary/20" 
                             strokeWidth={1} 
                         />
 
-                        {/* Layer 2: Filled Charging State (Masked from Bottom to Top) */}
                         <MotionDiv
                             className="absolute inset-0 w-full h-full overflow-hidden"
                             initial={{ clipPath: "inset(100% 0 0 0)" }}
                             animate={{
                                 clipPath: (isLogoCharged || sparkState === 'impact') 
-                                    ? "inset(0% 0 0 0)"   // Fully Visible
-                                    : "inset(100% 0 0 0)", // Hidden at bottom
+                                    ? "inset(0% 0 0 0)" 
+                                    : "inset(100% 0 0 0)",
                                 filter: sparkState === 'impact' ? "brightness(1.5)" : "brightness(1)"
                             }}
                             transition={{ duration: 1.5, ease: "easeInOut" }}
@@ -625,40 +560,42 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                     </MotionDiv>
                   </div>
                   
-                  {/* REPLACED WITH REUSABLE COMPONENT - ADJUSTED FOR REALISM */}
-                  {/* Reduced height to 12 (48px) to contain the bolt vertically */}
                   <div className="absolute top-1/2 left-8 right-0 -translate-y-1/2 h-12 pointer-events-none z-20">
                       <LightningBolt 
                           active={sparkState === 'discharge'} 
-                          startX={100} endX={0} // Right to Left
+                          startX={100} endX={0} 
                           startY={10} endY={10} 
-                          // More segments = finer, higher frequency jitter
                           segments={20} 
-                          // Reduced amplitude = tighter beam, less cartoonish
                           amplitude={3}
-                          // Tighter glow radius for a sharper look
                           glowIntensity={1}
-                          // Finer stroke lines using new prop
                           thickness={0.6}
                           viewBox="0 0 100 20"
                           className="opacity-90"
                       />
                   </div>
 
-                  <div className="flex flex-col justify-center gap-0.5 relative z-30">
+                  <div className="flex flex-col justify-center gap-1 relative z-30">
+                    <DynamicTitle 
+                        text={settings.title} 
+                        fontClass={titleFontClass}
+                        discharging={sparkState === 'discharge'} 
+                        accentColor={thirdColor}
+                        strokeColor={strokeColor}
+                    />
+                    
+                    {/* Updated Technical Sub-Label */}
                     <div className="flex items-center gap-2">
-                        <div className="p-0.5 bg-primary/20 rounded-sm">
-                            <Hash size={10} className="text-primary" strokeWidth={3} />
+                        <span className={cn(
+                            "w-1.5 h-1.5 rounded-sm transition-all duration-300", 
+                            sparkState === 'impact' ? "bg-white shadow-[0_0_8px_white]" : "bg-primary"
+                        )} /> 
+                        <div className="flex items-center gap-1.5 text-[8px] md:text-[9px] font-mono font-bold uppercase tracking-[0.1em] text-muted-foreground/80">
+                            <span className="opacity-50">SYS.VER</span>
+                            <span className="text-primary">3.1</span>
+                            <span className="w-px h-2 bg-border/50 mx-0.5" />
+                            <Terminal size={8} />
+                            <span>NODE_CTRL</span>
                         </div>
-                        <GlitchTitle 
-                            text={settings.title} 
-                            active={settings.animations} 
-                            discharging={sparkState === 'discharge'} 
-                        />
-                    </div>
-                    <div className="hidden md:flex items-center gap-1.5 mt-0.5 text-[8px] font-black uppercase tracking-[0.25em] text-muted-foreground/60">
-                      <span className={cn("w-1.5 h-1.5 rounded-sm transition-colors", sparkState === 'impact' ? "bg-white shadow-[0_0_5px_white]" : "bg-primary")} /> 
-                      {t.node_controller}
                     </div>
                   </div>
               </div>
@@ -671,7 +608,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
             transition={{ delay: 0.1 }}
             className="relative flex-1 drop-shadow-xl filter"
         >
-            {/* CONDITIONAL RENDER: Only show electric waves if animations are enabled */}
             {settings.animations && (
                 <ElectricConnection 
                     color={settings.cursorColor || "#daa520"} 
