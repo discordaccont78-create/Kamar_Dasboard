@@ -2,6 +2,22 @@
 import { BinaryMessage } from '../../types/index';
 import { CMD } from '../../types/index';
 
+/**
+ * Protocol V4.0 Implementation
+ * Structure: HEADER(4) + PAYLOAD(N) + FOOTER(1)
+ * 
+ * Header:
+ * [0]: CMD (Command ID)
+ * [1]: SEG_L (Segment/GPIO Low Byte)
+ * [2]: SEG_H (Segment/GPIO High Byte)
+ * [3]: LEN (Payload Length, 0-255)
+ * 
+ * Payload:
+ * [4 ... 4+LEN-1]: Data Bytes
+ * 
+ * Footer:
+ * [4+LEN]: CRC8 (Checksum of Header + Payload)
+ */
 export class BinaryProtocol {
   private crc8Table: Uint8Array;
 
@@ -26,43 +42,119 @@ export class BinaryProtocol {
     ]);
   }
 
-  encode(cmd: number, seg: number, val: number): ArrayBuffer {
-    const buf = new ArrayBuffer(8);
+  // Generic Encoder: Accepts Number, String, or Raw Bytes
+  encode(cmd: number, seg: number, value: number | string | Uint8Array | null | undefined): ArrayBuffer {
+    let payload: Uint8Array;
+
+    if (typeof value === 'number') {
+      // Numbers default to 4-byte Int32 LE
+      payload = new Uint8Array(4);
+      new DataView(payload.buffer).setInt32(0, value, true);
+    } else if (typeof value === 'string') {
+      // Strings are UTF-8 encoded
+      payload = new TextEncoder().encode(value);
+    } else if (value instanceof Uint8Array) {
+      // Raw bytes
+      payload = value;
+    } else {
+      // Empty payload (for simple toggles)
+      payload = new Uint8Array(0);
+    }
+
+    // Sanity check length (Protocol limitation: 255 bytes max payload)
+    if (payload.length > 255) {
+        console.warn(`[Protocol] Payload truncated from ${payload.length} to 255 bytes.`);
+        payload = payload.slice(0, 255);
+    }
+
+    const totalLen = 4 + payload.length + 1; // Header(4) + Payload(N) + Footer(1)
+    const buf = new ArrayBuffer(totalLen);
     const view = new DataView(buf);
+    const uint8Buf = new Uint8Array(buf);
+
+    // 1. Write Header
     view.setUint8(0, cmd);
-    view.setUint16(1, seg, true);
-    view.setInt32(3, val, true);
-    const arr = new Uint8Array(buf);
-    view.setUint8(7, this.crc8(arr.subarray(0, 7)));
+    view.setUint16(1, seg, true); // Little Endian
+    view.setUint8(3, payload.length);
+
+    // 2. Write Payload
+    if (payload.length > 0) {
+        uint8Buf.set(payload, 4);
+    }
+
+    // 3. Write Footer (CRC)
+    // CRC includes Header and Payload
+    view.setUint8(4 + payload.length, this.crc8(uint8Buf.subarray(0, 4 + payload.length)));
+
     return buf;
   }
 
   decode(buf: ArrayBuffer): BinaryMessage | null {
-    if (buf.byteLength < 8) return null;
-    const view = new DataView(buf);
-    const arr = new Uint8Array(buf);
-    const crc = this.crc8(arr.subarray(0, 7));
-    if (crc !== view.getUint8(7)) return null;
+    if (buf.byteLength < 5) return null; // Min valid packet (Header + CRC)
     
-    return {
-      cmd: view.getUint8(0),
-      seg: view.getUint16(1, true),
-      val: view.getInt32(3, true),
-    };
+    const view = new DataView(buf);
+    const uint8Buf = new Uint8Array(buf);
+
+    // 1. Read Header
+    const cmd = view.getUint8(0);
+    const seg = view.getUint16(1, true);
+    const len = view.getUint8(3);
+
+    // 2. Validate Length
+    if (buf.byteLength !== 4 + len + 1) {
+        console.warn(`[Protocol] Invalid Packet Length. Expected ${4 + len + 1}, got ${buf.byteLength}`);
+        return null;
+    }
+
+    // 3. Validate CRC
+    const receivedCrc = view.getUint8(4 + len);
+    const calculatedCrc = this.crc8(uint8Buf.subarray(0, 4 + len));
+    
+    if (receivedCrc !== calculatedCrc) {
+        console.warn("[Protocol] CRC Mismatch");
+        return null;
+    }
+
+    // 4. Extract Payload
+    let val = 0;
+    let text = undefined;
+    let data = undefined;
+
+    if (len > 0) {
+        data = uint8Buf.slice(4, 4 + len);
+        
+        // Strategy: Populate 'val' if it's 4 bytes (Standard Int32)
+        // If it's less, assume it's a small int? 
+        // For compatibility with V3 logic, we check length.
+        if (len === 4) {
+            val = view.getInt32(4, true);
+        } else if (len === 1) {
+            val = view.getUint8(4);
+        }
+
+        // Try to parse as text if needed
+        if (len > 0) {
+            try {
+                text = new TextDecoder().decode(data);
+            } catch(e) { /* Not text */ }
+        }
+    }
+
+    return { cmd, seg, val, data, text };
   }
 
-  // Support for batch updates (up to 8 GPIOs at once)
+  // Batch GPIO: Packs bits into a 4-byte integer payload
   encodeBatchGPIO(gpios: number[], states: boolean[]): ArrayBuffer | null {
     if (!Array.isArray(gpios) || gpios.length === 0 || gpios.length > 8) return null;
     let packed = 0;
     for (let i = 0; i < gpios.length; i++) {
-      packed |= (gpios[i] & 0x3F) << (i * 4);  // 6 bits per GPIO
-      if (states[i]) packed |= (1 << (i * 4 + 6)); // 1 bit for state
+      packed |= (gpios[i] & 0x3F) << (i * 4);  
+      if (states[i]) packed |= (1 << (i * 4 + 6)); 
     }
+    // Encodes as a standard numeric payload (4 bytes)
     return this.encode(CMD.GPIO_BATCH, gpios.length, packed);
   }
 
-  // Decode batch updates
   decodeBatchGPIO(val: number, count: number): { gpios: number[], states: boolean[] } {
     const gpios = [];
     const states = [];

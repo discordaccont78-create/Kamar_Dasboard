@@ -163,8 +163,11 @@ export interface ConnectionConfig {
   isConnected: boolean;
 }
 
+// Updated V4 Binary Message Structure
 export interface BinaryMessage {
   readonly cmd: number;
   readonly seg: number;
-  readonly val: number;
+  readonly val: number;        // Legacy/Convenience: The integer value if payload is 4 bytes
+  readonly data?: Uint8Array;  // The Raw Payload
+  readonly text?: string;      // The payload parsed as string (if valid UTF-8)
 }

@@ -127,7 +127,7 @@ export function useWebSocket() {
             .map(b => b.toString(16).padStart(2, '0'))
             .join(' ');
             
-          addLog('in', hex, `CMD:${msg.cmd} SEG:${msg.seg} VAL:${msg.val}`);
+          addLog('in', hex, `CMD:${msg.cmd} SEG:${msg.seg} VAL:${msg.val} ${msg.text ? `TXT:${msg.text}` : ''}`);
           
           const updateSegmentByGpio = (gpio: number, updates: Partial<Segment>) => {
             const currentSegments = useSegments.getState().segments;
@@ -230,14 +230,16 @@ export function useWebSocket() {
     };
   }, [settings.domain, settings.useSsl, setConnected, addLog, addToast, queryClient, addSensorReading]);
 
-  const sendCommand = (cmd: number, gpio: number, value: number): boolean => {
+  // Updated to accept any payload type
+  const sendCommand = (cmd: number, gpio: number, value?: number | string | Uint8Array): boolean => {
     const socket = sharedSocket;
     
     if (!socket) return false;
 
     // Check if we are using the Mock Socket (which doesn't require binary encoding for success)
     if (SIMULATION_MODE) {
-        addLog('out', `[SIM] ${cmd.toString(16)}`, `CMD:${cmd} GPIO:${gpio} VAL:${value}`);
+        const valStr = typeof value === 'object' ? '[Bytes]' : value;
+        addLog('out', `[SIM] ${cmd.toString(16)}`, `CMD:${cmd} GPIO:${gpio} VAL:${valStr}`);
         return true; 
     }
 
@@ -249,7 +251,11 @@ export function useWebSocket() {
       const hex = Array.from(new Uint8Array(buffer))
         .map(b => b.toString(16).padStart(2, '0'))
         .join(' ');
-      addLog('out', hex, `CMD:${cmd} GPIO:${gpio} VAL:${value}`);
+      
+      let debugVal = value;
+      if (typeof value === 'undefined') debugVal = 'NULL';
+      
+      addLog('out', hex, `CMD:${cmd} GPIO:${gpio} VAL:${debugVal}`);
     }
     return success;
   };
