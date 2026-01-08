@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Cable, Timer, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Cable, Timer } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Slider } from '../../components/ui/slider';
@@ -11,6 +11,7 @@ import { useSegments } from '../../lib/store/segments';
 import { useSchedulerStore } from '../../lib/store/scheduler';
 import { useSoundFx } from '../../hooks/useSoundFx';
 import { cn } from '../../lib/utils';
+import { PulseConfig } from './PulseConfig';
 
 interface Props {
   segment: Segment;
@@ -129,7 +130,7 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
 
   const handleToggle = useCallback(() => {
     const cmd = isOn ? CMD.LED_OFF : CMD.LED_ON;
-    playToggle(!isOn); // Play sound effect based on TARGET state (if currently ON, we turn OFF, so we pass false)
+    playToggle(!isOn); 
     
     // Auto-Off Pulse Logic
     if (!isOn && safeSegment.pulseDuration && safeSegment.pulseDuration > 0 && mode === 'toggle') {
@@ -167,11 +168,6 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   const cycleMode = () => {
     const newMode = mode === 'toggle' ? 'momentary' : 'toggle';
     updateSegment(safeSegment.num_of_node, { onOffMode: newMode });
-  };
-
-  const updatePulseDuration = (val: string) => {
-      const seconds = parseInt(val) || 0;
-      updateSegment(safeSegment.num_of_node, { pulseDuration: seconds });
   };
 
   const handleSliderChange = (vals: number[]) => {
@@ -251,39 +247,12 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
            </div>
 
            {/* Pulse Configuration Popover/Area */}
-           <AnimatePresence>
-                {showPulseConfig && mode === 'toggle' && (
-                    <MotionDiv
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden mb-2 bg-secondary/5 rounded-lg border border-border/50"
-                    >
-                        <div className="p-2 flex items-center gap-2">
-                             <div className="flex flex-col gap-0.5 flex-1">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-primary flex items-center gap-1">
-                                    <Timer size={10} /> Auto-Off Timer
-                                </span>
-                                <span className="text-[8px] text-muted-foreground">Turn OFF automatically after X seconds</span>
-                             </div>
-                             <div className="flex items-center gap-2">
-                                <Input 
-                                    type="number"
-                                    min="0"
-                                    placeholder="0 (Disabled)"
-                                    className="h-7 w-20 text-center text-[10px]"
-                                    value={safeSegment.pulseDuration || ''}
-                                    onChange={(e) => updatePulseDuration(e.target.value)}
-                                />
-                                <span className="text-[9px] font-mono font-bold text-muted-foreground">SEC</span>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setShowPulseConfig(false)}>
-                                    <X size={12} />
-                                </Button>
-                             </div>
-                        </div>
-                    </MotionDiv>
-                )}
-           </AnimatePresence>
+           <PulseConfig 
+                segmentId={safeSegment.num_of_node}
+                pulseDuration={safeSegment.pulseDuration || 0}
+                show={showPulseConfig && mode === 'toggle'}
+                onClose={() => setShowPulseConfig(false)}
+           />
 
            <button
              onPointerDown={mode === 'momentary' ? handlePressStart : undefined}
