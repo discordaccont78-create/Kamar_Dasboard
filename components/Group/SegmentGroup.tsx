@@ -31,8 +31,7 @@ const MotionDiv = motion.div as any;
 // Define a Display Item which can be a single segment or a Sub-Group
 type DisplayItem = 
   | { type: 'single'; id: string; segment: Segment }
-  | { type: 'register_group'; id: string; segments: Segment[] }
-  | { type: 'weather_group'; id: string; segments: Segment[] }; // Future extensibility
+  | { type: 'register_group'; id: string; segments: Segment[] };
 
 // Wrapper component to handle individual drag controls - Memoized
 const DraggableDisplayItem = React.memo(({ 
@@ -124,22 +123,31 @@ const DraggableDisplayItem = React.memo(({
       );
   } else if (item.type === 'single') {
       const seg = item.segment;
+      
+      // Dynamic Component Selection based on Segment Type
+      let ComponentToRender = (
+         <CustomSegment 
+            segment={seg} 
+            onToggle={() => onToggle(seg.num_of_node)} 
+            onPWMChange={(val) => onPWMChange(seg.num_of_node, val)} 
+         />
+      );
+
+      if (seg.segType === 'DHT') {
+         ComponentToRender = <WeatherSegment segment={seg} />;
+      } else if (seg.segType === 'OLED' || seg.segType === 'CharLCD') {
+         ComponentToRender = <DisplaySegment segment={seg} />;
+      } else if (seg.segType === 'Input-0-1' || seg.groupType === 'input') {
+         ComponentToRender = <InputSegment segment={seg} />;
+      }
+
       content = (
         <SegmentCard 
             gpio={seg.gpio || 0} 
             label={seg.name}
             dragHandle={<div {...dragHandleProps}>{DragIcon}</div>}
         >
-            {seg.groupType === 'custom' && (
-              <CustomSegment 
-                segment={seg} 
-                onToggle={() => onToggle(seg.num_of_node)} 
-                onPWMChange={(val) => onPWMChange(seg.num_of_node, val)} 
-              />
-            )}
-            {seg.groupType === 'input' && <InputSegment segment={seg} />}
-            {seg.groupType === 'weather' && <WeatherSegment segment={seg} />}
-            {seg.groupType === 'display' && <DisplaySegment segment={seg} />}
+            {ComponentToRender}
         </SegmentCard>
       );
   }
@@ -222,8 +230,8 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
                 segments: siblings 
             });
         } 
-        // Note: Weather is essentially a single segment in current data structure, so treated as single
         else {
+            // All other types (Custom, Weather, Display, Input) are treated as single items in the grid
             processedIds.add(seg.num_of_node);
             items.push({ type: 'single', id: seg.num_of_node, segment: seg });
         }

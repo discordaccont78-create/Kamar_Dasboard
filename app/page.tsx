@@ -1,200 +1,22 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { MotionConfig, AnimatePresence, motion, useDragControls } from 'framer-motion';
+import { MotionConfig, AnimatePresence, motion } from 'framer-motion';
 import { Header } from '../components/Header/Header';
 import { SideMenu } from '../components/UI/SideMenu';
-import { SegmentGroup } from '../components/Group/SegmentGroup';
+import { DraggableGroupItem } from '../components/Group/DraggableGroupItem';
 import { useSegments } from '../lib/store/segments';
 import { useSettingsStore } from '../lib/store/settings';
 import { useSchedulerStore } from '../lib/store/scheduler';
-import { CMD, Segment } from '../types/index';
-import { useWebSocket } from '../hooks/useWebSocket';
 import { useSchedulerEngine } from '../hooks/useSchedulerEngine';
-import { Zap, Trash2, Cpu, Laptop, Smartphone, Tablet, GripHorizontal } from 'lucide-react';
+import { Zap, Trash2, Cpu, Laptop, Smartphone, Tablet } from 'lucide-react';
 import { cn, getFontClass } from '../lib/utils';
 import { translations } from '../lib/i18n';
 import { MUSIC_TRACKS } from '../lib/constants';
-import { LightningBolt } from '../components/Effects/LightningBolt';
-import { useSoundFx } from '../hooks/useSoundFx';
+import { CoreEmblem } from '../components/Effects/CoreEmblem';
+import { Segment } from '../types/index';
 
 // Workaround for Framer Motion types
 const MotionDiv = motion.div as any;
-
-// --- CORE EMBLEM: SPORADIC DISCHARGE ---
-const CoreDischarge = React.memo(() => {
-  const [boltData, setBoltData] = useState<{ 
-      id: number; 
-      angle: number; 
-      length: number; 
-      thickness: number; 
-      travelTime: number; 
-      branchIntensity: number; 
-      lingerDuration: number;
-      fadeDuration: number; 
-  } | null>(null);
-
-  const [isActive, setIsActive] = useState(false);
-  const { playLightning } = useSoundFx(); // Access Sound Engine
-
-  useEffect(() => {
-    let phase1Timeout: ReturnType<typeof setTimeout>;
-    let phase2Timeout: ReturnType<typeof setTimeout>;
-    let phase3Timeout: ReturnType<typeof setTimeout>;
-
-    const runCycle = () => {
-      // 1. TIMING: Determine Delay before next bolt
-      const isBurst = Math.random() < 0.3;
-      const delayBeforeStart = isBurst 
-        ? Math.random() * 800 + 300  
-        : Math.random() * 3000 + 2000;
-
-      phase1Timeout = setTimeout(() => {
-        // 2. GENERATION: Create Bolt Data
-        const angle = Math.random() * 360;
-        const rawLen = Math.random();
-        const length = 120 + (rawLen * rawLen * 480); 
-
-        let thickness = 0.8;
-        let branchIntensity = 0.5; // Default some branching
-        let lingerDuration = 0.3; 
-        let fadeDuration = 0.5;   
-
-        if (length > 300) {
-            // Big Bolt: Heavy, recursive branches, long linger
-            thickness = 2.5;
-            branchIntensity = 1.0 + Math.random(); // High intensity = more recursive depth
-            lingerDuration = 0.5 + Math.random() * 1.0; 
-            fadeDuration = 1.5 + Math.random();         
-        } else if (length > 200) {
-            // Medium Bolt
-            thickness = 1.5;
-            branchIntensity = 0.6 + Math.random() * 0.5;
-            lingerDuration = 0.3 + Math.random() * 0.4;
-            fadeDuration = 1.0 + Math.random() * 0.5;
-        } else {
-            // Small Bolt
-            thickness = 1.0;
-            branchIntensity = Math.random() > 0.4 ? 0.5 : 0; 
-            lingerDuration = 0.1 + Math.random() * 0.2;
-            fadeDuration = 0.6 + Math.random() * 0.4;
-        }
-
-        // STRIKE SPEED: Extremely fast (Flash)
-        const travelTime = 0.05 + (length / 2000); 
-
-        // 3. SOUND CALCULATION
-        // Normalize length (approx 120 to 600) to 0-1 range
-        const lenFactor = Math.min((length - 120) / 480, 1); 
-        // Normalize branches (0 to ~2)
-        const branchFactor = Math.min(branchIntensity / 2, 1);
-        
-        // Intensity is weighted average: Length matters more (70%), Branches (30%)
-        const soundIntensity = (lenFactor * 0.7) + (branchFactor * 0.3);
-        
-        // Trigger Sound
-        playLightning(soundIntensity);
-
-        setBoltData({ 
-            id: Date.now(), 
-            angle, length, thickness, travelTime, branchIntensity, lingerDuration, fadeDuration 
-        });
-        setIsActive(true);
-
-        // Keep it visible for Strike Time + a tiny bit of hold, then fade
-        const visibleTime = (travelTime * 1000) + 100;
-        
-        phase2Timeout = setTimeout(() => {
-            setIsActive(false);
-
-            const fadeTimeMs = fadeDuration * 1000;
-            phase3Timeout = setTimeout(() => {
-                setBoltData(null);
-                runCycle(); // Loop
-            }, fadeTimeMs + 100); 
-
-        }, visibleTime);
-
-      }, delayBeforeStart);
-    };
-
-    runCycle();
-
-    return () => {
-      clearTimeout(phase1Timeout);
-      clearTimeout(phase2Timeout);
-      clearTimeout(phase3Timeout);
-    };
-  }, [playLightning]);
-
-  if (!boltData) return <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none z-0" />;
-
-  // Coordinate System
-  const center = 400;
-  const rad = (boltData.angle * Math.PI) / 180;
-  const startOffset = 35; 
-  const sx = center + startOffset * Math.cos(rad);
-  const sy = center + startOffset * Math.sin(rad);
-  const ex = center + boltData.length * Math.cos(rad);
-  const ey = center + boltData.length * Math.sin(rad);
-
-  return (
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none z-0 overflow-visible">
-      <LightningBolt 
-          key={boltData.id} 
-          active={isActive} 
-          startX={sx} startY={sy} 
-          endX={ex} endY={ey}
-          viewBox="0 0 800 800"
-          segments={12 + Math.floor(boltData.length / 25)} 
-          amplitude={10 + Math.random() * 20} 
-          glowIntensity={3}
-          thickness={boltData.thickness} 
-          branchIntensity={boltData.branchIntensity} 
-          animationDuration={boltData.travelTime} // This is now very short (Strike)
-          lingerDuration={boltData.fadeDuration} // This is now long (Fade)
-          className="opacity-90 text-primary drop-shadow-[0_0_15px_rgba(var(--primary),0.8)]" 
-          color="hsl(var(--primary))"
-      />
-    </div>
-  );
-});
-
-const CoreEmblem: React.FC = React.memo(() => (
-  <div className="relative flex items-center justify-center w-[200px] h-[200px] md:w-[280px] md:h-[280px]">
-    
-    {/* 1. The Discharge Effect (Behind the Core but allowed to overflow) */}
-    <CoreDischarge />
-
-    {/* 2. Outer Containment Ring (Subtle rotation) */}
-    <MotionDiv
-      animate={{ rotate: 360 }}
-      transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
-      className="absolute inset-0 opacity-10 border border-dashed border-primary rounded-full"
-    />
-    
-    <MotionDiv
-      animate={{ rotate: -360 }}
-      transition={{ duration: 45, repeat: Infinity, ease: "linear" }}
-      className="absolute inset-4 opacity-5 border border-dotted border-white rounded-full"
-    />
-
-    {/* 3. The Core Source (Zap Icon) */}
-    <MotionDiv
-      animate={{ 
-        scale: [1, 1.05, 1],
-        filter: [
-          'drop-shadow(0 0 10px rgba(var(--primary),0.2))',
-          'drop-shadow(0 0 20px rgba(var(--primary),0.5))', 
-          'drop-shadow(0 0 10px rgba(var(--primary),0.2))'
-        ]
-      }}
-      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      className="z-10 relative flex items-center justify-center bg-background/80 backdrop-blur-md rounded-full p-6 border border-primary/20 shadow-2xl"
-    >
-      <Zap className="text-primary w-12 h-12 md:w-20 md:h-20 fill-current" strokeWidth={0} />
-    </MotionDiv>
-  </div>
-));
 
 // Helper: Convert Hex to HSL for Tailwind CSS Variables
 function hexToHSL(H: string) {
@@ -234,165 +56,9 @@ function hexToHSL(H: string) {
   return `${h} ${s}% ${l}%`;
 }
 
-// Draggable Wrapper for Groups - Memoized
-const DraggableGroupItem = React.memo(({
-  groupName,
-  groupNodes,
-  index,
-  containerRef,
-  moveGroup,
-  removeSegment,
-  removeGroup, 
-  toggleSegment,
-  setPWM,
-  lastReorderTime,
-  className,
-  onDragStart,
-  onDragEnd
-}: {
-  groupName: string,
-  groupNodes: Segment[],
-  index: number,
-  containerRef: React.RefObject<HTMLDivElement>,
-  moveGroup: (from: number, to: number) => void,
-  removeSegment: (id: string) => void,
-  removeGroup: (name: string) => void, 
-  toggleSegment: (id: string) => void,
-  setPWM: any,
-  lastReorderTime: React.MutableRefObject<number>,
-  className: string,
-  onDragStart: () => void,
-  onDragEnd: () => void
-}) => {
-  const controls = useDragControls();
-  const { sendCommand } = useWebSocket(); // Use hook here to avoid prop drilling if possible, or pass it down
-
-  const handleDrag = (event: any, info: any) => {
-    if (!containerRef.current) return;
-    
-    const now = Date.now();
-    if (now - lastReorderTime.current < 400) return;
-
-    const dragX = info.point.x;
-    const dragY = info.point.y;
-    
-    const items = Array.from(containerRef.current.querySelectorAll('.group_area')) as HTMLElement[];
-    
-    let targetIndex = -1;
-
-    items.forEach((item, idx) => {
-      if (idx === index) return; 
-
-      const rect = item.getBoundingClientRect();
-      const isOver = 
-        dragX > rect.left && 
-        dragX < rect.right && 
-        dragY > rect.top && 
-        dragY < rect.bottom;
-
-      if (isOver) {
-        targetIndex = idx;
-      }
-    });
-
-    if (targetIndex !== -1 && targetIndex !== index) {
-      moveGroup(index, targetIndex);
-      lastReorderTime.current = Date.now();
-    }
-  };
-
-  const handleToggle = useCallback((id: string) => {
-    // Logic needs access to current segment state, which might be stale if just passed as prop.
-    // However, for optimization, we should fetch fresh state from store or rely on groupNodes.
-    const seg = groupNodes.find(s => s.num_of_node === id);
-    if (!seg) return;
-
-    if (seg.regBitIndex !== undefined) {
-        toggleSegment(id);
-        const allRegisterSegments = groupNodes.filter(s => s.gpio === seg.gpio && s.regBitIndex !== undefined);
-        let newByteValue = 0;
-        allRegisterSegments.forEach(s => {
-            let isOn = s.is_led_on === 'on';
-            if (s.num_of_node === id) {
-                 isOn = !isOn; // Apply toggle locally for calculation
-            }
-            if (isOn) {
-                newByteValue |= (1 << (s.regBitIndex || 0));
-            }
-        });
-        sendCommand(CMD.SR_STATE, seg.gpio || 0, newByteValue);
-    } else {
-        toggleSegment(id);
-        sendCommand(seg.is_led_on === 'on' ? CMD.LED_OFF : CMD.LED_ON, seg.gpio || 0, 0);
-    }
-  }, [toggleSegment, groupNodes, sendCommand]);
-
-  const handleInternalReorder = useCallback((newNodes: Segment[]) => {
-    // We need to update the global segments list
-    // This requires a callback prop to the parent or a store action that handles reordering a subset
-    // For simplicity, we assume parent handles setSegments logic via store, but here we invoke a prop if provided.
-    // In this specific architecture, SegmentGroup calls onReorder with NEW list of segments for that group.
-    
-    // We need access to the GLOBAL setSegments to merge this. 
-    // This is getting complex to prop drill. 
-    // ideally store should have `reorderGroup(groupName, newSegments)`.
-    
-    // Falling back to the prop drilled method from original code for stability.
-    useSegments.getState().setSegments([
-        ...useSegments.getState().segments.filter(s => (s.group || "basic") !== groupName),
-        ...newNodes
-    ]);
-  }, [groupName]);
-
-  return (
-    <MotionDiv
-      layout="position"
-      drag
-      dragListener={false}
-      dragControls={controls}
-      dragSnapToOrigin
-      dragElastic={0.1}
-      onDragStart={onDragStart}
-      onDrag={handleDrag}
-      onDragEnd={(event: any, info: any) => {
-        onDragEnd(); 
-        const thresholdY = window.innerHeight - 110;
-        if (info.point.y > thresholdY) {
-          removeGroup(groupName);
-        }
-      }}
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={cn("group_area z-0 hover:z-10 relative", className)}
-    >
-      <SegmentGroup 
-        name={groupName}
-        segments={groupNodes}
-        dragHandle={
-          <div 
-             className="cursor-grab active:cursor-grabbing text-primary hover:text-foreground transition-colors"
-             onPointerDown={(e) => controls.start(e)}
-             style={{ touchAction: 'none' }}
-          >
-             <GripHorizontal size={20} />
-          </div>
-        }
-        onReorder={handleInternalReorder}
-        onRemove={removeSegment}
-        onToggle={handleToggle}
-        onPWMChange={setPWM}
-        onToggleBit={() => {}} 
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-      />
-    </MotionDiv>
-  );
-});
-
-
 export default function DashboardPage(): React.JSX.Element {
   const { segments, removeSegment, removeGroup, toggleSegment, setPWM } = useSegments();
-  const { removeSchedulesByTarget } = useSchedulerStore(); // Get from store directly
+  const { removeSchedulesByTarget } = useSchedulerStore(); 
   const { settings } = useSettingsStore();
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -440,14 +106,12 @@ export default function DashboardPage(): React.JSX.Element {
     let device = "SYSTEM";
     let icon: 'desktop' | 'mobile' | 'tablet' = 'desktop';
 
-    // 1. Determine OS
     if (/Windows/i.test(ua)) os = "WIN";
     else if (/Mac/i.test(ua)) os = "MAC";
     else if (/Linux/i.test(ua)) os = "LINUX";
     else if (/Android/i.test(ua)) os = "ANDROID";
     else if (/iOS|iPhone|iPad|iPod/i.test(ua)) os = "IOS";
 
-    // 2. Determine Form Factor
     const isTablet = /Tablet|iPad/i.test(ua) || (/Mac/i.test(ua) && navigator.maxTouchPoints > 1);
     const isMobile = /Mobi|Android/i.test(ua);
 
@@ -462,16 +126,12 @@ export default function DashboardPage(): React.JSX.Element {
         icon = 'desktop';
     }
     
-    // Fix: Android Tablets sometimes don't have "Tablet" in UA, but don't have "Mobile" either
     if (os === "ANDROID" && !/Mobile/i.test(ua)) {
         device = "TABLET";
         icon = 'tablet';
     }
 
-    setDeviceInfo({
-        label: `${os} ${device}`,
-        icon
-    });
+    setDeviceInfo({ label: `${os} ${device}`, icon });
   }, []);
 
   // Logic: Dark Mode
@@ -479,7 +139,7 @@ export default function DashboardPage(): React.JSX.Element {
     document.documentElement.classList.toggle('dark', settings.theme === 'dark');
   }, [settings.theme]);
 
-  // Logic: Audio Engine (Moved logic here to keep render clean)
+  // Logic: Audio Engine
   useEffect(() => {
     const handlePlayback = async () => {
       if (!settings.bgMusic) {
@@ -496,10 +156,8 @@ export default function DashboardPage(): React.JSX.Element {
             audioRef.current.src = track.url;
         }
         audioRef.current.volume = settings.volume / 100;
-        // Interaction policy might block this, handled by catch
         await audioRef.current.play();
       } catch (e: unknown) {
-        // Silent fail for autoplay policy
       }
     };
     void handlePlayback();
@@ -556,7 +214,6 @@ export default function DashboardPage(): React.JSX.Element {
           {segments.length === 0 ? (
             <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-12 md:py-16 min-h-[60vh]">
               <MotionDiv onClick={() => setIsMenuOpen(true)} className="relative z-20 cursor-pointer flex flex-col items-center gap-8 md:gap-10">
-                {/* REPLACED WITH NEW SPORADIC DISCHARGE EMBLEM */}
                 <CoreEmblem />
                 
                 <div className="text-center max-w-xs md:max-w-2xl px-4 md:px-8 space-y-4">

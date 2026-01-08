@@ -24,7 +24,7 @@ export enum CMD {
   ERROR = 0xFF,
 }
 
-export type SegmentType = 'All' | 'PWM' | 'Digital' | 'Code' | 'Input-0-1' | 'OLED' | 'CharLCD';
+export type SegmentType = 'All' | 'PWM' | 'Digital' | 'Code' | 'Input-0-1' | 'OLED' | 'CharLCD' | 'DHT';
 export type GroupType = 'custom' | 'register' | 'weather' | 'input' | 'display';
 export type ButtonTrigger = 0 | 1 | 2 | 3; // 0=Hold, 1=Toggle, 2=High, 3=Low
 export type ButtonAction = 0 | 1 | 2 | 3; // None, ON, OFF, Toggle
