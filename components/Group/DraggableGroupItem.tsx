@@ -102,7 +102,8 @@ export const DraggableGroupItem = React.memo(({
 
   const handleInternalReorder = useCallback((newNodes: Segment[]) => {
     useSegments.getState().setSegments([
-        ...useSegments.getState().segments.filter(s => (s.group || "basic") !== groupName),
+        // Fix: Using groupId instead of group as per Segment type definition
+        ...useSegments.getState().segments.filter(s => (s.groupId || "basic") !== groupName),
         ...newNodes
     ]);
   }, [groupName]);

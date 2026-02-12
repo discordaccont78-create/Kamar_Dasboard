@@ -83,7 +83,8 @@ export default function DashboardPage(): React.JSX.Element {
   }, [removeSchedulesByTarget, removeSegment]);
 
   const handleRemoveGroup = useCallback((groupName: string) => {
-    const targetIds = segments.filter(s => (s.group || "basic") === groupName).map(s => s.num_of_node);
+    // Fix: Using groupId instead of group as per Segment type definition
+    const targetIds = segments.filter(s => (s.groupId || "basic") === groupName).map(s => s.num_of_node);
     targetIds.forEach(id => removeSchedulesByTarget(id));
     removeGroup(groupName);
   }, [segments, removeSchedulesByTarget, removeGroup]);
@@ -167,7 +168,8 @@ export default function DashboardPage(): React.JSX.Element {
   const groupedSegments = useMemo(() => {
     const groups: Record<string, Segment[]> = {};
     segments.forEach((seg) => {
-      const groupName = seg.group || "basic"; 
+      // Fix: Using groupId instead of group as per Segment type definition
+      const groupName = seg.groupId || "basic"; 
       if (!groups[groupName]) groups[groupName] = [];
       groups[groupName].push(seg);
     });

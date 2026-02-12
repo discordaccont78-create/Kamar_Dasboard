@@ -37,7 +37,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
   };
 
   const uniqueGroups = useMemo<string[]>(() => {
-    const groups = new Set(segments.map(s => s.group).filter((g): g is string => !!g));
+    // Fix: Using groupId instead of group as per Segment type definition
+    const groups = new Set(segments.map(s => s.groupId).filter((g): g is string => !!g));
     return Array.from(groups).sort() as string[];
   }, [segments]);
 

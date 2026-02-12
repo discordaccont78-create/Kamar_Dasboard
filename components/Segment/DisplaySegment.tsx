@@ -21,12 +21,15 @@ export const DisplaySegment: React.FC<Props> = ({ segment }) => {
   const [inputText, setInputText] = useState("");
 
   const handleUpdateText = () => {
-      // Logic to update display content usually involves sending a command
-      // Here we just simulate sending the text to the display node
-      // Note: We might need a specific command for Text Update, simulating with CONSOLE for now or a custom one if needed.
-      // Ideally, the 'val' in sendCommand is an integer, so sending strings requires a different protocol mechanism 
-      // or we just log it for this simulation.
-      console.log(`Sending text to ${segment.name}: ${inputText}`);
+      // V4 Protocol Capability:
+      // Directly send the string 'inputText' to the device.
+      // The protocol encoder handles conversion to UTF-8 bytes automatically.
+      const address = segment.i2cAddress ? parseInt(segment.i2cAddress) : 0x3C;
+      
+      // Sending: CMD, SEG (using I2C address as ID), Value (String)
+      sendCommand(CMD.DISPLAY_UPDATE, address, inputText);
+      
+      // Clear input
       setInputText("");
   };
 

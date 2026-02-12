@@ -42,7 +42,8 @@ export const RegisterSection = ({ activeId, onToggle, t }: any) => {
             addSegment({
                 num_of_node: Math.random().toString(36).substr(2, 9),
                 name: `BIT ${i}`,
-                group: groupName,
+                // Fix: Using groupId instead of group as per Segment type definition
+                groupId: groupName,
                 groupType: 'register', 
                 segType: 'Digital',
                 gpio: stcp, 

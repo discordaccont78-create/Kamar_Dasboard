@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Activity, Volume2, Grid3X3, Square, Triangle, Circle, Type, Waves, Palette, Music, Check, CreditCard, LayoutGrid, Monitor } from 'lucide-react';
+import { Activity, Volume2, Grid3X3, Square, Triangle, Circle, Type, Waves, Palette, Music, Check, LayoutGrid, Monitor, ChevronRight, ChevronLeft, Zap } from 'lucide-react';
 import { Card, CardContent } from '../../ui/card';
 import { Input } from '../../ui/input';
 import { Switch } from '../../ui/switch';
@@ -9,6 +9,7 @@ import { useSettingsStore } from '../../../lib/store/settings';
 import { MenuSection } from './Shared';
 import { cn } from '../../../lib/utils';
 import { useSoundFx } from '../../../hooks/useSoundFx';
+import { MUSIC_TRACKS } from '../../../lib/constants';
 
 // --- PRE-DEFINED PROFESSIONAL PALETTES ---
 const THEME_PALETTES = [
@@ -50,11 +51,20 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
         playClick();
         updateSettings({
             primaryColor: palette.primary,
-            cursorColor: palette.cursor // Waves link to this, no separate control allowed
+            cursorColor: palette.cursor 
         });
     };
 
+    const handleTrackChange = (direction: 'next' | 'prev') => {
+        playClick();
+        let newIndex = settings.currentTrackIndex + (direction === 'next' ? 1 : -1);
+        if (newIndex >= MUSIC_TRACKS.length) newIndex = 0;
+        if (newIndex < 0) newIndex = MUSIC_TRACKS.length - 1;
+        updateSettings({ currentTrackIndex: newIndex });
+    };
+
     const isGrid = settings.backgroundEffect === 'grid';
+    const currentTrackName = MUSIC_TRACKS[settings.currentTrackIndex]?.title || "UNKNOWN TRACK";
 
     return (
         <MenuSection 
@@ -94,7 +104,7 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
 
                     <div className="h-px bg-border/50" />
 
-                    {/* 2. THEME ENGINE (Restored Palettes) */}
+                    {/* 2. THEME ENGINE */}
                     <div className="space-y-3">
                         <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                             <Palette size={12} /> Color Schematics
@@ -150,14 +160,13 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
 
                     <div className="h-px bg-border/50" />
 
-                    {/* 3. BACKGROUND MATRIX (Fixed Pattern Logic) */}
+                    {/* 3. BACKGROUND MATRIX */}
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                                 <LayoutGrid size={12} /> Matrix Pattern
                             </label>
                             
-                            {/* Dual Color Toggle (Only for Shapes) */}
                             {!isGrid && (
                                 <div className="flex items-center gap-2">
                                     <span className="text-[8px] font-bold uppercase text-muted-foreground">Dual Color</span>
@@ -180,7 +189,6 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
                         {/* Dynamic Pattern Settings */}
                         <div className="bg-secondary/5 rounded-lg p-3 border border-border/30 space-y-3">
                             {isGrid ? (
-                                // GRID SPECIFIC SETTINGS
                                 <div className="flex gap-4">
                                     <div className="flex-1 space-y-1">
                                         <label className="text-[8px] font-bold uppercase text-muted-foreground">Grid Size</label>
@@ -200,7 +208,6 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
                                     </div>
                                 </div>
                             ) : (
-                                // SHAPE SPECIFIC SETTINGS (Dots, Triangles, Squares)
                                 <div className="flex items-center justify-between">
                                     <span className="text-[9px] font-bold uppercase text-muted-foreground">Fill Style</span>
                                     <div className="flex bg-background rounded-md p-0.5 border border-input">
@@ -210,7 +217,7 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
                                 </div>
                             )}
 
-                            {/* Text Overlay (Universal) */}
+                            {/* Text Overlay */}
                             <div className="pt-2 border-t border-border/30">
                                 <div className="flex items-center justify-between mb-2">
                                     <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Type size={10} /> {t.text_overlay}</label>
@@ -230,7 +237,7 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
 
                     <div className="h-px bg-border/50" />
 
-                    {/* 4. HEADER MECHANICS (Constrained) */}
+                    {/* 4. HEADER MECHANICS */}
                     <div className="space-y-3">
                         <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                             <Waves size={12} /> Header Mechanics
@@ -238,7 +245,6 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
                         <div className="bg-secondary/5 rounded-lg p-3 border border-border/30 space-y-3">
                             <div className="flex items-center gap-3">
                                 <span className="text-[8px] font-mono font-bold text-muted-foreground w-10">GAP</span>
-                                {/* Constraint: Max 80px, Min 0px */}
                                 <Slider 
                                     value={[settings.headerGap || 40]} 
                                     onValueChange={(v) => updateSettings({ headerGap: v[0] })} 
@@ -268,15 +274,69 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
                     </div>
 
                     {/* 5. AUDIO & UX */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="flex items-center justify-between bg-secondary/5 p-2 rounded-lg border border-border/30">
-                            <label className="text-[8px] font-bold uppercase text-muted-foreground">{t.ui_sfx}</label>
-                            <Switch checked={settings.enableSFX} onCheckedChange={(c) => handleUpdate({ enableSFX: c })} className="scale-75" />
+                    <div className="space-y-3">
+                        {/* RESTORED: Animation & Sound Toggles Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center justify-between bg-secondary/5 p-2 rounded-lg border border-border/30">
+                                <label className="text-[8px] font-bold uppercase text-muted-foreground">{t.ui_anim}</label>
+                                <Switch checked={settings.animations} onCheckedChange={(c) => handleUpdate({ animations: c })} className="scale-75" />
+                            </div>
+                            <div className="flex items-center justify-between bg-secondary/5 p-2 rounded-lg border border-border/30">
+                                <label className="text-[8px] font-bold uppercase text-muted-foreground">{t.ui_sfx}</label>
+                                <Switch checked={settings.enableSFX} onCheckedChange={(c) => handleUpdate({ enableSFX: c })} className="scale-75" />
+                            </div>
                         </div>
+                        
+                        {/* Audio Engine (Music) Toggle */}
                         <div className="flex items-center justify-between bg-secondary/5 p-2 rounded-lg border border-border/30">
-                            <label className="text-[8px] font-bold uppercase text-muted-foreground">{t.audio_engine}</label>
+                            <label className="text-[8px] font-bold uppercase text-muted-foreground flex items-center gap-2">
+                                <Music size={12} /> {t.audio_engine}
+                            </label>
                             <Switch checked={settings.bgMusic} onCheckedChange={(c) => handleUpdate({ bgMusic: c })} className="scale-75" />
                         </div>
+
+                        {/* AUDIO CONTROLS (Only visible if Music is ON) */}
+                        {settings.bgMusic && (
+                            <div className="mt-3 space-y-3 p-3 bg-secondary/10 rounded-xl border border-border/50 animate-in slide-in-from-top-2 duration-300">
+                                {/* Volume Slider */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                                        <span className="flex items-center gap-2"><Volume2 size={12} /> {t.master_vol}</span>
+                                        <span className="text-primary">{settings.volume}%</span>
+                                    </div>
+                                    <Slider
+                                        value={[settings.volume]}
+                                        onValueChange={(v) => updateSettings({ volume: v[0] })}
+                                        max={100} step={1}
+                                    />
+                                </div>
+
+                                {/* Track Controls */}
+                                <div className="flex items-center justify-between gap-2 pt-1">
+                                    <button 
+                                        onClick={() => handleTrackChange('prev')} 
+                                        className="h-7 w-7 flex items-center justify-center rounded-full bg-background border border-input hover:border-primary hover:text-primary transition-all"
+                                    >
+                                        <ChevronLeft size={14} />
+                                    </button>
+                                    
+                                    <div className="flex-1 flex flex-col items-center overflow-hidden">
+                                        <span className="text-[7px] font-bold uppercase text-muted-foreground tracking-widest">Now Playing</span>
+                                        <div className="flex items-center gap-1.5 text-primary w-full justify-center">
+                                            <Zap size={10} className="shrink-0 animate-pulse" />
+                                            <span className="text-[9px] font-black uppercase truncate tracking-tight">{currentTrackName}</span>
+                                        </div>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => handleTrackChange('next')} 
+                                        className="h-7 w-7 flex items-center justify-center rounded-full bg-background border border-input hover:border-primary hover:text-primary transition-all"
+                                    >
+                                        <ChevronRight size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                 </CardContent>

@@ -20,128 +20,107 @@ export enum CMD {
   GPIO_STATE = 0x16,
   BTN_INPUT = 0x17,
   BTN_CONFIG = 0x18,
-  DISPLAY_UPDATE = 0x19, // New Command for Display
+  DISPLAY_UPDATE = 0x19, 
   ERROR = 0xFF,
 }
 
 export type SegmentType = 'All' | 'PWM' | 'Digital' | 'Code' | 'Input-0-1' | 'OLED' | 'CharLCD' | 'DHT';
 export type GroupType = 'custom' | 'register' | 'weather' | 'input' | 'display';
-export type ButtonTrigger = 0 | 1 | 2 | 3; // 0=Hold, 1=Toggle, 2=High, 3=Low
-export type ButtonAction = 0 | 1 | 2 | 3; // None, ON, OFF, Toggle
+export type ButtonTrigger = 0 | 1 | 2 | 3; 
+
+// New: Explicit Group Configuration
+export interface GroupConfig {
+  id: string;
+  name: string;
+  icon?: string; // Lucide icon name string
+  order: number; // For manual reordering
+  collapsed?: boolean;
+}
 
 export interface Segment {
-  readonly num_of_node: string; // ID is immutable
+  readonly num_of_node: string;
   name: string;
-  group: string;
+  groupId: string; // Changed from 'group' string to 'groupId' reference
   readonly groupType: GroupType;
   readonly segType: SegmentType;
-  readonly gpio?: number; // Primary control pin (Latch for Registers)
+  readonly gpio?: number;
   is_led_on: 'on' | 'off';
   val_of_slide: number;
-  
-  // Custom Labels
   onLabel?: string;
   offLabel?: string;
-  
-  // Digital Button Mode
-  onOffMode?: 'toggle' | 'momentary'; // 'toggle' = Standard Click, 'momentary' = Push to Hold
-  
-  // Pulse / Auto-Off Feature
-  pulseDuration?: number; // Seconds to stay ON before auto-OFF (0 = disabled)
-
-  // Timer Feature (Local segment timer, separate from Scheduler)
+  onOffMode?: 'toggle' | 'momentary';
+  pulseDuration?: number;
   timerFinishAt?: number; 
-
-  // Shift Register Hardware Pins
   readonly regBitIndex?: number;
-  readonly dsPin?: number;   // Data
-  readonly shcpPin?: number; // Clock
-  readonly stcpPin?: number; // Latch (Usually mapped to gpio as well)
-  
-  // Weather
+  readonly dsPin?: number;
+  readonly shcpPin?: number;
+  readonly stcpPin?: number;
   readonly dhtPin?: number;
   readonly dhtType?: 'DHT11' | 'DHT22';
   temperature?: number; 
   humidity?: number;    
-  
-  // Input
   readonly inputCondition?: ButtonTrigger;
-  readonly inputValue?: number;
-  readonly usePullup?: boolean;
-  readonly inputAction?: ButtonAction;
-  readonly inputActionGpio?: number;
   inputActive?: boolean; 
-
-  // Display (OLED / LCD)
   readonly sdaPin?: number;
   readonly sclPin?: number;
-  readonly i2cAddress?: string; // e.g., "0x3C"
-  readonly displayWidth?: number; // 128 or 16 (cols)
-  readonly displayHeight?: number; // 64 or 2 (rows)
-  displayContent?: string; // To store current text on screen
+  readonly i2cAddress?: string;
+  readonly displayWidth?: number;
+  readonly displayHeight?: number;
+  displayContent?: string;
 }
 
 export interface Schedule {
   id: string;
   type: 'daily' | 'countdown' | 'input' | 'weather'; 
-  
-  // Time specific
-  time?: string; // HH:MM (24h format) for 'daily'
-  duration?: number; // Seconds for 'countdown'
-  startedAt?: number; // Timestamp when countdown was enabled
-  
-  // Input specific
-  sourceGpio?: number; // The Input Pin
-  inputTrigger?: ButtonTrigger; // 0=Hold, 1=Toggle, 2=High, 3=Low
-
-  // Weather Specific
-  sourceSegmentId?: string; // ID of the DHT Segment
+  time?: string;
+  duration?: number;
+  startedAt?: number;
+  sourceGpio?: number;
+  inputTrigger?: ButtonTrigger;
+  sourceSegmentId?: string;
   conditionMetric?: 'temp' | 'hum';
   conditionOperator?: '>' | '<' | '=';
   conditionValue?: number;
-
-  // Target & Action
   targetSegmentId: string;
   action: 'ON' | 'OFF' | 'TOGGLE' | 'SET_VALUE';
-  targetValue?: number; // 0-255 for PWM
+  targetValue?: number;
   enabled: boolean;
-  lastRun?: number; // Timestamp of last execution
-  
-  // Repetition Logic
-  repeatMode?: 'daily' | 'once' | 'count'; // 'daily' = infinite, 'once' = run once & disable, 'count' = run N times
-  repeatCount?: number; // Remaining runs if mode is 'count'
+  lastRun?: number;
+  repeatMode?: 'daily' | 'once' | 'count';
+  repeatCount?: number;
 }
 
 export interface AppSettings {
+  title: string;
   domain: string;
   animations: boolean;
   bgMusic: boolean;
   volume: number;
   theme: 'dark' | 'light';
-  readonly useSsl: boolean; // Derived from window location
+  readonly useSsl: boolean;
   currentTrackIndex: number; 
   dashboardFont?: 'Inter' | 'Oswald' | 'Lato' | 'Montserrat' | 'DinaRemaster' | 'PrpggyDotted';
   backgroundEffect?: 'grid' | 'dots' | 'squares' | 'triangles';
-  
-  // Header / Waves Config
-  headerGap?: number; // Distance between islands in px
-  headerWaveOpacity?: number; // Opacity 0-100
-  headerDynamicIntensity?: boolean; // Toggles dynamic pulse effects on waves
-
-  // Advanced Pattern Config
+  primaryColor: string;
+  cursorColor: string;
+  language: 'en' | 'fa';
+  enableSFX: boolean;
+  enableNotifications: boolean;
+  headerGap?: number;
+  headerWaveOpacity?: number;
+  headerDynamicIntensity?: boolean;
   dualColorBackground: boolean;
-  hollowShapes: boolean; // Toggles between filled and outlined shapes
-  enableTextPattern: boolean; // Text Overlay Toggle
-  textPatternValue: string; // The text string
-  textPatternOpacity?: number; // 0-100 specifically for text
-  textPatternColor?: string; // Specific hex color for text
-  patternOpacity?: number; // 0-100
-  secondaryPatternOpacity?: number; // 0-100
-
-  // Grid Specific Config
+  hollowShapes: boolean;
+  enableTextPattern: boolean;
+  textPatternValue: string;
+  gridSize?: number;
+  // Added missing properties identified in BackgroundStyle and SystemCoreSection
+  patternOpacity?: number;
+  secondaryPatternOpacity?: number;
+  textPatternColor?: string;
+  textPatternOpacity?: number;
   gridStrokeWidth?: number;
   gridLineStyle?: 'solid' | 'dashed' | 'dotted';
-  gridSize?: number;
 }
 
 export interface LogEntry {
@@ -158,16 +137,10 @@ export interface ToastEntry {
   readonly type: 'success' | 'error' | 'info';
 }
 
-export interface ConnectionConfig {
-  mode: 'websocket' | 'mqtt';
-  isConnected: boolean;
-}
-
-// Updated V4 Binary Message Structure
 export interface BinaryMessage {
   readonly cmd: number;
   readonly seg: number;
-  readonly val: number;        // Legacy/Convenience: The integer value if payload is 4 bytes
-  readonly data?: Uint8Array;  // The Raw Payload
-  readonly text?: string;      // The payload parsed as string (if valid UTF-8)
+  readonly val: number;
+  readonly data?: Uint8Array;
+  readonly text?: string;
 }

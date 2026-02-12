@@ -13,6 +13,7 @@ interface SchedulerStore {
   updateLastRun: (id: string, timestamp: number) => void;
   decrementRepeat: (id: string) => void;
   removeSchedulesByTarget: (segmentId: string) => void;
+  setSchedules: (schedules: Schedule[]) => void; // New Action
 }
 
 const redisStorage = {
@@ -72,17 +73,18 @@ export const useSchedulerStore = create<SchedulerStore>()(
         )
       })),
 
-      // New: Logic to handle repetition counts
       decrementRepeat: (id) => set((state) => ({
         schedules: state.schedules.map(s => {
           if (s.id === id && s.repeatMode === 'count' && (s.repeatCount || 0) > 0) {
             const newCount = (s.repeatCount || 0) - 1;
-            // If count reaches 0, disable the schedule
             return { ...s, repeatCount: newCount, enabled: newCount > 0 };
           }
           return s;
         })
       })),
+
+      // Hydration Action
+      setSchedules: (schedules) => set({ schedules }),
     }),
     { 
       name: 'scheduler-store',

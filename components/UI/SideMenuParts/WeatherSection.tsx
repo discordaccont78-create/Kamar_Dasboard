@@ -38,7 +38,8 @@ export const WeatherSection = ({ activeId, onToggle, t }: any) => {
         addSegment({
             num_of_node: Math.random().toString(36).substr(2, 9),
             name: dhtForm.name.trim(),
-            group: groupName,
+            // Fix: Using groupId instead of group as per Segment type definition
+            groupId: groupName,
             groupType: 'custom',
             segType: 'DHT',
             gpio: pin,

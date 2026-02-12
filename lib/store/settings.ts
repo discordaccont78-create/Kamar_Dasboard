@@ -13,6 +13,13 @@ interface ExtendedAppSettings extends AppSettings {
   language: 'en' | 'fa';
   dashboardFont: 'Inter' | 'Oswald' | 'Lato' | 'Montserrat' | 'DinaRemaster' | 'PrpggyDotted';
   enableSFX: boolean; // New: Toggle for UI Sound Effects (Clicks, Toggles)
+  // Fix: Explicitly adding properties that were missing and causing TS errors
+  patternOpacity?: number;
+  secondaryPatternOpacity?: number;
+  textPatternColor?: string;
+  textPatternOpacity?: number;
+  gridStrokeWidth?: number;
+  gridLineStyle?: 'solid' | 'dashed' | 'dotted';
 }
 
 interface SettingsStore {

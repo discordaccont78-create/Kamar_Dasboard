@@ -1,23 +1,28 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
-import { Segment } from '../../types/index';
+import { Segment, GroupConfig } from '../../types/index';
 import { redis } from '../db/redis';
 
 interface SegmentsStore {
+  groups: GroupConfig[];
   segments: Segment[];
+  
+  // Group Actions
+  addGroup: (group: GroupConfig) => void;
+  updateGroup: (id: string, data: Partial<GroupConfig>) => void;
+  removeGroup: (id: string) => void;
+  setGroups: (groups: GroupConfig[]) => void;
+  
+  // Segment Actions
   addSegment: (segment: Segment) => void;
   removeSegment: (id: string) => void;
-  removeGroup: (groupName: string) => void;
   updateSegment: (id: string, data: Partial<Segment>) => void;
   toggleSegment: (id: string) => void;
   setPWM: (id: string, value: number) => void;
-  setSegmentTimer: (id: string, durationSeconds: number) => void;
-  clearSegmentTimer: (id: string) => void;
   setSegments: (segments: Segment[]) => void;
 }
 
-// Custom Debounce Logic for Storage
 const debounce = (fn: Function, ms: number) => {
   let timeoutId: ReturnType<typeof setTimeout>;
   return function (this: any, ...args: any[]) {
@@ -26,14 +31,11 @@ const debounce = (fn: Function, ms: number) => {
   };
 };
 
-// Optimized Storage Adapter with Debouncing
 const debouncedRedisStorage: StateStorage = {
   getItem: async (name: string): Promise<string | null> => {
     const value = await redis.get(name);
     return value ? JSON.stringify(value) : null;
   },
-  // Debounce writes to IDB to 1000ms. 
-  // State updates in memory (Zustand) are instant, but disk writes are throttled.
   setItem: debounce(async (name: string, value: string): Promise<void> => {
     await redis.set(name, JSON.parse(value));
   }, 1000),
@@ -45,18 +47,30 @@ const debouncedRedisStorage: StateStorage = {
 export const useSegments = create<SegmentsStore>()(
   persist(
     (set) => ({
+      groups: [],
       segments: [],
       
+      addGroup: (group) => set((state) => ({
+        groups: [...state.groups, group].sort((a,b) => a.order - b.order)
+      })),
+
+      updateGroup: (id, data) => set((state) => ({
+        groups: state.groups.map(g => g.id === id ? { ...g, ...data } : g)
+      })),
+
+      removeGroup: (id) => set((state) => ({
+        groups: state.groups.filter(g => g.id !== id),
+        segments: state.segments.filter(s => s.groupId !== id)
+      })),
+
+      setGroups: (groups) => set({ groups }),
+
       addSegment: (segment) => set((state) => ({
         segments: [...state.segments, segment]
       })),
       
       removeSegment: (id) => set((state) => ({
         segments: state.segments.filter(s => s.num_of_node !== id)
-      })),
-
-      removeGroup: (groupName) => set((state) => ({
-        segments: state.segments.filter(s => (s.group || "basic") !== groupName)
       })),
       
       updateSegment: (id, data) => set((state) => ({
@@ -79,30 +93,11 @@ export const useSegments = create<SegmentsStore>()(
         )
       })),
 
-      setSegmentTimer: (id, durationSeconds) => set((state) => ({
-        segments: state.segments.map(s => 
-          s.num_of_node === id 
-            ? { ...s, timerFinishAt: Date.now() + (durationSeconds * 1000) } 
-            : s
-        )
-      })),
-
-      clearSegmentTimer: (id) => set((state) => ({
-        segments: state.segments.map(s => {
-          if (s.num_of_node === id) {
-            const { timerFinishAt, ...rest } = s;
-            return rest as Segment;
-          }
-          return s;
-        })
-      })),
-
       setSegments: (segments) => set({ segments }),
     }),
     { 
       name: 'segments-redis-store',
-      storage: createJSONStorage(() => debouncedRedisStorage),
-      skipHydration: false 
+      storage: createJSONStorage(() => debouncedRedisStorage)
     }
   )
 );

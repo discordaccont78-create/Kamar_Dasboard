@@ -38,7 +38,8 @@ export const InputSection = ({ activeId, onToggle, t }: any) => {
         addSegment({
             num_of_node: Math.random().toString(36).substr(2, 9),
             name: inputForm.name.trim(),
-            group: groupName,
+            // Fix: Using groupId instead of group as per Segment type definition
+            groupId: groupName,
             groupType: 'custom',
             segType: 'Input-0-1',
             gpio: pin,
