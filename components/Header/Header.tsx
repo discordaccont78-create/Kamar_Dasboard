@@ -67,8 +67,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const [cursorBolt, setCursorBolt] = useState<{start: {x:number, y:number}, end: {x:number, y:number}} | null>(null);
 
   // --- SPACE CALCULATION REFS ---
-  const containerRef = useRef<HTMLDivElement>(null);
   const leftIslandRef = useRef<HTMLDivElement>(null);
+  const rightIslandRef = useRef<HTMLDivElement>(null); // Direct ref to the right container
   const [mobileSlots, setMobileSlots] = useState(0);
 
   const { playClick, playToggle, playSpark, playCharge } = useSoundFx();
@@ -91,28 +91,22 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   
   const showWaves = settings.animations && (settings.showHeaderWaves ?? true);
   
-  // --- INTELLIGENT SPACE DETECTION ---
+  // --- INTELLIGENT SPACE DETECTION (V2: Direct Measurement) ---
   useEffect(() => {
     const calculateSpace = () => {
-        if (!containerRef.current || !leftIslandRef.current) return;
+        if (!rightIslandRef.current) return;
         
-        const totalWidth = containerRef.current.offsetWidth;
-        const leftWidth = leftIslandRef.current.offsetWidth;
+        // Measure the ACTUAL rendered width of the right island
+        // This accounts for the flexbox layout automatically
+        const width = rightIslandRef.current.offsetWidth;
         
-        // Mandatory Space for Right Island:
-        // Wifi (36px) + Settings (36px) + Gap (8px) + Padding/Margins (~20px) = 100px
-        const mandatoryRightWidth = 100;
+        // Mandatory Space Reservation:
+        // Integrated Wifi (64px) + Settings (36px) + Gap (8px) + Padding/Margins
+        // TOTAL SAFE MINIMUM: 130px
+        const mandatoryWidth = 100;
         
-        // Safety Buffer to prevent touching
-        const buffer = 15; 
-        
-        // Effective Gap to maintain visually
-        const gap = window.innerWidth < 768 ? mobileGap : gapSize;
-
-        const availableSpace = totalWidth - leftWidth - mandatoryRightWidth - gap - buffer;
-        
-        // Each extra button needs about 42px (36px width + 6px margin)
-        const buttonUnit = 42;
+        const availableSpace = width - mandatoryWidth;
+        const buttonUnit = 42; // Approx width of one extra button
         
         const slots = Math.floor(availableSpace / buttonUnit);
         setMobileSlots(Math.max(0, slots));
@@ -121,22 +115,21 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     // Initial check
     calculateSpace();
 
-    // Observe changes
+    // Observe changes on both islands to trigger recalculation if layout shifts
     const observer = new ResizeObserver(() => {
         requestAnimationFrame(calculateSpace);
     });
 
-    if (containerRef.current) observer.observe(containerRef.current);
+    if (rightIslandRef.current) observer.observe(rightIslandRef.current);
     if (leftIslandRef.current) observer.observe(leftIslandRef.current);
     
-    // Also listen to window resize as a fallback
     window.addEventListener('resize', calculateSpace);
 
     return () => {
         observer.disconnect();
         window.removeEventListener('resize', calculateSpace);
     };
-  }, [settings.title, settings.dashboardFont, mobileGap, gapSize]);
+  }, [settings.title, settings.dashboardFont]);
 
   useEffect(() => {
       if (!settings.animations) return;
@@ -234,12 +227,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   };
 
   const CLIP_LEFT = "polygon(12px 0, 100% 0, calc(100% - 24px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px)";
-  const CLIP_RIGHT = "polygon(24px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%)";
+  
+  // UPDATED CLIP: Straight on the right side to allow the Wifi module to sit next to it cleanly
+  const CLIP_RIGHT_MAIN = "polygon(24px 0, 100% 0, 100% 100%, 0 100%)";
 
   return (
     <header className="sticky top-2 md:top-6 z-50 px-2 md:px-8 transition-all duration-500 pointer-events-none">
       <div 
-        ref={containerRef}
         className="max-w-[1400px] mx-auto flex items-stretch justify-between relative pointer-events-auto h-[60px] md:h-[72px] gap-[var(--header-gap-mobile)] md:gap-[var(--header-gap)]"
         style={{ 
             '--header-gap': `${gapSize}px`,
@@ -328,104 +322,118 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
            </div>
         </MotionDiv>
 
-        {/* --- RIGHT ISLAND (Controls) --- */}
-        <MotionDiv
-            variants={islandVariants}
-            initial="hidden"
-            animate="visible"
-            transition={{ delay: 0.1 }}
-            className="relative drop-shadow-xl filter min-w-0 flex-1 z-20"
-        >
-            {showWaves && (
-                <>
-                    {/* Mobile Wave: Visible only on mobile, uses mobileGap */}
-                    <ElectricWaves 
-                        color={settings.cursorColor || "#daa520"} 
-                        width={mobileWaveWidth} 
-                        left={mobileWaveLeft}
-                        opacity={(settings.headerWaveOpacity ?? 90) / 100}
-                        dynamicIntensity={settings.headerDynamicIntensity || false}
-                        className="flex md:hidden" 
-                    />
-                    {/* Desktop Wave: Visible only on desktop, uses full gapSize */}
-                    <ElectricWaves 
-                        color={settings.cursorColor || "#daa520"} 
-                        width={waveWidth} 
-                        left={waveLeft}
-                        opacity={(settings.headerWaveOpacity ?? 90) / 100}
-                        dynamicIntensity={settings.headerDynamicIntensity || false}
-                        className="hidden md:flex" 
-                    />
-                </>
-            )}
+        {/* --- RIGHT SECTION (Controls + Separated Wifi) --- */}
+        <div className="flex items-stretch gap-0 min-w-0 flex-1 justify-end">
             
-            <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl" style={{ clipPath: CLIP_RIGHT }} />
-            <div className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl overflow-hidden" style={{ clipPath: CLIP_RIGHT }}>
-               <div className="absolute inset-0 bg-gradient-to-l from-transparent via-primary/5 to-transparent opacity-50" />
-            </div>
-            
-            <div className="relative h-full w-full flex items-center justify-end md:justify-between px-3 md:pl-4 md:pr-8">
-               <DigitalClock />
-               
-               {/* DESKTOP CONTROLS */}
-               <div className="hidden md:flex items-center gap-1.5 md:gap-3 z-10 ml-auto justify-end">
-                  <ControlButton onClick={handleOpenScheduler} icon={CalendarClock} title={t.scheduler} active={isSchedulerOpen} />
-                  <div className="w-px h-6 md:h-8 bg-border/40 mx-0.5 md:mx-1" />
-                  <ControlButton onClick={toggleTheme} icon={settings.theme === 'light' ? Moon : Sun} title={t.switch_env} />
-                  <ControlButton onClick={toggleLanguage} label={settings.language === 'en' ? 'FA' : 'EN'} title={t.switch_lang} />
-                  <ControlButton onClick={handleOpenMenu} icon={Settings} title={t.sys_config} variant="primary" />
-                  <div className="pl-1 md:pl-2 border-l-2 border-border/30">
-                    <ConnectionStatus />
-                  </div>
-               </div>
+            {/* 1. Main Control Island */}
+            <MotionDiv
+                ref={rightIslandRef} // ATTACHED REF FOR ACCURATE MEASUREMENT
+                variants={islandVariants}
+                initial="hidden"
+                animate="visible"
+                transition={{ delay: 0.1 }}
+                className="relative drop-shadow-xl filter flex-1 z-20 max-w-full"
+            >
+                {showWaves && (
+                    <>
+                        {/* Mobile Wave: Visible only on mobile, uses mobileGap */}
+                        <ElectricWaves 
+                            color={settings.cursorColor || "#daa520"} 
+                            width={mobileWaveWidth} 
+                            left={mobileWaveLeft}
+                            opacity={(settings.headerWaveOpacity ?? 90) / 100}
+                            dynamicIntensity={settings.headerDynamicIntensity || false}
+                            className="flex md:hidden" 
+                        />
+                        {/* Desktop Wave: Visible only on desktop, uses full gapSize */}
+                        <ElectricWaves 
+                            color={settings.cursorColor || "#daa520"} 
+                            width={waveWidth} 
+                            left={waveLeft}
+                            opacity={(settings.headerWaveOpacity ?? 90) / 100}
+                            dynamicIntensity={settings.headerDynamicIntensity || false}
+                            className="hidden md:flex" 
+                        />
+                    </>
+                )}
+                
+                <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl" style={{ clipPath: CLIP_RIGHT_MAIN }} />
+                <div className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl overflow-hidden" style={{ clipPath: CLIP_RIGHT_MAIN }}>
+                <div className="absolute inset-0 bg-gradient-to-l from-transparent via-primary/5 to-transparent opacity-50" />
+                </div>
+                
+                <div className="relative h-full w-full flex items-center justify-end md:justify-between pl-3 md:pl-4 pr-3 md:pr-4">
+                <DigitalClock />
+                
+                {/* DESKTOP CONTROLS */}
+                <div className="hidden md:flex items-center gap-1.5 md:gap-3 z-10 ml-auto justify-end h-full">
+                    <ControlButton onClick={handleOpenScheduler} icon={CalendarClock} title={t.scheduler} active={isSchedulerOpen} />
+                    <div className="w-px h-6 md:h-8 bg-border/40 mx-0.5 md:mx-1" />
+                    <ControlButton onClick={toggleTheme} icon={settings.theme === 'light' ? Moon : Sun} title={t.switch_env} />
+                    <ControlButton onClick={toggleLanguage} label={settings.language === 'en' ? 'FA' : 'EN'} title={t.switch_lang} />
+                    <ControlButton onClick={handleOpenMenu} icon={Settings} title={t.sys_config} variant="primary" />
+                </div>
 
-               {/* MOBILE CONTROLS (Intelligent Space Filling via JS Calculation) */}
-               <div className="flex md:hidden items-center justify-end gap-1.5 z-10 w-full">
-                   <AnimatePresence>
-                        {/* Priority 3: Scheduler (Only if 3+ slots available) */}
-                        {mobileSlots >= 3 && (
-                            <MotionDiv 
-                                initial={{ width: 0, opacity: 0, scale: 0.5 }} 
-                                animate={{ width: 'auto', opacity: 1, scale: 1 }} 
-                                exit={{ width: 0, opacity: 0, scale: 0.5 }}
-                                className="overflow-hidden"
-                            >
-                                <ControlButton onClick={handleOpenScheduler} icon={CalendarClock} title={t.scheduler} active={isSchedulerOpen} />
-                            </MotionDiv>
-                        )}
+                {/* MOBILE CONTROLS (Intelligent Space Filling) */}
+                <div className="flex md:hidden items-center justify-end gap-1.5 z-10 w-full h-full">
+                    <AnimatePresence>
+                            {/* Priority 3: Scheduler */}
+                            {mobileSlots >= 3 && (
+                                <MotionDiv 
+                                    initial={{ width: 0, opacity: 0, scale: 0.5 }} 
+                                    animate={{ width: 'auto', opacity: 1, scale: 1 }} 
+                                    exit={{ width: 0, opacity: 0, scale: 0.5 }}
+                                    className="overflow-hidden"
+                                >
+                                    <ControlButton onClick={handleOpenScheduler} icon={CalendarClock} title={t.scheduler} active={isSchedulerOpen} />
+                                </MotionDiv>
+                            )}
 
-                        {/* Priority 2: Language (Only if 2+ slots available) */}
-                        {mobileSlots >= 2 && (
-                            <MotionDiv
-                                initial={{ width: 0, opacity: 0, scale: 0.5 }} 
-                                animate={{ width: 'auto', opacity: 1, scale: 1 }} 
-                                exit={{ width: 0, opacity: 0, scale: 0.5 }}
-                                className="overflow-hidden"
-                            >
-                                <ControlButton onClick={toggleLanguage} label={settings.language === 'en' ? 'FA' : 'EN'} title={t.switch_lang} />
-                            </MotionDiv>
-                        )}
+                            {/* Priority 2: Language */}
+                            {mobileSlots >= 2 && (
+                                <MotionDiv
+                                    initial={{ width: 0, opacity: 0, scale: 0.5 }} 
+                                    animate={{ width: 'auto', opacity: 1, scale: 1 }} 
+                                    exit={{ width: 0, opacity: 0, scale: 0.5 }}
+                                    className="overflow-hidden"
+                                >
+                                    <ControlButton onClick={toggleLanguage} label={settings.language === 'en' ? 'FA' : 'EN'} title={t.switch_lang} />
+                                </MotionDiv>
+                            )}
 
-                        {/* Priority 1: Theme (Only if 1+ slots available) */}
-                        {mobileSlots >= 1 && (
-                            <MotionDiv
-                                initial={{ width: 0, opacity: 0, scale: 0.5 }} 
-                                animate={{ width: 'auto', opacity: 1, scale: 1 }} 
-                                exit={{ width: 0, opacity: 0, scale: 0.5 }}
-                                className="overflow-hidden"
-                            >
-                                <ControlButton onClick={toggleTheme} icon={settings.theme === 'light' ? Moon : Sun} title={t.switch_env} />
-                            </MotionDiv>
-                        )}
-                   </AnimatePresence>
+                            {/* Priority 1: Theme */}
+                            {mobileSlots >= 1 && (
+                                <MotionDiv
+                                    initial={{ width: 0, opacity: 0, scale: 0.5 }} 
+                                    animate={{ width: 'auto', opacity: 1, scale: 1 }} 
+                                    exit={{ width: 0, opacity: 0, scale: 0.5 }}
+                                    className="overflow-hidden"
+                                >
+                                    <ControlButton onClick={toggleTheme} icon={settings.theme === 'light' ? Moon : Sun} title={t.switch_env} />
+                                </MotionDiv>
+                            )}
+                    </AnimatePresence>
 
-                   {mobileSlots >= 1 && <div className="w-px h-5 bg-border/30 mx-0.5" />}
+                    {mobileSlots >= 1 && <div className="w-px h-5 bg-border/30 mx-0.5" />}
 
-                   <ConnectionStatus />
-                   <ControlButton onClick={handleOpenMenu} icon={Settings} variant="primary" className="border-primary/50" />
-               </div>
-            </div>
-        </MotionDiv>
+                    {/* Settings is the last item in the main block */}
+                    <ControlButton onClick={handleOpenMenu} icon={Settings} variant="primary" className="border-primary/50" />
+                </div>
+                </div>
+            </MotionDiv>
+
+            {/* 2. The Separated "Glass" Wifi Module */}
+            <MotionDiv
+                variants={islandVariants}
+                initial="hidden"
+                animate="visible"
+                transition={{ delay: 0.2 }}
+                className="relative z-20 shrink-0"
+            >
+                <ConnectionStatus variant="glass" />
+            </MotionDiv>
+
+        </div>
       </div>
       
       {/* Desktop Scheduler Dialog */}
