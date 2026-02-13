@@ -109,6 +109,7 @@ export interface AppSettings {
   headerGap?: number;
   headerWaveOpacity?: number;
   headerDynamicIntensity?: boolean;
+  showHeaderWaves?: boolean; // New Property
   dualColorBackground: boolean;
   hollowShapes: boolean;
   enableTextPattern: boolean;

@@ -20,6 +20,7 @@ interface ExtendedAppSettings extends AppSettings {
   textPatternOpacity?: number;
   gridStrokeWidth?: number;
   gridLineStyle?: 'solid' | 'dashed' | 'dotted';
+  showHeaderWaves?: boolean;
 }
 
 interface SettingsStore {
@@ -73,6 +74,7 @@ export const useSettingsStore = create<SettingsStore>()(
         headerGap: 40,
         headerWaveOpacity: 90,
         headerDynamicIntensity: true,
+        showHeaderWaves: true, // Default ON
 
         // Grid Defaults
         gridStrokeWidth: 1,

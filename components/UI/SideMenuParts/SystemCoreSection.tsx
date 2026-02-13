@@ -10,6 +10,10 @@ import { MenuSection } from './Shared';
 import { cn } from '../../../lib/utils';
 import { useSoundFx } from '../../../hooks/useSoundFx';
 import { MUSIC_TRACKS } from '../../../lib/constants';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Workaround for Framer Motion types
+const MotionDiv = motion.div as any;
 
 // --- PRE-DEFINED PROFESSIONAL PALETTES ---
 const THEME_PALETTES = [
@@ -242,14 +246,25 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
                         <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                             <Waves size={12} /> Header Mechanics
                         </label>
-                        <div className="bg-secondary/5 rounded-lg p-3 border border-border/30 space-y-3">
+                        <div className="bg-secondary/5 rounded-lg p-3 border border-border/30 space-y-3 relative overflow-hidden">
+                            {/* NEW: Electric Arcs Toggle */}
+                            <div className="flex items-center justify-between">
+                                <label className={cn("text-[8px] font-bold uppercase", !settings.animations ? "text-muted-foreground/50" : "text-muted-foreground")}>Electric Arcs</label>
+                                <Switch 
+                                    checked={settings.showHeaderWaves ?? true} 
+                                    onCheckedChange={(c) => updateSettings({ showHeaderWaves: c })} 
+                                    className="scale-75 origin-right"
+                                    disabled={!settings.animations} 
+                                />
+                            </div>
+
                             <div className="flex items-center gap-3">
                                 <span className="text-[8px] font-mono font-bold text-muted-foreground w-10">GAP</span>
                                 <Slider 
                                     value={[settings.headerGap || 40]} 
                                     onValueChange={(v) => updateSettings({ headerGap: v[0] })} 
-                                    max={80} 
-                                    min={0}
+                                    max={100} 
+                                    min={5}
                                     step={1} 
                                     className="flex-1" 
                                 />

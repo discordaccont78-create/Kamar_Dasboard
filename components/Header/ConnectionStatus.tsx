@@ -10,7 +10,7 @@ export const ConnectionStatus: React.FC = () => {
   return (
     <div 
       className={cn(
-        "flex items-center justify-center w-12 h-12 rounded-xl border-2 transition-all shadow-md",
+        "flex items-center justify-center w-9 h-9 md:w-12 md:h-12 rounded-xl border-2 transition-all shadow-md",
         isConnected 
           ? 'bg-background text-primary border-primary/50' 
           : 'bg-background text-destructive border-destructive/50'
@@ -18,9 +18,9 @@ export const ConnectionStatus: React.FC = () => {
       title={isConnected ? 'System Synced' : 'System Offline'}
     >
       {isConnected ? (
-        <Wifi size={20} className="animate-pulse" />
+        <Wifi className="w-[18px] h-[18px] md:w-5 md:h-5 animate-pulse" />
       ) : (
-        <WifiOff size={20} />
+        <WifiOff className="w-[18px] h-[18px] md:w-5 md:h-5" />
       )}
     </div>
   );

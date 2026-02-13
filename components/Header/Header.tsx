@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Moon, Sun, Settings, Zap, CalendarClock, Terminal } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Moon, Sun, Settings, Zap, CalendarClock, Terminal, Menu } from 'lucide-react';
 import { useSettingsStore } from '../../lib/store/settings';
 import { useCursorStore } from '../../lib/store/cursorStore';
 import { useSoundFx } from '../../hooks/useSoundFx';
@@ -21,7 +21,7 @@ interface HeaderProps {
     onOpenMenu: () => void;
 }
 
-// --- UPDATED TITLE COMPONENT: PURE SOLID TEXT ---
+// --- UPDATED TITLE COMPONENT ---
 const DynamicTitle = ({ 
     text, 
     fontClass, 
@@ -39,7 +39,7 @@ const DynamicTitle = ({
     <div className="relative group cursor-default select-none flex items-center">
         <MotionDiv
             className={cn(
-                "text-xl md:text-3xl font-black uppercase tracking-[0.15em] leading-none transition-all duration-300 relative z-10",
+                "text-lg md:text-3xl font-black uppercase tracking-[0.15em] leading-none transition-all duration-300 relative z-10 truncate",
                 fontClass
             )}
             style={{
@@ -66,20 +66,77 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const logoRef = useRef<HTMLDivElement>(null);
   const [cursorBolt, setCursorBolt] = useState<{start: {x:number, y:number}, end: {x:number, y:number}} | null>(null);
 
+  // --- SPACE CALCULATION REFS ---
+  const containerRef = useRef<HTMLDivElement>(null);
+  const leftIslandRef = useRef<HTMLDivElement>(null);
+  const [mobileSlots, setMobileSlots] = useState(0);
+
   const { playClick, playToggle, playSpark, playCharge } = useSoundFx();
   const t = translations[settings.language];
 
-  // Dynamic font class based on settings
   const titleFontClass = getFontClass(settings.dashboardFont);
-  // Get 3rd color (Cursor Color) for the title accent
   const thirdColor = settings.cursorColor || '#daa520';
-  
-  // Calculate Stroke Color based on Theme (Opposite)
   const strokeColor = settings.theme === 'dark' ? '#ffffff' : '#000000';
 
-  const gapSize = settings.headerGap ?? 160;
+  // --- GAP LOGIC ---
+  const gapSize = settings.headerGap ?? 40;
+  // Mobile Cap: Max 50px, otherwise follows slider if lower than 50
+  const mobileGap = Math.min(gapSize, 50);
+
+  // Calculate Wave Position based on Gap (Centered relative to gap)
   const waveWidth = gapSize + 120;
   const waveLeft = -(gapSize + 60);
+  const mobileWaveWidth = mobileGap + 120;
+  const mobileWaveLeft = -(mobileGap + 60);
+  
+  const showWaves = settings.animations && (settings.showHeaderWaves ?? true);
+  
+  // --- INTELLIGENT SPACE DETECTION ---
+  useEffect(() => {
+    const calculateSpace = () => {
+        if (!containerRef.current || !leftIslandRef.current) return;
+        
+        const totalWidth = containerRef.current.offsetWidth;
+        const leftWidth = leftIslandRef.current.offsetWidth;
+        
+        // Mandatory Space for Right Island:
+        // Wifi (36px) + Settings (36px) + Gap (8px) + Padding/Margins (~20px) = 100px
+        const mandatoryRightWidth = 100;
+        
+        // Safety Buffer to prevent touching
+        const buffer = 15; 
+        
+        // Effective Gap to maintain visually
+        const gap = window.innerWidth < 768 ? mobileGap : gapSize;
+
+        const availableSpace = totalWidth - leftWidth - mandatoryRightWidth - gap - buffer;
+        
+        // Each extra button needs about 42px (36px width + 6px margin)
+        const buttonUnit = 42;
+        
+        const slots = Math.floor(availableSpace / buttonUnit);
+        setMobileSlots(Math.max(0, slots));
+    };
+
+    // Initial check
+    calculateSpace();
+
+    // Observe changes
+    const observer = new ResizeObserver(() => {
+        requestAnimationFrame(calculateSpace);
+    });
+
+    if (containerRef.current) observer.observe(containerRef.current);
+    if (leftIslandRef.current) observer.observe(leftIslandRef.current);
+    
+    // Also listen to window resize as a fallback
+    window.addEventListener('resize', calculateSpace);
+
+    return () => {
+        observer.disconnect();
+        window.removeEventListener('resize', calculateSpace);
+    };
+  }, [settings.title, settings.dashboardFont, mobileGap, gapSize]);
 
   useEffect(() => {
       if (!settings.animations) return;
@@ -182,9 +239,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   return (
     <header className="sticky top-2 md:top-6 z-50 px-2 md:px-8 transition-all duration-500 pointer-events-none">
       <div 
-        className="max-w-[1400px] mx-auto flex items-stretch justify-between relative pointer-events-auto h-[60px] md:h-[72px]"
-        style={{ gap: `${gapSize}px` }}
+        ref={containerRef}
+        className="max-w-[1400px] mx-auto flex items-stretch justify-between relative pointer-events-auto h-[60px] md:h-[72px] gap-[var(--header-gap-mobile)] md:gap-[var(--header-gap)]"
+        style={{ 
+            '--header-gap': `${gapSize}px`,
+            '--header-gap-mobile': `${mobileGap}px`
+        } as React.CSSProperties}
       >
+        {/* --- GLOBAL EFFECTS --- */}
         {cursorBolt && (
             <div className="fixed inset-0 pointer-events-none z-[100] overflow-visible">
                 <LightningBolt 
@@ -199,64 +261,49 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                 />
             </div>
         )}
+
+        {/* --- LEFT ISLAND (Title & Logo) --- */}
         <MotionDiv
+          ref={leftIslandRef}
           variants={islandVariants}
           initial="hidden"
           animate="visible"
-          className="relative min-w-[200px] md:min-w-[320px] drop-shadow-xl filter group z-30" 
+          className="relative drop-shadow-xl filter group z-30 shrink-0 w-fit max-w-[65vw]" 
         >
            <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl" style={{ clipPath: CLIP_LEFT }} />
            <div className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl overflow-hidden" style={{ clipPath: CLIP_LEFT }}>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent -translate-x-full animate-[shimmer_4s_infinite]" />
            </div>
-           <div className="relative h-full w-full flex items-center pl-6 pr-10 md:pl-8 md:pr-14">
-              <div className="flex items-center gap-4 md:gap-5 z-10 relative w-full">
-                  <div ref={logoRef} className="relative z-30 group flex items-center justify-center">
-                    
+           
+           {/* Content Container */}
+           <div className="relative h-full flex items-center pl-4 pr-10 md:pl-8 md:pr-14">
+              <div className="flex items-center gap-2 md:gap-5 z-10 relative">
+                  <div ref={logoRef} className="relative z-30 group flex items-center justify-center shrink-0">
                     <MotionDiv 
-                        className="relative w-9 h-9 md:w-11 md:h-11 flex items-center justify-center cursor-pointer"
+                        className="relative w-8 h-8 md:w-11 md:h-11 flex items-center justify-center cursor-pointer"
                         animate={sparkState === 'impact' ? 'impact' : (isLogoCharged ? 'charged' : 'idle')}
                         variants={logoVariants}
                     >
-                        <Zap 
-                            className="absolute inset-0 w-full h-full text-primary/20" 
-                            strokeWidth={1} 
-                        />
-
+                        <Zap className="absolute inset-0 w-full h-full text-primary/20" strokeWidth={1} />
                         <MotionDiv
                             className="absolute inset-0 w-full h-full overflow-hidden"
                             initial={{ clipPath: "inset(100% 0 0 0)" }}
                             animate={{
-                                clipPath: (isLogoCharged || sparkState === 'impact') 
-                                    ? "inset(0% 0 0 0)" 
-                                    : "inset(100% 0 0 0)",
+                                clipPath: (isLogoCharged || sparkState === 'impact') ? "inset(0% 0 0 0)" : "inset(100% 0 0 0)",
                                 filter: sparkState === 'impact' ? "brightness(1.5)" : "brightness(1)"
                             }}
                             transition={{ duration: 1.5, ease: "easeInOut" }}
                         >
-                             <Zap 
-                                className="w-full h-full text-primary fill-current drop-shadow-[0_0_15px_rgba(218,165,32,0.6)]" 
-                                strokeWidth={0} 
-                             />
+                             <Zap className="w-full h-full text-primary fill-current drop-shadow-[0_0_15px_rgba(218,165,32,0.6)]" strokeWidth={0} />
                         </MotionDiv>
                     </MotionDiv>
                   </div>
                   
                   <div className="absolute top-1/2 left-8 right-0 -translate-y-1/2 h-12 pointer-events-none z-20">
-                      <LightningBolt 
-                          active={sparkState === 'discharge'} 
-                          startX={100} endX={0} 
-                          startY={10} endY={10} 
-                          segments={20} 
-                          amplitude={3}
-                          glowIntensity={1}
-                          thickness={0.6}
-                          viewBox="0 0 100 20"
-                          className="opacity-90"
-                      />
+                      <LightningBolt active={sparkState === 'discharge'} startX={100} endX={0} startY={10} endY={10} segments={20} amplitude={3} glowIntensity={1} thickness={0.6} viewBox="0 0 100 20" className="opacity-90"/>
                   </div>
 
-                  <div className="flex flex-col justify-center gap-1 relative z-30">
+                  <div className="flex flex-col justify-center gap-0.5 md:gap-1 relative z-30 min-w-0">
                     <DynamicTitle 
                         text={settings.title} 
                         fontClass={titleFontClass}
@@ -265,67 +312,131 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                         strokeColor={strokeColor}
                     />
                     
-                    {/* Updated Technical Sub-Label */}
-                    <div className="flex items-center gap-2">
-                        <span className={cn(
-                            "w-1.5 h-1.5 rounded-sm transition-all duration-300", 
-                            sparkState === 'impact' ? "bg-white shadow-[0_0_8px_white]" : "bg-primary"
-                        )} /> 
-                        <div className="flex items-center gap-1.5 text-[8px] md:text-[9px] font-mono font-bold uppercase tracking-[0.1em] text-muted-foreground/80">
+                    {/* System Version Label */}
+                    <div className="flex items-center gap-1.5 md:gap-2">
+                        <span className={cn("w-1 h-1 md:w-1.5 md:h-1.5 rounded-sm transition-all duration-300", sparkState === 'impact' ? "bg-white shadow-[0_0_8px_white]" : "bg-primary")} /> 
+                        <div className="flex items-center gap-1 md:gap-1.5 text-[7px] md:text-[9px] font-mono font-bold uppercase tracking-[0.1em] text-muted-foreground/80 whitespace-nowrap">
                             <span className="opacity-50">SYS.VER</span>
                             <span className="text-primary">3.1</span>
-                            <span className="w-px h-2 bg-border/50 mx-0.5" />
-                            <Terminal size={8} />
-                            <span>NODE_CTRL</span>
+                            <span className="w-px h-2 bg-border/50 mx-0.5 hidden xs:block" />
+                            <Terminal size={8} className="hidden xs:block" />
+                            <span className="hidden xs:inline">NODE_CTRL</span>
                         </div>
                     </div>
                   </div>
               </div>
            </div>
         </MotionDiv>
+
+        {/* --- RIGHT ISLAND (Controls) --- */}
         <MotionDiv
             variants={islandVariants}
             initial="hidden"
             animate="visible"
             transition={{ delay: 0.1 }}
-            className="relative flex-1 drop-shadow-xl filter"
+            className="relative drop-shadow-xl filter min-w-0 flex-1 z-20"
         >
-            {settings.animations && (
-                <ElectricWaves 
-                    color={settings.cursorColor || "#daa520"} 
-                    width={waveWidth} 
-                    left={waveLeft}
-                    opacity={(settings.headerWaveOpacity ?? 90) / 100}
-                    dynamicIntensity={settings.headerDynamicIntensity || false}
-                />
+            {showWaves && (
+                <>
+                    {/* Mobile Wave: Visible only on mobile, uses mobileGap */}
+                    <ElectricWaves 
+                        color={settings.cursorColor || "#daa520"} 
+                        width={mobileWaveWidth} 
+                        left={mobileWaveLeft}
+                        opacity={(settings.headerWaveOpacity ?? 90) / 100}
+                        dynamicIntensity={settings.headerDynamicIntensity || false}
+                        className="flex md:hidden" 
+                    />
+                    {/* Desktop Wave: Visible only on desktop, uses full gapSize */}
+                    <ElectricWaves 
+                        color={settings.cursorColor || "#daa520"} 
+                        width={waveWidth} 
+                        left={waveLeft}
+                        opacity={(settings.headerWaveOpacity ?? 90) / 100}
+                        dynamicIntensity={settings.headerDynamicIntensity || false}
+                        className="hidden md:flex" 
+                    />
+                </>
             )}
             
             <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl" style={{ clipPath: CLIP_RIGHT }} />
             <div className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-3xl overflow-hidden" style={{ clipPath: CLIP_RIGHT }}>
                <div className="absolute inset-0 bg-gradient-to-l from-transparent via-primary/5 to-transparent opacity-50" />
             </div>
-            <div className="relative h-full w-full flex items-center justify-between pl-10 pr-6 md:pl-14 md:pr-8">
+            
+            <div className="relative h-full w-full flex items-center justify-end md:justify-between px-3 md:pl-4 md:pr-8">
                <DigitalClock />
                
-               <div className="flex items-center gap-2 md:gap-3 z-10 ml-auto">
+               {/* DESKTOP CONTROLS */}
+               <div className="hidden md:flex items-center gap-1.5 md:gap-3 z-10 ml-auto justify-end">
                   <ControlButton onClick={handleOpenScheduler} icon={CalendarClock} title={t.scheduler} active={isSchedulerOpen} />
-                  <div className="w-px h-8 bg-border/40 mx-1 hidden sm:block" />
+                  <div className="w-px h-6 md:h-8 bg-border/40 mx-0.5 md:mx-1" />
                   <ControlButton onClick={toggleTheme} icon={settings.theme === 'light' ? Moon : Sun} title={t.switch_env} />
                   <ControlButton onClick={toggleLanguage} label={settings.language === 'en' ? 'FA' : 'EN'} title={t.switch_lang} />
                   <ControlButton onClick={handleOpenMenu} icon={Settings} title={t.sys_config} variant="primary" />
-                  <div className="hidden sm:block pl-2 border-l-2 border-border/30">
+                  <div className="pl-1 md:pl-2 border-l-2 border-border/30">
                     <ConnectionStatus />
                   </div>
+               </div>
+
+               {/* MOBILE CONTROLS (Intelligent Space Filling via JS Calculation) */}
+               <div className="flex md:hidden items-center justify-end gap-1.5 z-10 w-full">
+                   <AnimatePresence>
+                        {/* Priority 3: Scheduler (Only if 3+ slots available) */}
+                        {mobileSlots >= 3 && (
+                            <MotionDiv 
+                                initial={{ width: 0, opacity: 0, scale: 0.5 }} 
+                                animate={{ width: 'auto', opacity: 1, scale: 1 }} 
+                                exit={{ width: 0, opacity: 0, scale: 0.5 }}
+                                className="overflow-hidden"
+                            >
+                                <ControlButton onClick={handleOpenScheduler} icon={CalendarClock} title={t.scheduler} active={isSchedulerOpen} />
+                            </MotionDiv>
+                        )}
+
+                        {/* Priority 2: Language (Only if 2+ slots available) */}
+                        {mobileSlots >= 2 && (
+                            <MotionDiv
+                                initial={{ width: 0, opacity: 0, scale: 0.5 }} 
+                                animate={{ width: 'auto', opacity: 1, scale: 1 }} 
+                                exit={{ width: 0, opacity: 0, scale: 0.5 }}
+                                className="overflow-hidden"
+                            >
+                                <ControlButton onClick={toggleLanguage} label={settings.language === 'en' ? 'FA' : 'EN'} title={t.switch_lang} />
+                            </MotionDiv>
+                        )}
+
+                        {/* Priority 1: Theme (Only if 1+ slots available) */}
+                        {mobileSlots >= 1 && (
+                            <MotionDiv
+                                initial={{ width: 0, opacity: 0, scale: 0.5 }} 
+                                animate={{ width: 'auto', opacity: 1, scale: 1 }} 
+                                exit={{ width: 0, opacity: 0, scale: 0.5 }}
+                                className="overflow-hidden"
+                            >
+                                <ControlButton onClick={toggleTheme} icon={settings.theme === 'light' ? Moon : Sun} title={t.switch_env} />
+                            </MotionDiv>
+                        )}
+                   </AnimatePresence>
+
+                   {mobileSlots >= 1 && <div className="w-px h-5 bg-border/30 mx-0.5" />}
+
+                   <ConnectionStatus />
+                   <ControlButton onClick={handleOpenMenu} icon={Settings} variant="primary" className="border-primary/50" />
                </div>
             </div>
         </MotionDiv>
       </div>
-      <SchedulerDialog isOpen={isSchedulerOpen} onClose={() => setIsSchedulerOpen(false)} />
+      
+      {/* Desktop Scheduler Dialog */}
+      <div className="hidden md:block">
+        <SchedulerDialog isOpen={isSchedulerOpen} onClose={() => setIsSchedulerOpen(false)} />
+      </div>
     </header>
   );
 };
 
-const ControlButton = ({ onClick, icon: Icon, label, title, active, variant = 'default' }: any) => {
+const ControlButton = ({ onClick, icon: Icon, label, title, active, variant = 'default', className }: any) => {
     return (
         <MotionButton
             whileHover={{ scale: 1.05, y: -2 }}
@@ -333,16 +444,17 @@ const ControlButton = ({ onClick, icon: Icon, label, title, active, variant = 'd
             onClick={onClick}
             title={title}
             className={cn(
-                "relative h-10 w-10 md:h-11 md:w-11 rounded-xl flex items-center justify-center transition-all duration-300 border-2 overflow-hidden group",
+                "relative h-9 w-9 md:h-11 md:w-11 rounded-xl flex items-center justify-center transition-all duration-300 border-2 overflow-hidden group shrink-0",
                 variant === 'primary' 
                     ? "bg-primary text-black border-primary shadow-[0_4px_0_rgb(var(--foreground))]"
                     : "bg-background hover:bg-secondary border-border hover:border-primary/50 text-muted-foreground hover:text-primary shadow-sm",
-                active && "bg-primary/20 border-primary text-primary"
+                active && "bg-primary/20 border-primary text-primary",
+                className
             )}
         >
             <div className="absolute inset-0 bg-primary/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
             <div className="relative z-10">
-                {Icon ? <Icon size={20} strokeWidth={variant === 'primary' ? 2.5 : 2} /> : <span className="font-black text-xs">{label}</span>}
+                {Icon ? <Icon className={cn("w-[18px] h-[18px] md:w-5 md:h-5", variant === 'primary' ? 'stroke-[2.5px]' : 'stroke-2')} /> : <span className="font-black text-[10px] md:text-xs">{label}</span>}
             </div>
         </MotionButton>
     )

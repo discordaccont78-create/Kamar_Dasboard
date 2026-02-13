@@ -1,14 +1,15 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion } from 'framer-motion';
 import { useSegments } from '../../lib/store/segments';
 import { useSettingsStore } from '../../lib/store/settings';
 import { useUIStore } from '../../lib/store/uiState';
-import { Settings as SettingsIcon, X } from 'lucide-react';
+import { Settings as SettingsIcon, X, CalendarClock, Moon, Sun, Globe } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
 import { translations } from '../../lib/i18n';
+import { useSoundFx } from '../../hooks/useSoundFx';
 
 // Import New Sections
 import { OutputSection } from './SideMenuParts/OutputSection';
@@ -17,6 +18,7 @@ import { RegisterSection } from './SideMenuParts/RegisterSection';
 import { WeatherSection } from './SideMenuParts/WeatherSection';
 import { DisplaySection } from './SideMenuParts/DisplaySection';
 import { SystemCoreSection } from './SideMenuParts/SystemCoreSection';
+import { SchedulerDialog } from '../Scheduler/SchedulerDialog';
 
 const DialogOverlay = Dialog.Overlay as any;
 const DialogContent = Dialog.Content as any;
@@ -26,18 +28,34 @@ const DialogClose = Dialog.Close as any;
 interface SideMenuProps { isOpen: boolean; onClose: () => void; }
 
 export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
-  const { settings } = useSettingsStore();
+  const { settings, updateSettings } = useSettingsStore();
   const { segments } = useSegments();
   const { activeSection, setActiveSection } = useUIStore();
+  const { playToggle, playClick } = useSoundFx();
   
+  const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
   const t = translations[settings.language];
 
   const handleSectionToggle = (id: string) => {
     setActiveSection(activeSection === id ? null : id);
   };
 
+  const handleToggleTheme = () => {
+      playToggle(settings.theme === 'light');
+      updateSettings({ theme: settings.theme === 'light' ? 'dark' : 'light' });
+  };
+
+  const handleToggleLanguage = () => {
+      playToggle(settings.language === 'en');
+      updateSettings({ language: settings.language === 'en' ? 'fa' : 'en' });
+  };
+
+  const handleOpenScheduler = () => {
+      playClick();
+      setIsSchedulerOpen(true);
+  };
+
   const uniqueGroups = useMemo<string[]>(() => {
-    // Fix: Using groupId instead of group as per Segment type definition
     const groups = new Set(segments.map(s => s.groupId).filter((g): g is string => !!g));
     return Array.from(groups).sort() as string[];
   }, [segments]);
@@ -98,6 +116,26 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 no-scrollbar">
             
+            {/* Quick Actions (Moved from Mobile Header) */}
+            <div className="grid grid-cols-3 gap-2 mb-2 md:hidden">
+                <QuickActionButton 
+                    onClick={handleOpenScheduler} 
+                    icon={CalendarClock} 
+                    label={t.scheduler} 
+                    active={isSchedulerOpen}
+                />
+                <QuickActionButton 
+                    onClick={handleToggleTheme} 
+                    icon={settings.theme === 'light' ? Moon : Sun} 
+                    label={t.switch_env} 
+                />
+                <QuickActionButton 
+                    onClick={handleToggleLanguage} 
+                    icon={Globe} 
+                    label={settings.language === 'en' ? 'FA' : 'EN'} 
+                />
+            </div>
+
             <OutputSection activeId={activeSection} onToggle={handleSectionToggle} t={t} />
             <InputSection activeId={activeSection} onToggle={handleSectionToggle} t={t} />
             <RegisterSection activeId={activeSection} onToggle={handleSectionToggle} t={t} />
@@ -108,6 +146,24 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
           </div>
         </DialogContent>
       </Dialog.Portal>
+      
+      {/* Mobile Scheduler Dialog attached to Menu Portal */}
+      <SchedulerDialog isOpen={isSchedulerOpen} onClose={() => setIsSchedulerOpen(false)} />
     </Dialog.Root>
   );
 };
+
+const QuickActionButton = ({ onClick, icon: Icon, label, active }: any) => (
+    <button 
+        onClick={onClick}
+        className={cn(
+            "flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border transition-all active:scale-95 h-16",
+            active 
+                ? "bg-primary/20 border-primary text-primary" 
+                : "bg-secondary/10 border-border/50 text-muted-foreground hover:bg-secondary/20 hover:text-foreground"
+        )}
+    >
+        <Icon size={18} strokeWidth={2.5} />
+        <span className="text-[8px] font-black uppercase tracking-wider truncate max-w-full">{label}</span>
+    </button>
+);

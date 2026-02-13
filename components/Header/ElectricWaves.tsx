@@ -1,6 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { cn } from '../../lib/utils';
 
 const MotionPath = motion.path as any;
 const MotionRect = motion.rect as any;
@@ -48,8 +49,13 @@ const generateSawtoothPath = (width: number, yCenter: number, cycles: number, am
     return d;
 };
 
-export const ElectricWaves = React.memo(({ color, width, left, opacity, dynamicIntensity }: { color: string, width: number, left: number, opacity: number, dynamicIntensity: boolean }) => {
+export const ElectricWaves = React.memo(({ color, width, left, opacity, dynamicIntensity, className }: { color: string, width: number, left: number, opacity: number, dynamicIntensity: boolean, className?: string }) => {
   const PHASE_SHIFT = (2 * Math.PI) / 3;
+  
+  // Generate unique IDs for this instance to prevent SVG defs conflicts
+  const uniqueId = useMemo(() => Math.random().toString(36).substr(2, 9), []);
+  const gradId = `stream-fade-${uniqueId}`;
+  const filterId = `plasma-glow-${uniqueId}`;
 
   const squareWaveData = useMemo(() => {
       const frames = [];
@@ -151,7 +157,7 @@ export const ElectricWaves = React.memo(({ color, width, left, opacity, dynamicI
 
   return (
     <div 
-      className="absolute top-0 bottom-0 flex items-center justify-center overflow-visible pointer-events-none z-0"
+      className={cn("absolute top-0 bottom-0 flex items-center justify-center overflow-visible pointer-events-none z-0", className)}
       style={{
           left: `${left}px`,
           width: `${width}px`,
@@ -160,13 +166,13 @@ export const ElectricWaves = React.memo(({ color, width, left, opacity, dynamicI
     >
        <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible" preserveAspectRatio="none">
           <defs>
-            <linearGradient id="stream-fade" x1="0" y1="0" x2="1" y2="0">
+            <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor={color} stopOpacity="0" />
                 <stop offset="15%" stopColor={color} stopOpacity="0.8" />
                 <stop offset="85%" stopColor={color} stopOpacity="0.8" />
                 <stop offset="100%" stopColor={color} stopOpacity="0" />
             </linearGradient>
-            <filter id="plasma-glow">
+            <filter id={filterId}>
                 <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
                 <feMerge>
                     <feMergeNode in="coloredBlur"/>
@@ -227,8 +233,9 @@ export const ElectricWaves = React.memo(({ color, width, left, opacity, dynamicI
             transition={{ duration: 2.5, repeat: Infinity, ease: "linear", delay: 1.25 }}
           />
 
+          {/* SINE WAVES - Using Unique Gradient ID */}
           <MotionPath
-             stroke="url(#stream-fade)"
+             stroke={`url(#${gradId})`}
              strokeWidth="1.2"
              fill="none"
              strokeOpacity={sineWaveData.opacities.A}
@@ -236,7 +243,7 @@ export const ElectricWaves = React.memo(({ color, width, left, opacity, dynamicI
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
           <MotionPath
-             stroke="url(#stream-fade)"
+             stroke={`url(#${gradId})`}
              strokeWidth="1.2"
              fill="none"
              strokeOpacity={sineWaveData.opacities.B}
@@ -244,7 +251,7 @@ export const ElectricWaves = React.memo(({ color, width, left, opacity, dynamicI
              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           />
           <MotionPath
-             stroke="url(#stream-fade)"
+             stroke={`url(#${gradId})`}
              strokeWidth="1.2"
              fill="none"
              strokeOpacity={sineWaveData.opacities.C}
@@ -255,7 +262,7 @@ export const ElectricWaves = React.memo(({ color, width, left, opacity, dynamicI
           <MotionCircle 
             r="1.5" 
             fill="white"
-            filter="url(#plasma-glow)"
+            filter={`url(#${filterId})`}
             initial={{ cx: 0, cy: 20, opacity: 0 }}
             animate={{ cx: [0, 100], opacity: [0, 1, 1, 0] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
