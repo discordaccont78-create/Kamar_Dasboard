@@ -113,14 +113,13 @@ export const DraggableGroupItem = React.memo(({
 
   // Animation Variants for "Group" Logic
   const groupVariants = {
-    idle: { scale: 1, opacity: 1, y: 0, filter: "blur(0px)" },
-    // On Pick Up: Lift up, shadow deepens, border lights up
+    idle: { scale: 1, opacity: 1, y: 0, filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.1))" },
+    // On Pick Up: Lift up, shadow deepens
     dragging: { 
         scale: 1.02, 
         zIndex: 100, 
         opacity: 0.95,
-        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-        border: "1px solid rgba(var(--primary), 0.5)", // Glow effect
+        filter: "drop-shadow(0 20px 30px rgba(0,0,0,0.4))", // Use filter for shadow with clip-path
         cursor: "grabbing"
     },
     // On Delete: Shrink and Fade into void
@@ -163,14 +162,14 @@ export const DraggableGroupItem = React.memo(({
           removeGroup(groupName);
         }
       }}
-      className={cn("group_area z-0 hover:z-10 relative", className)}
+      className={cn("group_area z-0 hover:z-10 relative h-full", className)}
     >
       <SegmentGroup 
         name={groupName}
         segments={groupNodes}
         dragHandle={
           <div 
-             className="cursor-grab active:cursor-grabbing text-primary hover:text-foreground transition-colors"
+             className="cursor-grab active:cursor-grabbing text-primary hover:text-foreground transition-colors p-1"
              onPointerDown={(e) => controls.start(e)}
              style={{ touchAction: 'none' }}
           >

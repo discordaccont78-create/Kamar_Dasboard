@@ -14,7 +14,7 @@ interface SegmentCardProps {
   dragHandle?: React.ReactNode;
 }
 
-const MotionCard = motion(Card) as any;
+const MotionDiv = motion.div as any;
 
 export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children, onRemove, dragHandle }) => {
   const { settings } = useSettingsStore();
@@ -23,73 +23,78 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children,
   // Dynamically resolve icon for the segment
   const SegmentIcon = getIconForName(label, 'device');
 
+  // TECH SHAPE: Rect with cut Top-Right corner (Tab Style)
+  const CLIP_CARD = "polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 0 100%)";
+
   return (
-    <MotionCard 
+    <MotionDiv 
       layout
-      // CONTAINER STYLE:
-      // Darker, "Hard" background (bg-card/90 or a very deep slate).
-      // Border is subtle but distinct.
-      className={cn(
-          "relative overflow-visible group",
-          "bg-white dark:bg-[#121214] border border-gray-200 dark:border-white/10",
-          "rounded-xl shadow-sm hover:shadow-lg transition-all duration-300",
-          "flex flex-col h-full select-none"
-      )}
+      className="relative group h-full select-none"
     >
-      {/* 
-         --- MODULE HEADER (The "Label Plate") --- 
-         Designed to look like a serial tag riveted to the device.
-      */}
-      <div className="h-9 flex items-center justify-between px-3 bg-gray-50/80 dark:bg-white/[0.03] border-b border-gray-100 dark:border-white/5">
-          <div className="flex items-center gap-2.5 min-w-0">
-              {/* Drag Handle Zone */}
-              <div className="opacity-40 group-hover:opacity-100 transition-opacity border-r border-foreground/10 pr-2 -ml-1">
+      {/* BORDER GLOW LAYER */}
+      <div 
+        className="absolute inset-0 bg-border/80 dark:bg-white/10 transition-colors duration-300 group-hover:bg-primary/40"
+        style={{ clipPath: CLIP_CARD }}
+      />
+
+      {/* CONTENT CONTAINER LAYER */}
+      <div 
+        className="relative h-full bg-card dark:bg-[#151518] flex flex-col overflow-hidden"
+        style={{ 
+            clipPath: CLIP_CARD,
+            margin: '1px' // Border width
+        }}
+      >
+          {/* 
+             --- MODULE HEADER (The "Label Plate") --- 
+             Angled to match the card cut.
+          */}
+          <div className="h-10 flex items-stretch border-b border-border/40 bg-secondary/5">
+              {/* Drag Area */}
+              <div className="flex items-center px-1 border-r border-border/40 bg-black/5 dark:bg-white/5">
                   {dragHandle}
               </div>
 
-              {/* Icon & Name */}
-              <div className="text-primary opacity-80">
-                  <SegmentIcon size={14} strokeWidth={2.5} />
+              {/* Title Area */}
+              <div className="flex-1 flex items-center gap-2.5 px-3 min-w-0">
+                  <div className="text-primary opacity-80 shrink-0">
+                      <SegmentIcon size={14} strokeWidth={2.5} />
+                  </div>
+                  <span className={cn(
+                      "text-[10px] font-black uppercase tracking-wider text-foreground/90 truncate pt-0.5",
+                      labelFontClass
+                  )}>
+                      {label}
+                  </span>
               </div>
-              <span className={cn(
-                  "text-[10px] font-black uppercase tracking-wider text-foreground/90 truncate pt-0.5",
-                  labelFontClass
-              )}>
-                  {label}
-              </span>
+
+              {/* Technical GPIO Tag (Top Right Corner) */}
+              <div className="w-[24px] relative">
+                  {/* Empty space for the angle cut */}
+              </div>
+              <div className="absolute top-0 right-[24px] h-full flex items-center px-2">
+                  <span className="text-[7px] font-mono font-bold uppercase tracking-widest text-muted-foreground/50 group-hover:text-primary transition-colors">
+                      GP-{gpio}
+                  </span>
+              </div>
+          </div>
+          
+          {/* 
+             --- CORE CONTENT ---
+          */}
+          <div className="p-4 relative z-10 flex flex-col gap-4 h-full bg-gradient-to-b from-transparent to-black/[0.02]">
+            {children}
           </div>
 
-          {/* Technical GPIO Tag */}
-          <div className="flex items-center gap-1.5 opacity-50">
-              <span className="text-[7px] font-mono font-bold uppercase tracking-widest text-muted-foreground">GP-{gpio}</span>
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500/50 shadow-[0_0_5px_rgba(34,197,94,0.4)]" /> {/* Status LED */}
-          </div>
-      </div>
-      
-      {/* 
-         --- CORE CONTENT ---
-         Padding adjusted for a tighter, more technical feel.
-      */}
-      <CardContent className="p-4 relative z-10 flex flex-col gap-4 h-full bg-gradient-to-b from-transparent to-black/[0.02]">
-        {children}
-      </CardContent>
+          {/* 
+             --- INDUSTRIAL DETAILS (Screws/Accents) --- 
+          */}
+          <div className="absolute bottom-0 left-0 w-3 h-3 border-l border-b border-primary/30 opacity-50" />
+          <div className="absolute top-[24px] right-0 w-1 h-4 bg-primary/20" /> {/* Accent mark near cut */}
 
-      {/* 
-         --- INDUSTRIAL DETAILS (Screws) --- 
-         Visual flourishes to make it look mounted.
-      */}
-      <div className="absolute top-2.5 right-2.5 opacity-20 pointer-events-none hidden md:block">
-         <div className="w-1 h-1 border border-foreground rounded-full bg-transparent" />
+          {/* Active Glow Hint on Hover (Bottom Edge) */}
+          <div className="absolute bottom-0 left-0 w-full h-[2px] bg-primary/0 group-hover:bg-primary/50 transition-colors duration-500" />
       </div>
-      <div className="absolute bottom-2.5 left-2.5 opacity-20 pointer-events-none hidden md:block">
-         <div className="w-1 h-1 border border-foreground rounded-full bg-transparent" />
-      </div>
-      <div className="absolute bottom-2.5 right-2.5 opacity-20 pointer-events-none hidden md:block">
-         <div className="w-1 h-1 border border-foreground rounded-full bg-transparent" />
-      </div>
-
-      {/* Active Glow Hint on Hover (Bottom Edge) */}
-      <div className="absolute bottom-0 left-0 w-full h-[2px] bg-primary/0 group-hover:bg-primary/50 transition-colors duration-500" />
-    </MotionCard>
+    </MotionDiv>
   );
 };

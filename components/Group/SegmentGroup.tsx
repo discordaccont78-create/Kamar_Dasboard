@@ -1,7 +1,7 @@
 
 import React, { useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { GripVertical, Hash } from 'lucide-react';
+import { GripVertical, Hash, CornerRightDown, Activity } from 'lucide-react';
 import { SegmentCard } from '../Segment/SegmentCard';
 import { CustomSegment } from '../Segment/CustomSegment';
 import { WeatherSegment } from '../Segment/WeatherSegment';
@@ -9,7 +9,6 @@ import { InputSegment } from '../Segment/InputSegment';
 import { DisplaySegment } from '../Segment/DisplaySegment';
 import { RegisterSubGroup } from './RegisterSubGroup';
 import { Segment } from '../../types/index';
-import { GroupHeader } from './GroupHeader';
 import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { useSettingsStore } from '../../lib/store/settings';
 
@@ -39,11 +38,11 @@ const DraggableDisplayItem = React.memo(({
   index, 
   containerRef, 
   moveItem, 
-  onRemove,
-  onToggle,
-  onPWMChange,
-  onDragStart,
-  onDragEnd,
+  onRemove, 
+  onToggle, 
+  onPWMChange, 
+  onDragStart, 
+  onDragEnd, 
   lastReorderTime,
   className
 }: {
@@ -100,9 +99,9 @@ const DraggableDisplayItem = React.memo(({
     }
   };
 
-  // Shared Drag Handle Props - Styled for the new Card look
+  // Shared Drag Handle Props
   const dragHandleProps = {
-    className: "cursor-grab active:cursor-grabbing p-1.5 hover:bg-white/10 rounded-md transition-colors text-muted-foreground hover:text-foreground",
+    className: "cursor-grab active:cursor-grabbing p-2 hover:bg-primary/10 rounded-none transition-colors text-muted-foreground hover:text-primary border-r border-border/50 h-full flex items-center justify-center",
     onPointerDown: (e: any) => controls.start(e),
     style: { touchAction: 'none' } as React.CSSProperties
   };
@@ -124,7 +123,6 @@ const DraggableDisplayItem = React.memo(({
   } else if (item.type === 'single') {
       const seg = item.segment;
       
-      // Dynamic Component Selection based on Segment Type
       let ComponentToRender = (
          <CustomSegment 
             segment={seg} 
@@ -152,34 +150,26 @@ const DraggableDisplayItem = React.memo(({
       );
   }
 
-  // Handle Removal Logic
   const handleRemove = () => {
      if (item.type === 'single') {
          onRemove(item.id);
      } else {
-         // Remove all segments in the sub-group
          item.segments.forEach(s => onRemove(s.num_of_node));
      }
   };
 
-  // Animation Variants for Segments
   const itemVariants = {
-    idle: { scale: 1, opacity: 1, rotate: 0, filter: "brightness(1) blur(0px)" },
-    // On Drag: Tilt slightly, scale up, energy glow shadow
+    idle: { scale: 1, opacity: 1, zIndex: 1 },
     dragging: { 
-        scale: 1.05, 
+        scale: 1.02, 
         zIndex: 50, 
-        opacity: 1,
-        rotate: 2, // Slight tilt for physics feel
-        boxShadow: "0 20px 40px -5px rgba(var(--primary), 0.3)", 
+        opacity: 0.9,
         cursor: "grabbing" 
     },
-    // On Delete: "De-rez" effect (Bright flash, then implode)
     exit: { 
         scale: 0, 
         opacity: 0, 
-        filter: "brightness(2) blur(8px)", // Flash burnout effect
-        transition: { duration: 0.25, ease: "circIn" } 
+        transition: { duration: 0.2 } 
     }
   };
 
@@ -192,28 +182,22 @@ const DraggableDisplayItem = React.memo(({
       dragControls={controls} 
       dragSnapToOrigin
       dragElastic={0.1}
-      
       variants={itemVariants}
       initial="idle"
       animate="idle"
       exit="exit"
       whileDrag="dragging"
-      // Snappy physics for return
       transition={{ type: "spring", stiffness: 450, damping: 35 }}
-
-      onDragStart={() => {
-        onDragStart?.();
-      }}
+      onDragStart={onDragStart}
       onDrag={handleDrag}
       onDragEnd={(event: any, info: any) => {
         onDragEnd?.();
         const thresholdY = window.innerHeight - 110;
-        // Check for deletion zone
         if (info.point.y > thresholdY) {
           handleRemove();
         }
       }}
-      className={cn("segment_area z-0 hover:z-10 relative h-full", className)}
+      className={cn("segment_area relative h-full", className)}
       style={{ touchAction: 'none' }}
     >
       {content}
@@ -234,11 +218,8 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { settings } = useSettingsStore();
-  
-  // This ref persists across renders to track the last time a swap occurred
   const lastReorderTime = useRef<number>(0);
 
-  // --- Grouping Logic: Transform raw segments into DisplayItems (Modules) ---
   const displayItems = useMemo(() => {
     const items: DisplayItem[] = [];
     const processedIds = new Set<string>();
@@ -247,18 +228,15 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
         if (processedIds.has(seg.num_of_node)) return;
 
         if (seg.groupType === 'register') {
-            // Find all segments that belong to this register (Same Latch/STCP PIN)
             const siblings = segments.filter(s => s.groupType === 'register' && s.gpio === seg.gpio);
             siblings.forEach(s => processedIds.add(s.num_of_node));
-            
             items.push({ 
                 type: 'register_group', 
-                id: `reg-${seg.gpio}`, // Unique ID for the container
+                id: `reg-${seg.gpio}`,
                 segments: siblings 
             });
         } 
         else {
-            // All other types (Custom, Weather, Display, Input) are treated as single items in the grid
             processedIds.add(seg.num_of_node);
             items.push({ type: 'single', id: seg.num_of_node, segment: seg });
         }
@@ -267,14 +245,11 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
     return items;
   }, [segments]);
 
-
   const moveItem = useCallback((fromIndex: number, toIndex: number) => {
-    // 1. Reorder the DisplayItems
     const newItems = [...displayItems];
     const [movedItem] = newItems.splice(fromIndex, 1);
     newItems.splice(toIndex, 0, movedItem);
 
-    // 2. Flatten back to Segments Array for Storage
     const flattenedSegments: Segment[] = [];
     newItems.forEach(item => {
         if (item.type === 'single') {
@@ -287,100 +262,130 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
     onReorder(flattenedSegments);
   }, [displayItems, onReorder]);
 
-  // Determine Grid Layout based on Item count
   const gridClass = displayItems.length === 2 
     ? "grid-cols-1" 
-    : "grid-cols-1 lg:grid-cols-2 gap-3 md:gap-5";
+    : "grid-cols-1 lg:grid-cols-2 gap-4";
     
-  // Smart Font Class for Zone Name
   const zoneFontClass = isPersian(name) ? "font-persian" : getFontClass(settings.dashboardFont);
+  
+  // Use cursor color as the tint source
+  const accentColor = settings.cursorColor || '#daa520';
+
+  // --- ISLAND ARCHITECTURE SHAPES ---
+  const CLIP_HEADER = "polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)";
+  const CLIP_BODY = "polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px))";
 
   return (
-    <div 
-      className={cn(
-        "h-full relative transition-all duration-500",
-        // Base Panel Styling
-        "bg-secondary/5 dark:bg-[#0c0c0e]/60 backdrop-blur-xl",
-        "rounded-[20px]",
-        "border border-white/10 shadow-lg",
-        // Inner padding structure
-        "p-1 pt-12 pb-4"
-      )}
-    >
+    <div className="flex flex-col gap-3 h-full group/panel">
+      
       {/* 
-         --- TECHNICAL HUD HEADER --- 
-         This creates the "Tag" look at the top left of the box.
+          ISLAND 1: THE COMMAND BRIDGE (Header)
       */}
-      <div className="absolute top-0 left-0 right-0 h-10 border-b border-white/5 bg-white/5 dark:bg-white/[0.02] flex items-center justify-between px-4 rounded-t-[20px]">
-         <div className="flex items-center gap-3">
-            {dragHandle && (
-               <div className="text-muted-foreground hover:text-primary transition-colors cursor-grab active:cursor-grabbing">
-                  {dragHandle}
-               </div>
-            )}
-            <div className="h-4 w-px bg-white/10" />
-            <span className={cn(
-                "text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-foreground/80 flex items-center gap-2",
-                zoneFontClass
-            )}>
-               <span className="text-primary opacity-60">ZONE:</span>
-               {name}
-            </span>
-         </div>
+      <div className="relative shrink-0 filter drop-shadow-md">
+          {/* Border Layer */}
+          <div className="absolute inset-0 bg-border/40 dark:bg-white/10 backdrop-blur-md transition-colors duration-300 group-hover/panel:bg-primary/20" style={{ clipPath: CLIP_HEADER }} />
+          
+          {/* Content Layer (Glass) */}
+          <div className="relative h-12 flex items-center justify-between px-4 overflow-hidden backdrop-blur-xl" style={{ clipPath: CLIP_HEADER, margin: '1px' }}>
+             
+             {/* Glass Background & Tint */}
+             <div className="absolute inset-0 bg-background/60 dark:bg-[#0c0c0e]/60 transition-colors" />
+             <div className="absolute inset-0 opacity-10" style={{ backgroundColor: accentColor }} />
 
-         {/* Technical Decor (Top Right) */}
-         <div className="flex items-center gap-1 opacity-20">
-             <div className="w-1 h-1 bg-foreground rounded-full" />
-             <div className="w-1 h-1 bg-foreground rounded-full" />
-             <div className="w-10 h-px bg-foreground" />
-         </div>
-      </div>
+             {/* Decorative Scanline */}
+             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50 z-20" />
 
-      {/* Main Content Area */}
-      <div className="px-3 md:px-4">
-        {/* Optional Sub-header statistics (count) */}
-        <div className="flex justify-end mb-4 pr-1">
-             <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-muted-foreground/50 bg-black/10 dark:bg-white/5 px-2 py-0.5 rounded">
-                 <Hash size={10} />
-                 <span>{displayItems.length} MODULES</span>
-             </div>
-        </div>
-
-        <div 
-            ref={containerRef}
-            className={cn(
-            "grid relative min-h-[50px] md:min-h-[100px]",
-            gridClass
-            )}
-        >
-            <AnimatePresence mode="popLayout">
-            {displayItems.map((item, index) => {
-                const isLastAndOdd = displayItems.length % 2 !== 0 && index === displayItems.length - 1;
+             <div className="flex items-center gap-3 relative z-10">
+                {dragHandle && (
+                   <div className="text-muted-foreground hover:text-primary transition-colors cursor-grab active:cursor-grabbing opacity-50 hover:opacity-100 border-r border-white/10 pr-3">
+                      {dragHandle}
+                   </div>
+                )}
                 
-                return (
-                <DraggableDisplayItem 
-                    key={item.id}
-                    item={item}
-                    index={index}
-                    containerRef={containerRef}
-                    moveItem={moveItem}
-                    onRemove={onRemove}
-                    onToggle={onToggle}
-                    onPWMChange={onPWMChange}
-                    onDragStart={onDragStart}
-                    onDragEnd={onDragEnd}
-                    lastReorderTime={lastReorderTime}
-                    className={isLastAndOdd ? "lg:col-span-2" : ""}
-                />
-                );
-            })}
-            </AnimatePresence>
-        </div>
+                <div className="flex flex-col justify-center">
+                    <span className="text-[7px] font-mono font-bold text-primary/60 uppercase tracking-widest leading-none mb-0.5 flex items-center gap-1">
+                        <Activity size={8} /> ZONE ID
+                    </span>
+                    <span className={cn(
+                        "text-sm font-black uppercase tracking-[0.1em] text-foreground flex items-center gap-2 drop-shadow-sm",
+                        zoneFontClass
+                    )}>
+                       {name}
+                    </span>
+                </div>
+             </div>
+
+             <div className="flex items-center gap-2 relative z-10">
+                 <div className="hidden sm:flex items-center gap-1">
+                    <div className="w-1 h-1 bg-primary/50 rounded-full animate-pulse" />
+                    <div className="w-1 h-1 bg-primary/20 rounded-full" />
+                    <div className="w-1 h-1 bg-primary/20 rounded-full" />
+                 </div>
+                 <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-muted-foreground bg-black/10 dark:bg-white/5 px-2 py-1 rounded-sm border border-white/5">
+                     <Hash size={10} />
+                     <span>{displayItems.length}</span>
+                 </div>
+             </div>
+          </div>
       </div>
 
-      {/* Decorative Corner Brackets (HUD style) */}
-      <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary/20 rounded-br-[20px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary/20 rounded-bl-[20px] pointer-events-none" />
+      {/* 
+          ISLAND 2: THE CARGO HOLD (Content Body)
+      */}
+      <div className="relative flex-1 filter drop-shadow-lg">
+          {/* Border Layer */}
+          <div className="absolute inset-0 bg-border/40 dark:bg-white/10 backdrop-blur-md transition-colors duration-300 group-hover/panel:bg-primary/20" style={{ clipPath: CLIP_BODY }} />
+
+          {/* Content Layer (Glass) */}
+          <div className="relative h-full p-[1px] backdrop-blur-xl" style={{ clipPath: CLIP_BODY, margin: '1px' }}>
+              
+              {/* Glass Background (More Transparent: 30-40%) */}
+              <div className="absolute inset-0 bg-background/40 dark:bg-[#0c0c0e]/40 transition-colors" />
+              
+              {/* Tint Layer (The requested "Third Color" tint) */}
+              <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundColor: accentColor }} />
+
+              {/* Inner Background Pattern (Stripes) */}
+              <div className="absolute inset-0 opacity-10 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.05)_25%,rgba(255,255,255,0.05)_50%,transparent_50%,transparent_75%,rgba(255,255,255,0.05)_75%,rgba(255,255,255,0.05)_100%)] bg-[length:24px_24px]" />
+
+              <div className="p-4 md:p-5 relative z-10 h-full">
+                <div 
+                    ref={containerRef}
+                    className={cn(
+                    "grid relative min-h-[50px]",
+                    gridClass
+                    )}
+                >
+                    <AnimatePresence mode="popLayout">
+                    {displayItems.map((item, index) => {
+                        const isLastAndOdd = displayItems.length % 2 !== 0 && index === displayItems.length - 1;
+                        return (
+                        <DraggableDisplayItem 
+                            key={item.id}
+                            item={item}
+                            index={index}
+                            containerRef={containerRef}
+                            moveItem={moveItem}
+                            onRemove={onRemove}
+                            onToggle={onToggle}
+                            onPWMChange={onPWMChange}
+                            onDragStart={onDragStart}
+                            onDragEnd={onDragEnd}
+                            lastReorderTime={lastReorderTime}
+                            className={isLastAndOdd ? "lg:col-span-2" : ""}
+                        />
+                        );
+                    })}
+                    </AnimatePresence>
+                </div>
+              </div>
+
+              {/* Decorative Corner Accent (Bottom Right) */}
+              <div className="absolute bottom-0 right-0 w-8 h-8 flex items-end justify-end p-2 opacity-40 pointer-events-none">
+                    <CornerRightDown size={14} className="text-primary" />
+              </div>
+          </div>
+      </div>
     </div>
   );
 });
