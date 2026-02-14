@@ -63,7 +63,11 @@ export default function DashboardPage(): React.JSX.Element {
   const { settings } = useSettingsStore();
   const { setAudioState, seekRequest, clearSeekRequest } = useAudioStore(); // Use Audio Store Actions
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
+  
+  // NEW: Track drag type to show specific message
+  const [dragType, setDragType] = useState<'none' | 'group' | 'segment'>('none');
+  const isDragging = dragType !== 'none';
+
   const [deviceInfo, setDeviceInfo] = useState<{ label: string, icon: 'desktop' | 'mobile' | 'tablet' }>({ 
       label: "ANALYZING...", 
       icon: 'desktop' 
@@ -77,6 +81,11 @@ export default function DashboardPage(): React.JSX.Element {
   
   const [orderedGroupKeys, setOrderedGroupKeys] = useState<string[]>([]);
   const t = translations[settings.language];
+
+  // Drag Handlers (Memoized to prevent re-renders)
+  const handleGroupDragStart = useCallback(() => setDragType('group'), []);
+  const handleSegmentDragStart = useCallback(() => setDragType('segment'), []);
+  const handleDragEnd = useCallback(() => setDragType('none'), []);
 
   // Logic: Handle Segment/Group Deletion
   const handleRemoveSegment = useCallback((id: string) => {
@@ -437,8 +446,10 @@ export default function DashboardPage(): React.JSX.Element {
                        setPWM={setPWM}
                        lastReorderTime={lastGroupReorderTime}
                        className={spanClass}
-                       onDragStart={() => setIsDragging(true)}
-                       onDragEnd={() => setIsDragging(false)}
+                       onDragStart={handleGroupDragStart}
+                       onDragEnd={handleDragEnd}
+                       onSegmentDragStart={handleSegmentDragStart}
+                       onSegmentDragEnd={handleDragEnd}
                      />
                    );
                 })}
@@ -527,7 +538,9 @@ export default function DashboardPage(): React.JSX.Element {
                             style={{ color: activeAccent }}
                         >
                             <Trash2 className="w-5 h-5 md:w-6 md:h-6 animate-bounce" strokeWidth={2.5} />
-                            <span className="font-black text-xs md:text-sm uppercase tracking-[0.25em]">{t.release_delete}</span>
+                            <span className="font-black text-xs md:text-sm uppercase tracking-[0.25em]">
+                                {dragType === 'group' ? t.release_delete_group : (dragType === 'segment' ? t.release_delete_segment : t.release_delete)}
+                            </span>
                         </div>
                    </div>
                 </MotionDiv>

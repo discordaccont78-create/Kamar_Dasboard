@@ -1,7 +1,7 @@
 
 import React, { useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Hash } from 'lucide-react';
 import { SegmentCard } from '../Segment/SegmentCard';
 import { CustomSegment } from '../Segment/CustomSegment';
 import { WeatherSegment } from '../Segment/WeatherSegment';
@@ -100,14 +100,14 @@ const DraggableDisplayItem = React.memo(({
     }
   };
 
-  // Shared Drag Handle Props
+  // Shared Drag Handle Props - Styled for the new Card look
   const dragHandleProps = {
-    className: "cursor-grab active:cursor-grabbing p-1 hover:bg-black/10 dark:hover:bg-white/20 rounded transition-colors",
+    className: "cursor-grab active:cursor-grabbing p-1.5 hover:bg-white/10 rounded-md transition-colors text-muted-foreground hover:text-foreground",
     onPointerDown: (e: any) => controls.start(e),
     style: { touchAction: 'none' } as React.CSSProperties
   };
 
-  const DragIcon = <GripVertical className="text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white transition-colors" size={16} />;
+  const DragIcon = <GripVertical size={14} />;
 
   // Render logic based on type
   let content = null;
@@ -162,15 +162,45 @@ const DraggableDisplayItem = React.memo(({
      }
   };
 
+  // Animation Variants for Segments
+  const itemVariants = {
+    idle: { scale: 1, opacity: 1, rotate: 0, filter: "brightness(1) blur(0px)" },
+    // On Drag: Tilt slightly, scale up, energy glow shadow
+    dragging: { 
+        scale: 1.05, 
+        zIndex: 50, 
+        opacity: 1,
+        rotate: 2, // Slight tilt for physics feel
+        boxShadow: "0 20px 40px -5px rgba(var(--primary), 0.3)", 
+        cursor: "grabbing" 
+    },
+    // On Delete: "De-rez" effect (Bright flash, then implode)
+    exit: { 
+        scale: 0, 
+        opacity: 0, 
+        filter: "brightness(2) blur(8px)", // Flash burnout effect
+        transition: { duration: 0.25, ease: "circIn" } 
+    }
+  };
+
   return (
     <MotionDiv 
       key={uniqueId}
-      layout="position" // Optimize layout animation
+      layout="position" 
       drag
-      dragListener={false} // IMPORTANT: Disables dragging by clicking anywhere
-      dragControls={controls} // Only drag via handle
+      dragListener={false} 
+      dragControls={controls} 
       dragSnapToOrigin
       dragElastic={0.1}
+      
+      variants={itemVariants}
+      initial="idle"
+      animate="idle"
+      exit="exit"
+      whileDrag="dragging"
+      // Snappy physics for return
+      transition={{ type: "spring", stiffness: 450, damping: 35 }}
+
       onDragStart={() => {
         onDragStart?.();
       }}
@@ -183,9 +213,6 @@ const DraggableDisplayItem = React.memo(({
           handleRemove();
         }
       }}
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
       className={cn("segment_area z-0 hover:z-10 relative h-full", className)}
       style={{ touchAction: 'none' }}
     >
@@ -260,24 +287,10 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
     onReorder(flattenedSegments);
   }, [displayItems, onReorder]);
 
-  // Memoize style to prevent object creation on render
-  const containerStyle = useMemo(() => ({
-    borderColor: `${settings.primaryColor}50`, // Stronger border
-    // Minimal tint, rely on backdrop-filter for the "glass" look
-    backgroundColor: `${settings.primaryColor}03`, 
-  }), [settings.primaryColor]);
-
-  const labelStyle = useMemo(() => ({
-    color: 'var(--primary)',
-    borderColor: `${settings.primaryColor}40`,
-    backgroundColor: `${settings.primaryColor}15`
-  }), [settings.primaryColor]);
-
   // Determine Grid Layout based on Item count
-  // Registers take up full space (col-span-2) usually, but we keep generic grid for now
   const gridClass = displayItems.length === 2 
     ? "grid-cols-1" 
-    : "grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6";
+    : "grid-cols-1 lg:grid-cols-2 gap-3 md:gap-5";
     
   // Smart Font Class for Zone Name
   const zoneFontClass = isPersian(name) ? "font-persian" : getFontClass(settings.dashboardFont);
@@ -285,65 +298,89 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
   return (
     <div 
       className={cn(
-        "h-full relative border-2 border-dashed rounded-xl md:rounded-[2rem] p-3 pt-6 md:p-8 transition-all duration-500",
-        // EFFECTS LAYER:
-        // 1. bg-background/30: Stronger glass tint (Increased from 20).
-        // 2. backdrop-blur-[8px]: Stronger blur (Increased from 3px) for out-of-focus look.
-        // 3. backdrop-grayscale & backdrop-saturate-0: Complete removal of color (Dead Color Effect).
-        "bg-background/30 backdrop-blur-[8px] backdrop-grayscale backdrop-saturate-0 shadow-xl"
+        "h-full relative transition-all duration-500",
+        // Base Panel Styling
+        "bg-secondary/5 dark:bg-[#0c0c0e]/60 backdrop-blur-xl",
+        "rounded-[20px]",
+        "border border-white/10 shadow-lg",
+        // Inner padding structure
+        "p-1 pt-12 pb-4"
       )}
-      style={containerStyle} 
     >
-      {/* Group Boundary Label & Drag Handle */}
-      <div 
-        className={cn(
-          "absolute -top-3 left-4 md:left-8 pl-1 pr-3 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-colors z-10 border border-dashed rounded-full backdrop-blur-md",
-          zoneFontClass
-        )}
-        style={labelStyle}
-      >
-        {dragHandle && (
-           <div className="bg-primary/20 hover:bg-primary/40 rounded-full p-1 cursor-grab active:cursor-grabbing transition-colors -ml-1">
-              {dragHandle}
-           </div>
-        )}
-        <span className="truncate max-w-[150px] md:max-w-none">ZONE: {name}</span>
+      {/* 
+         --- TECHNICAL HUD HEADER --- 
+         This creates the "Tag" look at the top left of the box.
+      */}
+      <div className="absolute top-0 left-0 right-0 h-10 border-b border-white/5 bg-white/5 dark:bg-white/[0.02] flex items-center justify-between px-4 rounded-t-[20px]">
+         <div className="flex items-center gap-3">
+            {dragHandle && (
+               <div className="text-muted-foreground hover:text-primary transition-colors cursor-grab active:cursor-grabbing">
+                  {dragHandle}
+               </div>
+            )}
+            <div className="h-4 w-px bg-white/10" />
+            <span className={cn(
+                "text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-foreground/80 flex items-center gap-2",
+                zoneFontClass
+            )}>
+               <span className="text-primary opacity-60">ZONE:</span>
+               {name}
+            </span>
+         </div>
+
+         {/* Technical Decor (Top Right) */}
+         <div className="flex items-center gap-1 opacity-20">
+             <div className="w-1 h-1 bg-foreground rounded-full" />
+             <div className="w-1 h-1 bg-foreground rounded-full" />
+             <div className="w-10 h-px bg-foreground" />
+         </div>
       </div>
 
-      <div className="-mt-1 mb-3 md:-mt-2 md:mb-6">
-         <GroupHeader name={name} count={displayItems.length} />
+      {/* Main Content Area */}
+      <div className="px-3 md:px-4">
+        {/* Optional Sub-header statistics (count) */}
+        <div className="flex justify-end mb-4 pr-1">
+             <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-muted-foreground/50 bg-black/10 dark:bg-white/5 px-2 py-0.5 rounded">
+                 <Hash size={10} />
+                 <span>{displayItems.length} MODULES</span>
+             </div>
+        </div>
+
+        <div 
+            ref={containerRef}
+            className={cn(
+            "grid relative min-h-[50px] md:min-h-[100px]",
+            gridClass
+            )}
+        >
+            <AnimatePresence mode="popLayout">
+            {displayItems.map((item, index) => {
+                const isLastAndOdd = displayItems.length % 2 !== 0 && index === displayItems.length - 1;
+                
+                return (
+                <DraggableDisplayItem 
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    containerRef={containerRef}
+                    moveItem={moveItem}
+                    onRemove={onRemove}
+                    onToggle={onToggle}
+                    onPWMChange={onPWMChange}
+                    onDragStart={onDragStart}
+                    onDragEnd={onDragEnd}
+                    lastReorderTime={lastReorderTime}
+                    className={isLastAndOdd ? "lg:col-span-2" : ""}
+                />
+                );
+            })}
+            </AnimatePresence>
+        </div>
       </div>
-      
-      <div 
-        ref={containerRef}
-        className={cn(
-          "grid relative min-h-[50px] md:min-h-[100px]",
-          gridClass
-        )}
-      >
-        <AnimatePresence mode="popLayout">
-          {displayItems.map((item, index) => {
-            const isLastAndOdd = displayItems.length % 2 !== 0 && index === displayItems.length - 1;
-            
-            return (
-              <DraggableDisplayItem 
-                key={item.id}
-                item={item}
-                index={index}
-                containerRef={containerRef}
-                moveItem={moveItem}
-                onRemove={onRemove}
-                onToggle={onToggle}
-                onPWMChange={onPWMChange}
-                onDragStart={onDragStart}
-                onDragEnd={onDragEnd}
-                lastReorderTime={lastReorderTime}
-                className={isLastAndOdd ? "lg:col-span-2" : ""}
-              />
-            );
-          })}
-        </AnimatePresence>
-      </div>
+
+      {/* Decorative Corner Brackets (HUD style) */}
+      <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary/20 rounded-br-[20px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary/20 rounded-bl-[20px] pointer-events-none" />
     </div>
   );
 });

@@ -23,7 +23,9 @@ export const DraggableGroupItem = React.memo(({
   lastReorderTime,
   className,
   onDragStart,
-  onDragEnd
+  onDragEnd,
+  onSegmentDragStart,
+  onSegmentDragEnd
 }: {
   groupName: string,
   groupNodes: Segment[],
@@ -37,7 +39,9 @@ export const DraggableGroupItem = React.memo(({
   lastReorderTime: React.MutableRefObject<number>,
   className: string,
   onDragStart: () => void,
-  onDragEnd: () => void
+  onDragEnd: () => void,
+  onSegmentDragStart?: () => void,
+  onSegmentDragEnd?: () => void
 }) => {
   const controls = useDragControls();
   const { sendCommand } = useWebSocket();
@@ -102,11 +106,31 @@ export const DraggableGroupItem = React.memo(({
 
   const handleInternalReorder = useCallback((newNodes: Segment[]) => {
     useSegments.getState().setSegments([
-        // Fix: Using groupId instead of group as per Segment type definition
         ...useSegments.getState().segments.filter(s => (s.groupId || "basic") !== groupName),
         ...newNodes
     ]);
   }, [groupName]);
+
+  // Animation Variants for "Group" Logic
+  const groupVariants = {
+    idle: { scale: 1, opacity: 1, y: 0, filter: "blur(0px)" },
+    // On Pick Up: Lift up, shadow deepens, border lights up
+    dragging: { 
+        scale: 1.02, 
+        zIndex: 100, 
+        opacity: 0.95,
+        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+        border: "1px solid rgba(var(--primary), 0.5)", // Glow effect
+        cursor: "grabbing"
+    },
+    // On Delete: Shrink and Fade into void
+    exit: { 
+        scale: 0.8, 
+        opacity: 0, 
+        filter: "blur(10px)",
+        transition: { duration: 0.3, ease: "backIn" } 
+    }
+  };
 
   return (
     <MotionDiv
@@ -116,6 +140,20 @@ export const DraggableGroupItem = React.memo(({
       dragControls={controls}
       dragSnapToOrigin
       dragElastic={0.1}
+      
+      variants={groupVariants}
+      initial="idle"
+      animate="idle"
+      exit="exit"
+      whileDrag="dragging"
+      // Mechanical Snap Physics
+      transition={{ 
+        type: "spring", 
+        stiffness: 500, 
+        damping: 30,
+        layout: { duration: 0.3, ease: "easeInOut" } 
+      }}
+
       onDragStart={onDragStart}
       onDrag={handleDrag}
       onDragEnd={(event: any, info: any) => {
@@ -125,8 +163,6 @@ export const DraggableGroupItem = React.memo(({
           removeGroup(groupName);
         }
       }}
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
       className={cn("group_area z-0 hover:z-10 relative", className)}
     >
       <SegmentGroup 
@@ -146,8 +182,8 @@ export const DraggableGroupItem = React.memo(({
         onToggle={handleToggle}
         onPWMChange={setPWM}
         onToggleBit={() => {}} 
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
+        onDragStart={onSegmentDragStart}
+        onDragEnd={onSegmentDragEnd}
       />
     </MotionDiv>
   );

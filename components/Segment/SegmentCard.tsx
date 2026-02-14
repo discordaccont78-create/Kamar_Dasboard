@@ -26,59 +26,70 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({ gpio, label, children,
   return (
     <MotionCard 
       layout
-      whileDrag={{ 
-        opacity: 0.6, 
-        rotate: 2,
-        scale: 1.03,
-        borderColor: "hsl(var(--primary))",
-        boxShadow: "0 25px 50px -12px rgba(var(--primary), 0.6)",
-        zIndex: 1000,
-        cursor: "grabbing"
-      }}
-      transition={{ 
-        type: "spring", 
-        stiffness: 450, 
-        damping: 30,
-        layout: { duration: 0.25 }
-      }}
-      className="border-2 border-border bg-card dark:bg-card text-card-foreground rounded-xl md:rounded-bevel p-0 flex flex-col relative group bevel-shadow overflow-visible cursor-grab active:cursor-grabbing h-full select-none shadow-sm hover:shadow-md transition-shadow"
+      // CONTAINER STYLE:
+      // Darker, "Hard" background (bg-card/90 or a very deep slate).
+      // Border is subtle but distinct.
+      className={cn(
+          "relative overflow-visible group",
+          "bg-white dark:bg-[#121214] border border-gray-200 dark:border-white/10",
+          "rounded-xl shadow-sm hover:shadow-lg transition-all duration-300",
+          "flex flex-col h-full select-none"
+      )}
     >
-      {/* Industrial Hardware Label - Compact on Mobile */}
-      <div className="absolute -top-3 md:-top-4 left-4 md:left-6 px-3 md:px-4 bg-primary py-1 md:py-1.5 rounded-chip border-2 border-primary-foreground/10 shadow-md z-20 flex items-center gap-2 md:gap-3 max-w-[85%]">
-        <div className="drag-handle pointer-events-auto shrink-0 border-r border-primary-foreground/20 pr-2 mr-1">
-          {dragHandle}
-        </div>
-        
-        {/* Dynamic Smart Icon */}
-        <div className="text-primary-foreground opacity-90">
-            <SegmentIcon size={14} strokeWidth={2.5} />
-        </div>
+      {/* 
+         --- MODULE HEADER (The "Label Plate") --- 
+         Designed to look like a serial tag riveted to the device.
+      */}
+      <div className="h-9 flex items-center justify-between px-3 bg-gray-50/80 dark:bg-white/[0.03] border-b border-gray-100 dark:border-white/5">
+          <div className="flex items-center gap-2.5 min-w-0">
+              {/* Drag Handle Zone */}
+              <div className="opacity-40 group-hover:opacity-100 transition-opacity border-r border-foreground/10 pr-2 -ml-1">
+                  {dragHandle}
+              </div>
 
-        <div className="flex flex-col min-w-0">
-          <span className={cn(
-            "text-primary-foreground font-black text-[9px] md:text-[10px] tracking-tight uppercase leading-none truncate",
-            labelFontClass
-          )}>
-            {label}
-          </span>
-          <span className="text-primary-foreground/70 font-black text-[7px] md:text-[8px] uppercase tracking-widest mt-0.5 font-mono hidden xs:block">
-            GP-{gpio}
-          </span>
-        </div>
+              {/* Icon & Name */}
+              <div className="text-primary opacity-80">
+                  <SegmentIcon size={14} strokeWidth={2.5} />
+              </div>
+              <span className={cn(
+                  "text-[10px] font-black uppercase tracking-wider text-foreground/90 truncate pt-0.5",
+                  labelFontClass
+              )}>
+                  {label}
+              </span>
+          </div>
+
+          {/* Technical GPIO Tag */}
+          <div className="flex items-center gap-1.5 opacity-50">
+              <span className="text-[7px] font-mono font-bold uppercase tracking-widest text-muted-foreground">GP-{gpio}</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500/50 shadow-[0_0_5px_rgba(34,197,94,0.4)]" /> {/* Status LED */}
+          </div>
       </div>
       
-      {/* Core Logic Interface - Compact Padding */}
-      <CardContent className="p-4 pt-10 md:p-6 md:pt-12 relative z-10 flex flex-col gap-4 md:gap-6 h-full">
+      {/* 
+         --- CORE CONTENT ---
+         Padding adjusted for a tighter, more technical feel.
+      */}
+      <CardContent className="p-4 relative z-10 flex flex-col gap-4 h-full bg-gradient-to-b from-transparent to-black/[0.02]">
         {children}
       </CardContent>
 
-      {/* Decorative Hardware Detailing */}
-      <div className="absolute bottom-2 left-2 hidden md:flex gap-1 opacity-20 pointer-events-none group-hover:opacity-100 transition-opacity">
-        <div className="w-1.5 h-1.5 rounded-full border border-foreground" />
+      {/* 
+         --- INDUSTRIAL DETAILS (Screws) --- 
+         Visual flourishes to make it look mounted.
+      */}
+      <div className="absolute top-2.5 right-2.5 opacity-20 pointer-events-none hidden md:block">
+         <div className="w-1 h-1 border border-foreground rounded-full bg-transparent" />
       </div>
-      <div className="absolute bottom-2 right-2 hidden md:flex gap-1 opacity-20 pointer-events-none group-hover:opacity-100 transition-opacity">
-        <div className="w-1.5 h-1.5 rounded-full border border-foreground" />
+      <div className="absolute bottom-2.5 left-2.5 opacity-20 pointer-events-none hidden md:block">
+         <div className="w-1 h-1 border border-foreground rounded-full bg-transparent" />
       </div>
+      <div className="absolute bottom-2.5 right-2.5 opacity-20 pointer-events-none hidden md:block">
+         <div className="w-1 h-1 border border-foreground rounded-full bg-transparent" />
+      </div>
+
+      {/* Active Glow Hint on Hover (Bottom Edge) */}
+      <div className="absolute bottom-0 left-0 w-full h-[2px] bg-primary/0 group-hover:bg-primary/50 transition-colors duration-500" />
     </MotionCard>
   );
 };
