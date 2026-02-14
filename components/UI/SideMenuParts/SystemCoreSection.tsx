@@ -1,6 +1,6 @@
 
 import React, { useRef } from 'react';
-import { Activity, Volume2, Grid3X3, Square, Triangle, Circle, Type, Waves, Palette, Music, Check, LayoutGrid, Monitor, ChevronRight, ChevronLeft, Zap } from 'lucide-react';
+import { Activity, Volume2, Grid3X3, Square, Triangle, Circle, Type, Waves, Palette, Music, Check, LayoutGrid, Monitor, ChevronRight, ChevronLeft, Zap, Ban } from 'lucide-react';
 import { Card, CardContent } from '../../ui/card';
 import { Input } from '../../ui/input';
 import { Switch } from '../../ui/switch';
@@ -24,6 +24,16 @@ const THEME_PALETTES = [
     { id: 'purple', label: 'SYNTH WAVE', primary: '#d946ef', cursor: '#e879f9' },
     { id: 'red', label: 'RED ALERT', primary: '#ef4444', cursor: '#f87171' },
     { id: 'blue', label: 'DEEP OCEAN', primary: '#3b82f6', cursor: '#60a5fa' },
+];
+
+// --- FONT OPTIONS MAPPING ---
+const FONT_OPTIONS = [
+    { value: 'Inter', label: 'Inter UI', class: 'font-inter' },
+    { value: 'Oswald', label: 'Oswald', class: 'font-oswald' },
+    { value: 'Lato', label: 'Lato', class: 'font-lato' },
+    { value: 'Montserrat', label: 'Montserrat', class: 'font-montserrat' },
+    { value: 'DinaRemaster', label: 'Dina Mono', class: 'font-dina' },
+    { value: 'PrpggyDotted', label: 'Proggy', class: 'font-proggy' },
 ];
 
 const PatternButton = ({ id, icon: Icon, label, current, onClick }: any) => (
@@ -175,21 +185,52 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
                             })}
                         </div>
 
-                        {/* Font Selection */}
-                        <div className="flex items-center gap-2 mt-2">
-                            <span className="text-[9px] font-bold uppercase text-muted-foreground w-12">Typeface</span>
-                            <select 
-                                value={settings.dashboardFont} 
-                                onChange={(e) => updateSettings({ dashboardFont: e.target.value as any })}
-                                className="flex-1 h-7 rounded-md text-[9px] font-bold uppercase bg-background border border-input px-2 outline-none focus:border-primary"
-                            >
-                                <option value="Inter">Inter UI (Standard)</option>
-                                <option value="Oswald">Oswald (Compact)</option>
-                                <option value="Lato">Lato (Soft)</option>
-                                <option value="Montserrat">Montserrat (Wide)</option>
-                                <option value="DinaRemaster">Dina (Coding)</option>
-                                <option value="PrpggyDotted">Proggy (Retro)</option>
-                            </select>
+                        {/* VISUAL FONT SELECTOR */}
+                        <div className="space-y-2 pt-2 border-t border-border/50">
+                            <label className="text-[9px] font-bold uppercase text-muted-foreground flex justify-between items-center">
+                                Typeface Preview
+                                <span className="text-[7px] opacity-50 font-mono">{settings.dashboardFont}</span>
+                            </label>
+                            
+                            <div className="grid grid-cols-2 gap-2">
+                                {FONT_OPTIONS.map((font) => (
+                                    <button
+                                        key={font.value}
+                                        onClick={() => {
+                                            playClick();
+                                            updateSettings({ dashboardFont: font.value as any });
+                                        }}
+                                        className={cn(
+                                            "relative flex flex-col items-start justify-center p-2 rounded-lg border transition-all duration-300 h-14 overflow-hidden group text-left",
+                                            settings.dashboardFont === font.value
+                                                ? "bg-primary/10 border-primary shadow-[0_0_10px_-3px_rgba(var(--primary),0.3)]"
+                                                : "bg-secondary/10 border-transparent hover:bg-secondary/20 hover:border-primary/30"
+                                        )}
+                                    >
+                                        {/* Label (Small) */}
+                                        <span className={cn(
+                                            "text-[7px] font-bold uppercase tracking-wider mb-0.5",
+                                            settings.dashboardFont === font.value ? "text-primary" : "text-muted-foreground"
+                                        )}>
+                                            {font.label}
+                                        </span>
+
+                                        {/* Preview Text (The Title) */}
+                                        <span className={cn(
+                                            "text-sm leading-none truncate w-full pr-2",
+                                            font.class,
+                                            settings.dashboardFont === font.value ? "text-foreground" : "text-muted-foreground/70 group-hover:text-foreground"
+                                        )}>
+                                            {settings.title || "PREVIEW"}
+                                        </span>
+                                        
+                                        {/* Active Indicator */}
+                                        {settings.dashboardFont === font.value && (
+                                            <div className="absolute right-2 top-2 w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_5px_var(--primary)]" />
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
@@ -202,7 +243,7 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
                                 <LayoutGrid size={12} /> Matrix Pattern
                             </label>
                             
-                            {!isGrid && (
+                            {isGrid === false && settings.backgroundEffect !== 'none' && (
                                 <div className="flex items-center gap-2">
                                     <span className="text-[8px] font-bold uppercase text-muted-foreground">Dual Color</span>
                                     <Switch 
@@ -214,7 +255,8 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
                             )}
                         </div>
                         
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-5 gap-2">
+                            <PatternButton id="none" icon={Ban} label="None" current={settings.backgroundEffect} onClick={() => handleUpdate({ backgroundEffect: 'none' })} />
                             <PatternButton id="grid" icon={Grid3X3} label="Grid" current={settings.backgroundEffect} onClick={() => handleUpdate({ backgroundEffect: 'grid' })} />
                             <PatternButton id="dots" icon={Circle} label="Dots" current={settings.backgroundEffect} onClick={() => handleUpdate({ backgroundEffect: 'dots' })} />
                             <PatternButton id="squares" icon={Square} label="Box" current={settings.backgroundEffect} onClick={() => handleUpdate({ backgroundEffect: 'squares' })} />
@@ -222,52 +264,54 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
                         </div>
 
                         {/* Dynamic Pattern Settings */}
-                        <div className="bg-secondary/5 rounded-lg p-3 border border-border/30 space-y-3">
-                            {isGrid ? (
-                                <div className="flex gap-4">
-                                    <div className="flex-1 space-y-1">
-                                        <label className="text-[8px] font-bold uppercase text-muted-foreground">Grid Size</label>
-                                        <Input 
-                                            type="number" 
-                                            value={settings.gridSize || 32} 
-                                            onChange={(e) => updateSettings({ gridSize: parseInt(e.target.value) })}
-                                            className="h-7 text-center text-[9px]"
-                                        />
-                                    </div>
-                                    <div className="flex-1 space-y-1">
-                                        <label className="text-[8px] font-bold uppercase text-muted-foreground">Line Style</label>
-                                        <div className="flex bg-background rounded-md p-0.5 border border-input h-7 items-center">
-                                            <button onClick={() => updateSettings({ gridLineStyle: 'solid' })} className={cn("flex-1 h-full text-[8px] font-bold rounded-sm", settings.gridLineStyle === 'solid' && "bg-primary text-black")}>Solid</button>
-                                            <button onClick={() => updateSettings({ gridLineStyle: 'dashed' })} className={cn("flex-1 h-full text-[8px] font-bold rounded-sm", settings.gridLineStyle === 'dashed' && "bg-primary text-black")}>Dash</button>
+                        {settings.backgroundEffect !== 'none' && (
+                            <div className="bg-secondary/5 rounded-lg p-3 border border-border/30 space-y-3">
+                                {isGrid ? (
+                                    <div className="flex gap-4">
+                                        <div className="flex-1 space-y-1">
+                                            <label className="text-[8px] font-bold uppercase text-muted-foreground">Grid Size</label>
+                                            <Input 
+                                                type="number" 
+                                                value={settings.gridSize || 32} 
+                                                onChange={(e) => updateSettings({ gridSize: parseInt(e.target.value) })}
+                                                className="h-7 text-center text-[9px]"
+                                            />
+                                        </div>
+                                        <div className="flex-1 space-y-1">
+                                            <label className="text-[8px] font-bold uppercase text-muted-foreground">Line Style</label>
+                                            <div className="flex bg-background rounded-md p-0.5 border border-input h-7 items-center">
+                                                <button onClick={() => updateSettings({ gridLineStyle: 'solid' })} className={cn("flex-1 h-full text-[8px] font-bold rounded-sm", settings.gridLineStyle === 'solid' && "bg-primary text-black")}>Solid</button>
+                                                <button onClick={() => updateSettings({ gridLineStyle: 'dashed' })} className={cn("flex-1 h-full text-[8px] font-bold rounded-sm", settings.gridLineStyle === 'dashed' && "bg-primary text-black")}>Dash</button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[9px] font-bold uppercase text-muted-foreground">Fill Style</span>
-                                    <div className="flex bg-background rounded-md p-0.5 border border-input">
-                                        <button onClick={() => updateSettings({ hollowShapes: false })} className={cn("px-3 py-1 text-[8px] font-bold rounded-sm transition-colors", !settings.hollowShapes ? "bg-primary text-black" : "text-muted-foreground")}>{t.solid}</button>
-                                        <button onClick={() => updateSettings({ hollowShapes: true })} className={cn("px-3 py-1 text-[8px] font-bold rounded-sm transition-colors", settings.hollowShapes ? "bg-primary text-black" : "text-muted-foreground")}>{t.hollow}</button>
+                                ) : (
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[9px] font-bold uppercase text-muted-foreground">Fill Style</span>
+                                        <div className="flex bg-background rounded-md p-0.5 border border-input">
+                                            <button onClick={() => updateSettings({ hollowShapes: false })} className={cn("px-3 py-1 text-[8px] font-bold rounded-sm transition-colors", !settings.hollowShapes ? "bg-primary text-black" : "text-muted-foreground")}>{t.solid}</button>
+                                            <button onClick={() => updateSettings({ hollowShapes: true })} className={cn("px-3 py-1 text-[8px] font-bold rounded-sm transition-colors", settings.hollowShapes ? "bg-primary text-black" : "text-muted-foreground")}>{t.hollow}</button>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-
-                            {/* Text Overlay */}
-                            <div className="pt-2 border-t border-border/30">
-                                <div className="flex items-center justify-between mb-2">
-                                    <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Type size={10} /> {t.text_overlay}</label>
-                                    <Switch checked={settings.enableTextPattern} onCheckedChange={(c) => updateSettings({ enableTextPattern: c })} className="scale-75 origin-right" />
-                                </div>
-                                {settings.enableTextPattern && (
-                                    <Input 
-                                        value={settings.textPatternValue} 
-                                        onChange={(e) => updateSettings({ textPatternValue: e.target.value })} 
-                                        className="h-7 text-[9px] text-center uppercase tracking-[0.2em] bg-background" 
-                                        placeholder={t.enter_text_pattern}
-                                    />
                                 )}
+
+                                {/* Text Overlay */}
+                                <div className="pt-2 border-t border-border/30">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Type size={10} /> {t.text_overlay}</label>
+                                        <Switch checked={settings.enableTextPattern} onCheckedChange={(c) => updateSettings({ enableTextPattern: c })} className="scale-75 origin-right" />
+                                    </div>
+                                    {settings.enableTextPattern && (
+                                        <Input 
+                                            value={settings.textPatternValue} 
+                                            onChange={(e) => updateSettings({ textPatternValue: e.target.value })} 
+                                            className="h-7 text-[9px] text-center uppercase tracking-[0.2em] bg-background" 
+                                            placeholder={t.enter_text_pattern}
+                                        />
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     <div className="h-px bg-border/50" />
@@ -331,6 +375,14 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
                                 <label className="text-[8px] font-bold uppercase text-muted-foreground">{t.ui_sfx}</label>
                                 <Switch checked={settings.enableSFX} onCheckedChange={(c) => handleUpdate({ enableSFX: c })} className="scale-75" />
                             </div>
+                        </div>
+
+                        {/* NEW: Island Levitation Switch */}
+                        <div className="flex items-center justify-between bg-secondary/5 p-2 rounded-lg border border-border/30">
+                            <label className="text-[8px] font-bold uppercase text-muted-foreground flex items-center gap-2">
+                                Island Levitation
+                            </label>
+                            <Switch checked={settings.floatingIslands ?? true} onCheckedChange={(c) => handleUpdate({ floatingIslands: c })} className="scale-75" />
                         </div>
                         
                         {/* Audio Engine (Music) Toggle */}

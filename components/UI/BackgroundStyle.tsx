@@ -169,7 +169,15 @@ export const BackgroundStyle: React.FC = () => {
   const GRID_MOVE_X = `${gridSize * 80}px`; // ensure loop is smooth
   const GRID_MOVE_Y = `${gridSize * 80}px`;
 
-  if (settings.backgroundEffect === 'grid') {
+  if (settings.backgroundEffect === 'none') {
+      // Just plain background color
+      cssRule = `
+        .graph-paper, .pattern-bg {
+            background-color: hsl(var(--background));
+            background-image: none;
+        }
+      `;
+  } else if (settings.backgroundEffect === 'grid') {
       const gridSvg = createGridSvg(baseColor, settings.gridStrokeWidth, settings.gridLineStyle, gridSize);
       
       // Grid uses dynamic generated SVG now

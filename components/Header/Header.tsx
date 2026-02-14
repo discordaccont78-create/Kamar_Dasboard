@@ -306,13 +306,52 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     setIsSchedulerOpen(true);
   };
 
+  // --- FLOATING ANIMATION VARIANTS (DECOUPLED) ---
   const islandVariants = {
     hidden: { y: -50, opacity: 0, scale: 0.9 },
+    // Static state when levitation is OFF
     visible: { 
-      y: 0, 
+        y: 0, 
+        x: 0, 
+        opacity: 1, 
+        scale: 1, 
+        transition: { type: "spring", stiffness: 300, damping: 20 } 
+    },
+    // 1. LEFT: Slow, mostly vertical with slight right drift
+    floatLeft: { 
+      y: [0, -3, 1, -2, 0], 
+      x: [0, 1, 0, 1, 0],
       opacity: 1, 
       scale: 1,
-      transition: { type: "spring", stiffness: 300, damping: 20, mass: 1.5 }
+      transition: { 
+        y: { duration: 7, repeat: Infinity, ease: "easeInOut" },
+        x: { duration: 5, repeat: Infinity, ease: "easeInOut" },
+        default: { duration: 0.5 }
+      }
+    },
+    // 2. RIGHT (MAIN): Slower, mostly horizontal drift with slight bob
+    floatRight: { 
+      y: [0, 2, -1, 1, 0], 
+      x: [0, -2, 1, -1, 0],
+      opacity: 1, 
+      scale: 1,
+      transition: { 
+        y: { duration: 8, repeat: Infinity, ease: "easeInOut" },
+        x: { duration: 9, repeat: Infinity, ease: "easeInOut" },
+        default: { duration: 0.5 }
+      }
+    },
+    // 3. WIFI (SMALL): Faster, erratic "hover" feel
+    floatWifi: {
+      y: [0, -2, 2, -1, 1, 0],
+      x: [0, 1, -1, 1, -1, 0],
+      opacity: 1,
+      scale: 1,
+      transition: {
+        y: { duration: 5.5, repeat: Infinity, ease: "easeInOut" },
+        x: { duration: 4, repeat: Infinity, ease: "easeInOut" },
+        default: { duration: 0.5 }
+      }
     }
   };
 
@@ -373,7 +412,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
           ref={leftIslandRef}
           variants={islandVariants}
           initial="hidden"
-          animate="visible"
+          animate={(settings.floatingIslands ?? true) ? "floatLeft" : "visible"} // Toggle Animation
           className="relative drop-shadow-xl filter group z-30 shrink-0 w-fit max-w-[65vw]" 
         >
            <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-xl" style={{ clipPath: CLIP_LEFT }} />
@@ -441,7 +480,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                 ref={rightIslandRef} // ATTACHED REF FOR ACCURATE MEASUREMENT
                 variants={islandVariants}
                 initial="hidden"
-                animate="visible"
+                animate={(settings.floatingIslands ?? true) ? "floatRight" : "visible"} // Toggle Animation
                 transition={{ delay: 0.1 }}
                 className="relative drop-shadow-xl filter flex-1 z-20 max-w-full"
             >
@@ -537,7 +576,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
             <MotionDiv
                 variants={islandVariants}
                 initial="hidden"
-                animate="visible"
+                animate={(settings.floatingIslands ?? true) ? "floatWifi" : "visible"} // Toggle Animation
                 transition={{ delay: 0.2 }}
                 className="relative z-20 shrink-0 drop-shadow-xl filter" 
             >

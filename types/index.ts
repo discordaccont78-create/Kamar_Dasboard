@@ -100,7 +100,7 @@ export interface AppSettings {
   readonly useSsl: boolean;
   currentTrackIndex: number; 
   dashboardFont?: 'Inter' | 'Oswald' | 'Lato' | 'Montserrat' | 'DinaRemaster' | 'PrpggyDotted';
-  backgroundEffect?: 'grid' | 'dots' | 'squares' | 'triangles';
+  backgroundEffect?: 'grid' | 'dots' | 'squares' | 'triangles' | 'none';
   primaryColor: string;
   cursorColor: string;
   language: 'en' | 'fa';
@@ -109,13 +109,13 @@ export interface AppSettings {
   headerGap?: number;
   headerWaveOpacity?: number;
   headerDynamicIntensity?: boolean;
-  showHeaderWaves?: boolean; // New Property
+  showHeaderWaves?: boolean; 
+  floatingIslands?: boolean; // New: Toggle for island levitation
   dualColorBackground: boolean;
   hollowShapes: boolean;
   enableTextPattern: boolean;
   textPatternValue: string;
   gridSize?: number;
-  // Added missing properties identified in BackgroundStyle and SystemCoreSection
   patternOpacity?: number;
   secondaryPatternOpacity?: number;
   textPatternColor?: string;

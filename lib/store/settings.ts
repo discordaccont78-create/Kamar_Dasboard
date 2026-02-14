@@ -21,6 +21,7 @@ interface ExtendedAppSettings extends AppSettings {
   gridStrokeWidth?: number;
   gridLineStyle?: 'solid' | 'dashed' | 'dotted';
   showHeaderWaves?: boolean;
+  floatingIslands?: boolean;
 }
 
 interface SettingsStore {
@@ -75,6 +76,7 @@ export const useSettingsStore = create<SettingsStore>()(
         headerWaveOpacity: 90,
         headerDynamicIntensity: true,
         showHeaderWaves: true, // Default ON
+        floatingIslands: true, // Default Levitation ON
 
         // Grid Defaults
         gridStrokeWidth: 1,

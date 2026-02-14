@@ -348,6 +348,38 @@ export default function DashboardPage(): React.JSX.Element {
   // Dynamic Third Color
   const activeAccent = settings.cursorColor || '#daa520';
 
+  // --- FOOTER FLOATING VARIANTS (DECOUPLED) ---
+  const footerVariants = {
+    hidden: { y: 50, opacity: 0 },
+    // Static state when levitation is OFF or during Drag
+    locked: { 
+        y: 0, 
+        x: 0,
+        opacity: 1,
+        transition: { type: "spring", stiffness: 400, damping: 25 }
+    },
+    // LEFT ISLAND: Mostly vertical, shorter cycle
+    floatLeft: { 
+        y: [0, -4, 1, -2, 0], 
+        x: [0, 1, -1, 0],
+        opacity: 1,
+        transition: { 
+            y: { duration: 6, repeat: Infinity, ease: "easeInOut" },
+            x: { duration: 5, repeat: Infinity, ease: "easeInOut" }
+        }
+    },
+    // RIGHT ISLAND: More horizontal sway, longer cycle
+    floatRight: { 
+        y: [0, 2, -1, 2, 0], 
+        x: [0, -2, 1, -1, 0],
+        opacity: 1,
+        transition: { 
+            y: { duration: 7, repeat: Infinity, ease: "easeInOut" },
+            x: { duration: 8, repeat: Infinity, ease: "easeInOut" }
+        }
+    }
+  };
+
   return (
     <MotionConfig reducedMotion={settings.animations ? "never" : "always"}>
       <div className={cn(
@@ -425,9 +457,9 @@ export default function DashboardPage(): React.JSX.Element {
             {/* 1. LEFT ISLAND (System Status) */}
             <MotionDiv 
               layout
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2, type: "spring" }}
+              variants={footerVariants}
+              initial="hidden"
+              animate={isDragging ? "locked" : (settings.floatingIslands ?? true ? "floatLeft" : "locked")} // Toggle Animation
               className="relative h-full min-w-[140px] md:min-w-[200px] pointer-events-auto filter drop-shadow-lg z-20 shrink-0"
             >
                {/* Border Layer */}
@@ -505,9 +537,9 @@ export default function DashboardPage(): React.JSX.Element {
             {/* 3. RIGHT ISLAND (Version & Device) */}
             <MotionDiv 
               layout
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.3, type: "spring" }}
+              variants={footerVariants}
+              initial="hidden"
+              animate={isDragging ? "locked" : (settings.floatingIslands ?? true ? "floatRight" : "locked")} // Toggle Animation
               className="relative h-full min-w-[140px] md:min-w-[200px] pointer-events-auto filter drop-shadow-lg flex justify-end z-20 shrink-0"
             >
                {/* Border Layer */}
