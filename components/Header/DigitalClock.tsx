@@ -53,7 +53,7 @@ export const DigitalClock: React.FC = () => {
   }, []);
 
   return (
-    <div className="hidden lg:flex flex-col items-start justify-center pl-4 border-l-2 border-border/30 h-auto py-1">
+    <div className="hidden md:flex flex-col items-start justify-center h-auto py-1 mr-auto">
         <MotionDiv 
         whileHover={{ scale: 1.05 }}
         className="group relative px-2 py-1 rounded-lg border border-transparent hover:border-primary/30 transition-all duration-300 cursor-default overflow-hidden"
@@ -69,7 +69,7 @@ export const DigitalClock: React.FC = () => {
                 <TimeDigit val={timeParts.s[1]} />
             </div>
         </MotionDiv>
-        <div className="text-[7px] font-black uppercase tracking-[0.4em] text-primary/70 mt-0.5 ml-3">{t.system_time}</div>
+        <div className="text-[7px] font-black uppercase tracking-[0.4em] text-primary/70 mt-0.5 ml-1">{t.system_time}</div>
     </div>
   );
 };

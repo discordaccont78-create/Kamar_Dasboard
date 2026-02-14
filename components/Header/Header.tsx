@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun, Settings, Zap, CalendarClock, Terminal, Menu } from 'lucide-react';
 import { useSettingsStore } from '../../lib/store/settings';
@@ -21,36 +21,146 @@ interface HeaderProps {
     onOpenMenu: () => void;
 }
 
-// --- UPDATED TITLE COMPONENT ---
-const DynamicTitle = ({ 
+// --- NEW CYBER TITLE COMPONENT ---
+const CYBER_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$#@%&*<>";
+
+const CyberTitle = ({ 
     text, 
     fontClass, 
     discharging, 
-    accentColor, 
-    strokeColor 
+    accentColor 
 }: { 
     text: string, 
     fontClass: string, 
     discharging: boolean, 
-    accentColor: string,
-    strokeColor: string
+    accentColor: string
 }) => {
+  const [scrambleText, setScrambleText] = useState(text);
+  
+  // displayIndex: currently visible characters
+  // targetIndex: desired visible characters based on mouse position
+  const [displayIndex, setDisplayIndex] = useState(text.length);
+  const [targetIndex, setTargetIndex] = useState(text.length);
+  
+  const [isHovered, setIsHovered] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Common Styles for both Ghost and Visible Text
+  const textStyles = cn(
+      "text-lg md:text-3xl font-black uppercase tracking-[0.15em] leading-none whitespace-nowrap",
+      fontClass
+  );
+
+  // 1. Reset state when prop text changes
+  useEffect(() => {
+      setDisplayIndex(text.length);
+      setTargetIndex(text.length);
+      setScrambleText(text);
+  }, [text]);
+
+  // 2. Scramble Logic (Only during Lightning Discharge)
+  useEffect(() => {
+    if (!discharging) return;
+    
+    let iteration = 0;
+    const interval = setInterval(() => {
+      setScrambleText(prev => 
+        text.split("").map((char, index) => {
+            if (index < iteration) return text[index];
+            return CYBER_CHARS[Math.floor(Math.random() * CYBER_CHARS.length)];
+        }).join("")
+      );
+      iteration += 1 / 4;
+      if (iteration >= text.length) clearInterval(interval);
+    }, 60);
+
+    return () => clearInterval(interval);
+  }, [discharging, text]);
+
+  // 3. Smooth Transition Loop (The Typewriter Engine)
+  // Moves displayIndex towards targetIndex one step at a time
+  useEffect(() => {
+      if (discharging) return; 
+
+      if (displayIndex !== targetIndex) {
+          const timeout = setTimeout(() => {
+              setDisplayIndex(prev => {
+                  if (prev < targetIndex) return prev + 1; // Type forward
+                  if (prev > targetIndex) return prev - 1; // Delete backward
+                  return prev;
+              });
+          }, 30); // Speed of character transition (ms)
+          return () => clearTimeout(timeout);
+      }
+  }, [displayIndex, targetIndex, discharging]);
+
+  // 4. Mouse Move Handler (Sets the TARGET, not the value directly)
+  const handleMouseMove = (e: React.MouseEvent) => {
+      if (discharging || !containerRef.current) return;
+      
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      
+      // Calculate cursor position fraction (0.0 to 1.0)
+      const fraction = Math.max(0, Math.min(1, x / rect.width));
+      
+      // Determine which character index the mouse is hovering over
+      // +1 ensures we show at least the character under the cursor
+      let newTarget = Math.floor(fraction * text.length) + 1;
+      newTarget = Math.max(1, Math.min(newTarget, text.length)); // Clamp
+      
+      setTargetIndex(newTarget);
+      setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+      setIsHovered(false);
+      setTargetIndex(text.length); // Animate back to full text
+  };
+
   return (
-    <div className="relative group cursor-default select-none flex items-center">
+    <div 
+        ref={containerRef}
+        className="relative group cursor-default select-none flex items-center justify-start py-2"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+    >
+        {/* GHOST LAYER: Occupies space to keep layout stable */}
+        <div className={cn(textStyles, "opacity-0 invisible")} aria-hidden="true">
+            {text}
+        </div>
+
+        {/* VISIBLE LAYER */}
         <MotionDiv
-            className={cn(
-                "text-lg md:text-3xl font-black uppercase tracking-[0.15em] leading-none transition-all duration-300 relative z-10 truncate",
-                fontClass
-            )}
+            className={cn("absolute left-0 top-1/2 -translate-y-1/2 flex items-center z-10", textStyles)}
             style={{
-                color: discharging ? accentColor : "hsl(var(--foreground))",
+                color: "hsl(var(--foreground))",
+                textShadow: discharging ? `0 0 10px ${accentColor}` : `0 0 1px ${accentColor}40`
             }}
             animate={discharging 
-                ? { scale: 1.05 } 
-                : { scale: 1 } 
+                ? { x: [-1, 1, 0], skewX: [0, 2, 0] } 
+                : { x: 0, skewX: 0 } 
             }
+            transition={{ duration: 0.1 }}
         >
-            {text}
+            {discharging ? scrambleText : text.slice(0, displayIndex)}
+            
+            {/* Blinking Cursor: Shows when interacting and not fully restored */}
+            {(!discharging && isHovered) && (
+                <span className="text-primary animate-pulse ml-0.5 inline-block">_</span>
+            )}
+        </MotionDiv>
+        
+        {/* Glow Layer */}
+        <MotionDiv
+            className={cn("absolute left-0 top-1/2 -translate-y-1/2 blur-[4px] pointer-events-none", textStyles)}
+            style={{ color: accentColor }}
+            animate={{ 
+                opacity: discharging ? 0.6 : 0.05, 
+                scale: discharging ? 1.05 : 1
+            }}
+        >
+            {discharging ? scrambleText : text.slice(0, displayIndex)}
         </MotionDiv>
     </div>
   );
@@ -76,8 +186,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
 
   const titleFontClass = getFontClass(settings.dashboardFont);
   const thirdColor = settings.cursorColor || '#daa520';
-  const strokeColor = settings.theme === 'dark' ? '#ffffff' : '#000000';
-
+  
   // --- GAP LOGIC ---
   const gapSize = settings.headerGap ?? 40;
   // Mobile Cap: Max 50px, otherwise follows slider if lower than 50
@@ -147,7 +256,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
           setTimeout(() => {
               setSparkState('idle');
           }, 750);
-      }, 6000); 
+      }, 60000); // 60s Interval
       return () => clearInterval(loop);
   }, [settings.animations, playSpark, playCharge]);
 
@@ -226,10 +335,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
     }
   };
 
+  // LEFT ISLAND: Standard "cut corner" style
   const CLIP_LEFT = "polygon(12px 0, 100% 0, calc(100% - 24px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px)";
   
-  // UPDATED CLIP: Straight on the right side to allow the Wifi module to sit next to it cleanly
-  const CLIP_RIGHT_MAIN = "polygon(24px 0, 100% 0, 100% 100%, 0 100%)";
+  // RIGHT ISLAND:
+  // Now has a 20px slanted cut on the RIGHT side to interface with the WiFi module.
+  // Top-Right is 100% width, Bottom-Right is (100% - 20px).
+  const CLIP_RIGHT_MAIN = "polygon(24px 0, 100% 0, calc(100% - 20px) 100%, 0 100%)";
 
   return (
     <header className="sticky top-2 md:top-6 z-50 px-2 md:px-8 transition-all duration-500 pointer-events-none">
@@ -298,12 +410,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                   </div>
 
                   <div className="flex flex-col justify-center gap-0.5 md:gap-1 relative z-30 min-w-0">
-                    <DynamicTitle 
+                    <CyberTitle 
                         text={settings.title} 
                         fontClass={titleFontClass}
                         discharging={sparkState === 'discharge'} 
                         accentColor={thirdColor}
-                        strokeColor={strokeColor}
                     />
                     
                     {/* System Version Label */}
@@ -323,7 +434,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
         </MotionDiv>
 
         {/* --- RIGHT SECTION (Controls + Separated Wifi) --- */}
-        <div className="flex items-stretch gap-0 min-w-0 flex-1 justify-end">
+        <div className="flex items-stretch gap-0.5 md:gap-1 min-w-0 flex-1 justify-end">
             
             {/* 1. Main Control Island */}
             <MotionDiv
@@ -362,7 +473,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                 <div className="absolute inset-0 bg-gradient-to-l from-transparent via-primary/5 to-transparent opacity-50" />
                 </div>
                 
-                <div className="relative h-full w-full flex items-center justify-end md:justify-between pl-3 md:pl-4 pr-3 md:pr-4">
+                <div className="relative h-full w-full flex items-center justify-end md:justify-between pl-3 md:pl-4 pr-6 md:pr-8">
                 <DigitalClock />
                 
                 {/* DESKTOP CONTROLS */}
@@ -428,7 +539,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                 initial="hidden"
                 animate="visible"
                 transition={{ delay: 0.2 }}
-                className="relative z-20 shrink-0"
+                className="relative z-20 shrink-0 drop-shadow-xl filter" 
             >
                 <ConnectionStatus variant="glass" />
             </MotionDiv>

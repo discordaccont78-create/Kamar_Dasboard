@@ -49,7 +49,7 @@ export const useSettingsStore = create<SettingsStore>()(
         title: "Kamyar Pro IoT", // Default Title
         domain: "iot-device",
         animations: true,
-        bgMusic: false,
+        bgMusic: true, // CHANGED TO TRUE DEFAULT
         enableSFX: true, // Default to ON for better UX
         volume: 30,
         theme: 'dark',

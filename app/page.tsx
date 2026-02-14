@@ -7,8 +7,9 @@ import { DraggableGroupItem } from '../components/Group/DraggableGroupItem';
 import { useSegments } from '../lib/store/segments';
 import { useSettingsStore } from '../lib/store/settings';
 import { useSchedulerStore } from '../lib/store/scheduler';
+import { useAudioStore } from '../lib/store/audioStore'; // Import Audio Store
 import { useSchedulerEngine } from '../hooks/useSchedulerEngine';
-import { Zap, Trash2, Cpu, Laptop, Smartphone, Tablet } from 'lucide-react';
+import { Zap, Trash2, Cpu, Laptop, Smartphone, Tablet, Activity } from 'lucide-react';
 import { cn, getFontClass } from '../lib/utils';
 import { translations } from '../lib/i18n';
 import { MUSIC_TRACKS } from '../lib/constants';
@@ -60,6 +61,7 @@ export default function DashboardPage(): React.JSX.Element {
   const { segments, removeSegment, removeGroup, toggleSegment, setPWM } = useSegments();
   const { removeSchedulesByTarget } = useSchedulerStore(); 
   const { settings } = useSettingsStore();
+  const { setAudioState, seekRequest, clearSeekRequest } = useAudioStore(); // Use Audio Store Actions
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [deviceInfo, setDeviceInfo] = useState<{ label: string, icon: 'desktop' | 'mobile' | 'tablet' }>({ 
@@ -100,39 +102,65 @@ export default function DashboardPage(): React.JSX.Element {
     document.dir = settings.language === 'fa' ? 'rtl' : 'ltr';
   }, [settings.language]);
 
-  // Logic: Advanced Device & OS Detection
+  // Logic: Advanced Device & OS Detection (V2 - Robust)
   useEffect(() => {
-    const ua = navigator.userAgent;
-    let os = "WEB";
-    let device = "SYSTEM";
-    let icon: 'desktop' | 'mobile' | 'tablet' = 'desktop';
+    const detectDevice = () => {
+        const ua = navigator.userAgent.toLowerCase();
+        const width = window.innerWidth;
+        const isTouch = navigator.maxTouchPoints > 0 || (navigator as any).msMaxTouchPoints > 0;
 
-    if (/Windows/i.test(ua)) os = "WIN";
-    else if (/Mac/i.test(ua)) os = "MAC";
-    else if (/Linux/i.test(ua)) os = "LINUX";
-    else if (/Android/i.test(ua)) os = "ANDROID";
-    else if (/iOS|iPhone|iPad|iPod/i.test(ua)) os = "IOS";
+        let os = "WEB";
+        let icon: 'desktop' | 'mobile' | 'tablet' = 'desktop';
 
-    const isTablet = /Tablet|iPad/i.test(ua) || (/Mac/i.test(ua) && navigator.maxTouchPoints > 1);
-    const isMobile = /Mobi|Android/i.test(ua);
+        // 1. Determine OS (Mobile First Priority)
+        if (ua.includes("android")) {
+            os = "ANDROID";
+        } else if (ua.includes("iphone") || ua.includes("ipod")) {
+            os = "IOS";
+        } else if (ua.includes("ipad")) {
+            os = "IPADOS";
+        } else if (ua.includes("mac")) {
+            // Check for iPad Pro masquerading as Mac
+            os = isTouch ? "IPADOS" : "MACOS";
+        } else if (ua.includes("win")) {
+            os = "WIN";
+        } else if (ua.includes("linux")) {
+            os = "LINUX";
+        }
 
-    if (isTablet) {
-        device = "TABLET";
-        icon = 'tablet';
-    } else if (isMobile && !isTablet) {
-        device = "MOBILE";
-        icon = 'mobile';
-    } else {
-        device = "DESKTOP";
-        icon = 'desktop';
-    }
-    
-    if (os === "ANDROID" && !/Mobile/i.test(ua)) {
-        device = "TABLET";
-        icon = 'tablet';
-    }
+        // 2. Determine Form Factor (Touch & Size overrides User Agent string)
+        if (os === "ANDROID" || os === "IOS" || os === "IPADOS") {
+            // It's definitely a mobile OS
+            if (os === "IPADOS" || (os === "ANDROID" && !ua.includes("mobile")) || width > 600) {
+                 icon = width > 900 ? 'desktop' : 'tablet'; // Large android tablets act like desktops
+                 if(width < 900) icon = 'tablet';
+            } else {
+                 icon = 'mobile';
+            }
+        } else {
+            // It's a Desktop OS (Win/Mac/Linux) OR a spoofed UA
+            if (isTouch && width < 900) {
+                // If it has touch and is small, it's a mobile device spoofing desktop (or a Surface-like tablet)
+                icon = width < 600 ? 'mobile' : 'tablet';
+            } else {
+                icon = 'desktop';
+            }
+        }
 
-    setDeviceInfo({ label: `${os} ${device}`, icon });
+        // Final Correction for "Windows on Mobile" spoofing
+        if (os === "WIN" && icon === 'mobile') {
+            os = "WIN MOBILE"; // Rare, or spoofed
+        }
+
+        setDeviceInfo({ 
+            label: `${os} ${icon.toUpperCase()}`, 
+            icon 
+        });
+    };
+
+    detectDevice();
+    window.addEventListener('resize', detectDevice);
+    return () => window.removeEventListener('resize', detectDevice);
   }, []);
 
   // Logic: Dark Mode
@@ -140,29 +168,132 @@ export default function DashboardPage(): React.JSX.Element {
     document.documentElement.classList.toggle('dark', settings.theme === 'dark');
   }, [settings.theme]);
 
-  // Logic: Audio Engine
+  // Logic: Audio Volume Control (Separated to prevent playback interruptions)
+  useEffect(() => {
+    if (audioRef.current) {
+        audioRef.current.volume = settings.volume / 100;
+    }
+  }, [settings.volume]);
+
+  // Logic: SEEK HANDLING (New Capability)
+  // This listens for requests from the UI (SideMenu) and applies them to the audio element
+  useEffect(() => {
+    if (seekRequest !== null && audioRef.current) {
+      // Ensure the value is valid
+      if (Number.isFinite(seekRequest)) {
+        audioRef.current.currentTime = seekRequest;
+      }
+      clearSeekRequest();
+    }
+  }, [seekRequest, clearSeekRequest]);
+
+  // Logic: Audio Engine Core (Playback & Track Management)
   useEffect(() => {
     const handlePlayback = async () => {
-      if (!settings.bgMusic) {
-        audioRef.current?.pause();
-        return;
-      }
+      // 1. Initialize Audio Object Singleton
       if (!audioRef.current) {
         audioRef.current = new Audio();
         audioRef.current.loop = true;
+        
+        // Listeners for UI Sync
+        audioRef.current.ontimeupdate = () => {
+            const el = audioRef.current;
+            if (el) setAudioState(el.currentTime, el.duration, !el.paused);
+        };
+        audioRef.current.onloadedmetadata = () => {
+            const el = audioRef.current;
+            if (el) setAudioState(el.currentTime, el.duration, !el.paused);
+        };
+        audioRef.current.onplay = () => {
+             const el = audioRef.current;
+             if (el) setAudioState(el.currentTime, el.duration, true);
+        };
+        audioRef.current.onpause = () => {
+             const el = audioRef.current;
+             if (el) setAudioState(el.currentTime, el.duration, false);
+        };
       }
+
+      const audio = audioRef.current;
+
+      // 2. Handle OFF State
+      if (!settings.bgMusic) {
+        if (!audio.paused) audio.pause();
+        return;
+      }
+
+      // 3. Handle ON State
       const track = MUSIC_TRACKS[settings.currentTrackIndex];
+      if (!track) return;
+
+      const targetSrc = track.url;
+      // Decode URI to match browser behavior (browsers often encode spaces to %20)
+      const currentSrc = decodeURIComponent(audio.src).split('?')[0]; 
+      const targetSrcDecoded = decodeURIComponent(targetSrc).split('?')[0];
+
+      // Check if we actually need to change the track
+      // If src is empty (first load) or different, we load.
+      // We check endsWith because audio.src is always absolute (http://localhost...)
+      const needsLoad = audio.src === '' || (currentSrc !== targetSrcDecoded && !currentSrc.endsWith(targetSrcDecoded));
+
       try {
-        if (audioRef.current.src !== track.url) {
-            audioRef.current.src = track.url;
+        if (needsLoad) {
+            audio.src = targetSrc;
+            audio.load(); // Explicit load to ensure readiness
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    // Ignore AbortError (interruption) and NotAllowedError (interaction required)
+                    if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+                        console.warn("Audio Play Error:", error);
+                    }
+                });
+            }
+        } else {
+            // Track matches, just ensure it's playing if it was paused
+            if (audio.paused) {
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {});
+                }
+            }
         }
-        audioRef.current.volume = settings.volume / 100;
-        await audioRef.current.play();
+        
+        // Ensure volume is set (in case of race condition with volume effect)
+        audio.volume = settings.volume / 100;
+
       } catch (e: unknown) {
+          console.warn("Audio Engine Exception:", e);
       }
     };
+    
     void handlePlayback();
-  }, [settings.bgMusic, settings.currentTrackIndex, settings.volume]);
+  }, [settings.bgMusic, settings.currentTrackIndex, setAudioState]); // Dependency on volume REMOVED
+
+  // Logic: Unlock Audio (Autoplay Policy Handler)
+  // This waits for the first interaction to "unlock" audio context and play music if it was blocked.
+  useEffect(() => {
+      const unlockAudio = () => {
+          // Attempt to play music if enabled but paused (blocked by browser)
+          if (settings.bgMusic && audioRef.current && audioRef.current.paused) {
+              audioRef.current.play().catch(() => {});
+          }
+          // Remove listeners once triggered
+          document.removeEventListener('click', unlockAudio);
+          document.removeEventListener('keydown', unlockAudio);
+          document.removeEventListener('touchstart', unlockAudio);
+      };
+
+      document.addEventListener('click', unlockAudio);
+      document.addEventListener('keydown', unlockAudio);
+      document.addEventListener('touchstart', unlockAudio);
+
+      return () => {
+          document.removeEventListener('click', unlockAudio);
+          document.removeEventListener('keydown', unlockAudio);
+          document.removeEventListener('touchstart', unlockAudio);
+      };
+  }, [settings.bgMusic]);
 
   // Logic: Grouping Segments
   const groupedSegments = useMemo(() => {
@@ -202,6 +333,21 @@ export default function DashboardPage(): React.JSX.Element {
     return 'pattern-bg';
   }, [settings.backgroundEffect]);
 
+  // Shapes for Footer Islands
+  // Left: Cut Top-Left, Angled Right (Slope \)
+  const CLIP_FOOTER_LEFT = "polygon(0 12px, 12px 0, 100% 0, calc(100% - 20px) 100%, 0 100%)";
+  // Right: Angled Left (Slope \), Cut Bottom-Right
+  const CLIP_FOOTER_RIGHT = "polygon(20px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%)";
+  
+  // Bridge Shape: Connects the two.
+  // Left side matches Left Island Right Edge (Slope \)
+  // Right side matches Right Island Left Edge (Slope \)
+  // Creates a parallelogram leaning left.
+  const CLIP_BRIDGE = "polygon(20px 0, 100% 0, calc(100% - 20px) 100%, 0 100%)";
+
+  // Dynamic Third Color
+  const activeAccent = settings.cursorColor || '#daa520';
+
   return (
     <MotionConfig reducedMotion={settings.animations ? "never" : "always"}>
       <div className={cn(
@@ -212,7 +358,7 @@ export default function DashboardPage(): React.JSX.Element {
       )}>
         <Header onOpenMenu={() => setIsMenuOpen(true)} />
         
-        <main className="max-w-7xl mx-auto px-3 md:px-6 pt-6 md:pt-12 flex-1 pb-32 md:pb-40 w-full relative">
+        <main className="max-w-[1400px] mx-auto px-3 md:px-6 pt-6 md:pt-12 flex-1 pb-32 md:pb-40 w-full relative">
           {segments.length === 0 ? (
             <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-12 md:py-16 min-h-[60vh]">
               <MotionDiv onClick={() => setIsMenuOpen(true)} className="relative z-20 cursor-pointer flex flex-col items-center gap-8 md:gap-10">
@@ -269,62 +415,123 @@ export default function DashboardPage(): React.JSX.Element {
           )}
         </main>
 
-        <footer className="fixed bottom-2 md:bottom-4 left-0 w-full px-2 md:px-6 z-[40] transition-colors duration-500 pointer-events-none">
-          <div className="relative overflow-hidden bg-background/80 dark:bg-background/50 backdrop-blur-xl backdrop-saturate-150 border border-border/50 dark:border-white/5 rounded-xl md:rounded-2xl shadow-2xl py-2 px-4 md:py-4 md:px-10 flex items-center justify-between h-14 md:h-20 max-w-7xl mx-auto pointer-events-auto group">
+        {/* --- FOOTER REDESIGN (ISLANDS & BRIDGE) --- */}
+        <footer className="fixed bottom-3 md:bottom-6 left-0 w-full px-2 md:px-8 z-[40] pointer-events-none">
+          <div className={cn(
+              "max-w-[1400px] mx-auto flex items-end justify-between relative h-12 md:h-14 transition-all duration-300",
+              isDragging ? "gap-0" : "gap-2 md:gap-4" // Remove gap when bridging
+          )}>
             
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-primary/10 w-full overflow-visible">
-               <MotionDiv
-                  initial={{ left: "-20%" }}
-                  animate={{ left: "120%" }}
-                  transition={{ 
-                      duration: 3, 
-                      repeat: Infinity, 
-                      ease: "easeInOut",
-                      repeatDelay: 1 
-                  }}
-                  className="absolute top-0 bottom-0 w-[150px] h-full z-10"
-                  style={{
-                      background: 'linear-gradient(90deg, transparent 0%, hsla(var(--primary), 0.3) 50%, hsl(var(--primary)) 100%)',
-                  }}
-               >
-                   <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white shadow-[0_0_15px_3px_hsl(var(--primary))] rounded-full z-20" />
-                   
-                   <MotionDiv 
-                      animate={{ 
-                          height: [4, 16, 4, 12, 4], 
-                          opacity: [0, 1, 0.5, 1, 0],
-                      }}
-                      transition={{ duration: 0.1, repeat: Infinity, repeatType: "mirror" }}
-                      className="absolute right-0 top-1/2 -translate-y-1/2 w-[2px] bg-white/90 blur-[0.5px] shadow-[0_0_8px_1px_hsl(var(--primary))]"
-                   />
-               </MotionDiv>
-            </div>
+            {/* 1. LEFT ISLAND (System Status) */}
+            <MotionDiv 
+              layout
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2, type: "spring" }}
+              className="relative h-full min-w-[140px] md:min-w-[200px] pointer-events-auto filter drop-shadow-lg z-20 shrink-0"
+            >
+               {/* Border Layer */}
+               <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-md" style={{ clipPath: CLIP_FOOTER_LEFT }} />
+               {/* Inner Layer */}
+               <div className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-xl flex items-center px-4 md:px-6" style={{ clipPath: CLIP_FOOTER_LEFT }}>
+                  {/* Content */}
+                  <div className="flex items-center gap-3">
+                      <div className="relative">
+                          <Cpu className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                          <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+                      </div>
+                      <div className="flex flex-col">
+                          <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.15em] text-foreground/90 leading-none">ESP32-NODE</span>
+                          <span className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Core Active</span>
+                      </div>
+                  </div>
+               </div>
+            </MotionDiv>
 
-            <div className="flex items-center gap-2 md:gap-3 font-black text-[8px] md:text-[9px] uppercase tracking-[0.1em] md:tracking-[0.2em] text-primary">
-              <Cpu className="w-3 h-3 md:w-4 md:h-4" /> 
-              <span className="opacity-60">ESP32-NODE-PRO</span>
-            </div>
-
-            <AnimatePresence>
+            {/* 2. CENTER BRIDGE (Delete Zone) */}
+            {/* Acts as a physical bridge connecting the islands when dragging */}
+            <AnimatePresence mode="wait">
               {isDragging && (
                 <MotionDiv 
-                  initial={{ opacity: 0, y: 80 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 80 }}
-                  className="absolute inset-0 flex items-center justify-center bg-destructive/95 text-destructive-foreground font-black uppercase tracking-[0.2em] md:tracking-[0.3em] gap-2 md:gap-3 z-50 pointer-events-none rounded-xl md:rounded-2xl"
+                  layout
+                  initial={{ opacity: 0, scaleY: 0, filter: 'blur(10px)' }}
+                  animate={{ opacity: 1, scaleY: 1, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, scaleY: 0, filter: 'blur(10px)' }}
+                  originY={1} // Grow from bottom up like a gate
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="flex-1 h-full relative z-30 pointer-events-auto flex items-center justify-center group mx-[-2px]" // Negative margin to ensure overlap
                 >
-                  <Trash2 className="w-4 h-4 md:w-5 md:h-5" /> <span className="text-[9px] md:text-[10px]">{t.release_delete}</span>
+                   {/* 
+                      Bridge Structure (Double Layer for Border effect) 
+                      Note: Using Clip Path instead of Border Radius for the sharp "Tech" look
+                   */}
+                   
+                   {/* Outer Layer (Border Color) */}
+                   <div 
+                      className="absolute inset-0 backdrop-blur-md transition-all group-hover:opacity-100 opacity-50" 
+                      style={{ 
+                          clipPath: CLIP_BRIDGE,
+                          backgroundColor: activeAccent // Dynamic Third Color
+                      }}
+                   />
+                   
+                   {/* Inner Layer (Background Color) */}
+                   <div 
+                      className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 flex items-center justify-center overflow-hidden" 
+                      style={{ clipPath: CLIP_BRIDGE }}
+                   >
+                        {/* Hazard Stripes Animation */}
+                        <div 
+                            className="absolute inset-0 opacity-10" 
+                            style={{ 
+                                backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 10px, ${activeAccent} 10px, ${activeAccent} 20px)`,
+                                backgroundSize: '200% 200%'
+                            }}
+                        />
+                        
+                        {/* Delete Icon & Text */}
+                        <div 
+                            className="relative z-10 flex items-center gap-3 drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]"
+                            style={{ color: activeAccent }}
+                        >
+                            <Trash2 className="w-5 h-5 md:w-6 md:h-6 animate-bounce" strokeWidth={2.5} />
+                            <span className="font-black text-xs md:text-sm uppercase tracking-[0.25em]">{t.release_delete}</span>
+                        </div>
+                   </div>
                 </MotionDiv>
               )}
             </AnimatePresence>
 
-            <div className="flex flex-col items-end">
-               <div className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] md:tracking-[0.4em] opacity-40 hidden sm:block">Secure Link V3.1</div>
-               <div className="text-[8px] md:text-[9px] font-bold text-primary mt-0.5 md:mt-1 flex items-center gap-1 md:gap-1.5 opacity-80">
-                  {deviceInfo.icon === 'mobile' && <Smartphone size={10} />}
-                  {deviceInfo.icon === 'tablet' && <Tablet size={10} />}
-                  {deviceInfo.icon === 'desktop' && <Laptop size={10} />}
-                  <span className="hidden xs:inline">{t.footer_ver} =</span> {deviceInfo.label} VER
+            {/* 3. RIGHT ISLAND (Version & Device) */}
+            <MotionDiv 
+              layout
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3, type: "spring" }}
+              className="relative h-full min-w-[140px] md:min-w-[200px] pointer-events-auto filter drop-shadow-lg flex justify-end z-20 shrink-0"
+            >
+               {/* Border Layer */}
+               <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-md" style={{ clipPath: CLIP_FOOTER_RIGHT }} />
+               {/* Inner Layer */}
+               <div className="absolute inset-[2px] bg-background/90 dark:bg-[#0c0c0e]/95 backdrop-blur-xl flex items-center justify-end px-4 md:px-6" style={{ clipPath: CLIP_FOOTER_RIGHT }}>
+                  {/* Content */}
+                  <div className="flex flex-col items-end gap-0.5">
+                      <div 
+                        className="flex items-center gap-1.5 transition-colors duration-300" 
+                        style={{ color: settings.cursorColor || '#daa520' }}
+                      >
+                          {deviceInfo.icon === 'mobile' && <Smartphone size={10} />}
+                          {deviceInfo.icon === 'tablet' && <Tablet size={10} />}
+                          {deviceInfo.icon === 'desktop' && <Laptop size={10} />}
+                          <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-widest">{deviceInfo.label}</span>
+                      </div>
+                      <div className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+                          SECURE LINK V3.1
+                      </div>
+                  </div>
                </div>
-            </div>
+            </MotionDiv>
+
           </div>
         </footer>
 

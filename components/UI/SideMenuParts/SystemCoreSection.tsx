@@ -1,11 +1,12 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { Activity, Volume2, Grid3X3, Square, Triangle, Circle, Type, Waves, Palette, Music, Check, LayoutGrid, Monitor, ChevronRight, ChevronLeft, Zap } from 'lucide-react';
 import { Card, CardContent } from '../../ui/card';
 import { Input } from '../../ui/input';
 import { Switch } from '../../ui/switch';
 import { Slider } from '../../ui/slider';
 import { useSettingsStore } from '../../../lib/store/settings';
+import { useAudioStore } from '../../../lib/store/audioStore'; // Import Audio Store
 import { MenuSection } from './Shared';
 import { cn } from '../../../lib/utils';
 import { useSoundFx } from '../../../hooks/useSoundFx';
@@ -42,9 +43,18 @@ const PatternButton = ({ id, icon: Icon, label, current, onClick }: any) => (
     </button>
 );
 
+const formatTime = (time: number) => {
+    if (!time || isNaN(time)) return "00:00";
+    const m = Math.floor(time / 60).toString().padStart(2, '0');
+    const s = Math.floor(time % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+}
+
 export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
     const { settings, updateSettings } = useSettingsStore();
+    const { currentTime, duration, requestSeek } = useAudioStore(); // Consume real-time data & actions
     const { playBlip, playClick } = useSoundFx();
+    const progressBarRef = useRef<HTMLDivElement>(null);
 
     const handleUpdate = (update: any) => {
         playBlip();
@@ -67,8 +77,29 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
         updateSettings({ currentTrackIndex: newIndex });
     };
 
+    const handleSeek = (e: React.MouseEvent) => {
+        if (!progressBarRef.current || duration === 0) return;
+        
+        playClick(); // Auditory feedback
+        
+        const rect = progressBarRef.current.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const width = rect.width;
+        
+        // Calculate percentage (clamped 0 to 1)
+        const percent = Math.max(0, Math.min(1, clickX / width));
+        
+        // Convert to time
+        const targetTime = percent * duration;
+        
+        requestSeek(targetTime);
+    };
+
     const isGrid = settings.backgroundEffect === 'grid';
     const currentTrackName = MUSIC_TRACKS[settings.currentTrackIndex]?.title || "UNKNOWN TRACK";
+    
+    // Calculate progress percentage securely
+    const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
     return (
         <MenuSection 
@@ -326,29 +357,53 @@ export const SystemCoreSection = ({ activeId, onToggle, t }: any) => {
                                     />
                                 </div>
 
-                                {/* Track Controls */}
-                                <div className="flex items-center justify-between gap-2 pt-1">
-                                    <button 
-                                        onClick={() => handleTrackChange('prev')} 
-                                        className="h-7 w-7 flex items-center justify-center rounded-full bg-background border border-input hover:border-primary hover:text-primary transition-all"
-                                    >
-                                        <ChevronLeft size={14} />
-                                    </button>
-                                    
-                                    <div className="flex-1 flex flex-col items-center overflow-hidden">
-                                        <span className="text-[7px] font-bold uppercase text-muted-foreground tracking-widest">Now Playing</span>
-                                        <div className="flex items-center gap-1.5 text-primary w-full justify-center">
-                                            <Zap size={10} className="shrink-0 animate-pulse" />
-                                            <span className="text-[9px] font-black uppercase truncate tracking-tight">{currentTrackName}</span>
+                                {/* Track Controls & Info */}
+                                <div className="pt-1">
+                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                        <button 
+                                            onClick={() => handleTrackChange('prev')} 
+                                            className="h-7 w-7 flex items-center justify-center rounded-full bg-background border border-input hover:border-primary hover:text-primary transition-all active:scale-95"
+                                        >
+                                            <ChevronLeft size={14} />
+                                        </button>
+                                        
+                                        <div className="flex-1 flex flex-col items-center overflow-hidden">
+                                            <span className="text-[7px] font-bold uppercase text-muted-foreground tracking-widest">Now Playing</span>
+                                            <div className="flex items-center gap-1.5 text-primary w-full justify-center">
+                                                <Zap size={10} className="shrink-0 animate-pulse" />
+                                                <span className="text-[9px] font-black uppercase truncate tracking-tight">{currentTrackName}</span>
+                                            </div>
                                         </div>
+
+                                        <button 
+                                            onClick={() => handleTrackChange('next')} 
+                                            className="h-7 w-7 flex items-center justify-center rounded-full bg-background border border-input hover:border-primary hover:text-primary transition-all active:scale-95"
+                                        >
+                                            <ChevronRight size={14} />
+                                        </button>
                                     </div>
 
-                                    <button 
-                                        onClick={() => handleTrackChange('next')} 
-                                        className="h-7 w-7 flex items-center justify-center rounded-full bg-background border border-input hover:border-primary hover:text-primary transition-all"
+                                    {/* NEW: Playback Progress Bar with Seek Capability */}
+                                    <div 
+                                        ref={progressBarRef}
+                                        onClick={handleSeek}
+                                        className="relative w-full h-2 bg-black/20 dark:bg-white/10 rounded-full overflow-hidden mb-1 cursor-pointer group"
+                                        title="Click to seek"
                                     >
-                                        <ChevronRight size={14} />
-                                    </button>
+                                        {/* Hover Hint Layer */}
+                                        <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                                        
+                                        <motion.div 
+                                            className="absolute top-0 left-0 h-full bg-primary shadow-[0_0_10px_var(--primary)]"
+                                            style={{ width: `${progressPercent}%` }}
+                                            animate={{ width: `${progressPercent}%` }}
+                                            transition={{ ease: "linear", duration: 0.1 }}
+                                        />
+                                    </div>
+                                    <div className="flex justify-between text-[8px] font-mono font-bold text-muted-foreground/60 tracking-wider">
+                                        <span>{formatTime(currentTime)}</span>
+                                        <span>{formatTime(duration)}</span>
+                                    </div>
                                 </div>
                             </div>
                         )}
