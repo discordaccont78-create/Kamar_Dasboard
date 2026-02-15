@@ -1,7 +1,7 @@
 
 import React, { useCallback, useRef } from 'react';
 import { motion, useDragControls } from 'framer-motion';
-import { GripHorizontal } from 'lucide-react';
+import { GripVertical } from 'lucide-react';
 import { SegmentGroup } from './SegmentGroup';
 import { Segment, CMD } from '../../types/index';
 import { cn } from '../../lib/utils';
@@ -169,11 +169,17 @@ export const DraggableGroupItem = React.memo(({
         segments={groupNodes}
         dragHandle={
           <div 
-             className="cursor-grab active:cursor-grabbing text-primary hover:text-foreground transition-colors p-1"
+             className="w-full h-full flex flex-col items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-primary transition-all duration-300"
              onPointerDown={(e) => controls.start(e)}
              style={{ touchAction: 'none' }}
+             title="Drag to Reorder"
           >
-             <GripHorizontal size={20} />
+             <div className="flex flex-col gap-0.5">
+                <div className="w-1 h-1 rounded-full bg-current opacity-60" />
+                <div className="w-1 h-1 rounded-full bg-current opacity-80" />
+                <div className="w-1 h-1 rounded-full bg-current opacity-60" />
+                <div className="w-1 h-1 rounded-full bg-current opacity-40" />
+             </div>
           </div>
         }
         onReorder={handleInternalReorder}
