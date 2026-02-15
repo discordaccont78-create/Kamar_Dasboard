@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Zap, Plus } from 'lucide-react';
+import { Zap, Plus, Layers } from 'lucide-react';
 import { Card, CardContent } from '../../ui/card';
 import { Input } from '../../ui/input';
 import { useSegments } from '../../../lib/store/segments';
@@ -12,7 +12,7 @@ import { useSoundFx } from '../../../hooks/useSoundFx';
 import { SegmentType } from '../../../types/index';
 
 export const OutputSection = ({ activeId, onToggle, t }: any) => {
-    const { addSegment, replaceSegment, segments } = useSegments();
+    const { addSegment, replaceSegment, segments, addSpacerGroup } = useSegments();
     const { addToast } = useConnection();
     const { outputForm, setOutputForm } = useUIStore();
     const { playClick } = useSoundFx();
@@ -52,18 +52,21 @@ export const OutputSection = ({ activeId, onToggle, t }: any) => {
         };
 
         if (outputForm.replaceId) {
-            // Replacement Logic (Swap Spacer with New Device)
             replaceSegment(outputForm.replaceId, newSegment);
             addToast("Segment replaced successfully", "success");
         } else {
-            // Standard Append Logic
             addSegment(newSegment);
             addToast("Output segment added successfully", "success");
         }
         
-        // Reset form including replaceId
         setOutputForm({ gpio: '', name: '', type: 'Digital', group: '', onOffMode: 'toggle', onLabel: '', offLabel: '', replaceId: null });
     };
+
+    const handleAddSpacerGroup = () => {
+        playClick();
+        addSpacerGroup();
+        addToast("Empty Group Slot added", "success");
+    }
 
     return (
         <MenuSection id="output" title="Output Segments" icon={Zap} activeId={activeId} onToggle={onToggle}>
@@ -114,9 +117,14 @@ export const OutputSection = ({ activeId, onToggle, t }: any) => {
                     <Input value={outputForm.group} onChange={e => setOutputForm({ group: e.target.value })} className="col-span-3 h-9" placeholder="Optional Group" list="group-suggestions" />
                 </div>
                 
-                <TechButton onClick={handleAddOutput} icon={Plus}>
-                {outputForm.replaceId ? "Replace & Initialize" : `${t.add} Output Device`}
-                </TechButton>
+                <div className="flex gap-2">
+                    <TechButton onClick={handleAddOutput} icon={Plus} className="flex-1">
+                        {outputForm.replaceId ? "Replace & Initialize" : `${t.add} Output Device`}
+                    </TechButton>
+                    <TechButton onClick={handleAddSpacerGroup} icon={Layers} variant="outline" className="w-12 px-0" title="Add Empty Group Slot">
+                        <Plus size={14} />
+                    </TechButton>
+                </div>
             </CardContent>
             </Card>
         </MenuSection>

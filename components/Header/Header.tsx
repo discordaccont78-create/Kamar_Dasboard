@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Settings, Zap, CalendarClock, Terminal, Menu } from 'lucide-react';
+import { Moon, Sun, Settings, Zap, CalendarClock, Terminal, Menu, RectangleHorizontal, Columns, LayoutGrid } from 'lucide-react';
 import { useSettingsStore } from '../../lib/store/settings';
 import { useCursorStore } from '../../lib/store/cursorStore';
 import { useSoundFx } from '../../hooks/useSoundFx';
@@ -186,6 +186,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
 
   const titleFontClass = getFontClass(settings.dashboardFont);
   const thirdColor = settings.cursorColor || '#daa520';
+  const groupCols = settings.groupColumnCount || 2;
   
   // --- GAP LOGIC ---
   const gapSize = settings.headerGap ?? 40;
@@ -304,6 +305,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
   const handleOpenScheduler = () => {
     playClick();
     setIsSchedulerOpen(true);
+  };
+
+  const handleUpdateGroupCols = (c: 1 | 2 | 3) => {
+      playClick();
+      updateSettings({ groupColumnCount: c });
   };
 
   // --- FLOATING ANIMATION VARIANTS (DECOUPLED) ---
@@ -517,6 +523,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
                 
                 {/* DESKTOP CONTROLS */}
                 <div className="hidden md:flex items-center gap-1.5 md:gap-3 z-10 ml-auto justify-end h-full">
+                    {/* Group Column Layout Control */}
+                    <div className="hidden lg:flex items-center gap-1 mr-2 bg-black/10 dark:bg-white/5 p-1 rounded-md border border-white/5">
+                        <button onClick={() => handleUpdateGroupCols(1)} className={cn("p-1.5 rounded hover:bg-white/10 transition-colors", groupCols === 1 ? "text-primary bg-white/10 shadow-[0_0_5px_rgba(0,0,0,0.2)]" : "text-muted-foreground")} title="1 Column Groups"><RectangleHorizontal size={14} /></button>
+                        <button onClick={() => handleUpdateGroupCols(2)} className={cn("p-1.5 rounded hover:bg-white/10 transition-colors", groupCols === 2 ? "text-primary bg-white/10 shadow-[0_0_5px_rgba(0,0,0,0.2)]" : "text-muted-foreground")} title="2 Columns Groups"><Columns size={14} /></button>
+                        <button onClick={() => handleUpdateGroupCols(3)} className={cn("p-1.5 rounded hover:bg-white/10 transition-colors", groupCols === 3 ? "text-primary bg-white/10 shadow-[0_0_5px_rgba(0,0,0,0.2)]" : "text-muted-foreground")} title="3 Columns Groups"><LayoutGrid size={14} /></button>
+                    </div>
+                    <div className="w-px h-6 md:h-8 bg-border/40 mx-0.5 md:mx-1 hidden lg:block" />
+
                     <ControlButton onClick={handleOpenScheduler} icon={CalendarClock} title={t.scheduler} active={isSchedulerOpen} />
                     <div className="w-px h-6 md:h-8 bg-border/40 mx-0.5 md:mx-1" />
                     <ControlButton onClick={toggleTheme} icon={settings.theme === 'light' ? Moon : Sun} title={t.switch_env} />

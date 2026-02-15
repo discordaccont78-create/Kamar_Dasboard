@@ -10,13 +10,15 @@ interface SegmentsStore {
   
   // Group Actions
   addGroup: (group: GroupConfig) => void;
+  addSpacerGroup: () => void; // New Action
   updateGroup: (id: string, data: Partial<GroupConfig>) => void;
   removeGroup: (id: string) => void;
   setGroups: (groups: GroupConfig[]) => void;
+  reorderGroups: (newOrder: GroupConfig[]) => void; // Explicit reorder action
   
   // Segment Actions
   addSegment: (segment: Segment) => void;
-  replaceSegment: (oldId: string, newSegment: Segment) => void; // NEW ACTION
+  replaceSegment: (oldId: string, newSegment: Segment) => void; 
   removeSegment: (id: string) => void;
   updateSegment: (id: string, data: Partial<Segment>) => void;
   toggleSegment: (id: string) => void;
@@ -55,6 +57,18 @@ export const useSegments = create<SegmentsStore>()(
         groups: [...state.groups, group].sort((a,b) => a.order - b.order)
       })),
 
+      addSpacerGroup: () => set((state) => {
+        const newOrder = state.groups.length;
+        const spacer: GroupConfig = {
+            id: `spacer-group-${Date.now()}`,
+            name: "Empty Group",
+            order: newOrder,
+            type: 'spacer',
+            columnCount: 1
+        };
+        return { groups: [...state.groups, spacer] };
+      }),
+
       updateGroup: (id, data) => set((state) => ({
         groups: state.groups.map(g => g.id === id ? { ...g, ...data } : g)
       })),
@@ -65,6 +79,8 @@ export const useSegments = create<SegmentsStore>()(
       })),
 
       setGroups: (groups) => set({ groups }),
+
+      reorderGroups: (newOrder) => set({ groups: newOrder }),
 
       addSegment: (segment) => set((state) => ({
         segments: [...state.segments, segment]

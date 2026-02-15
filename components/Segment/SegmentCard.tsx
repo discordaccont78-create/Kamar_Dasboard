@@ -254,15 +254,17 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                             (position === 'bottom-left' || position === 'bottom-solo') ? "block lg:hidden" : ""
                         )} />
 
-                        {(position === 'solo' || isLast || position === 'bottom-solo') && (
-                            <div className="absolute bottom-0 right-0 w-[24px] h-[24px] pointer-events-none">
-                                <div className="absolute bottom-0 right-0 w-full h-full bg-primary/20" style={{ clipPath: "polygon(100% 0, 0 100%, 100% 100%)" }} />
-                                <div className="absolute bottom-1 right-1 w-1.5 h-1.5 bg-primary/60" />
-                            </div>
-                        )}
-
                         <div className="absolute bottom-0 left-0 w-full h-[2px] bg-primary/0 group-hover:bg-primary/50 transition-colors duration-500" />
                     </>
+                )}
+
+                {/* --- CORNER DECORATION --- */}
+                {/* Now available for Empty Slots too if they are last */}
+                {(position === 'solo' || isLast || position === 'bottom-solo') && (
+                    <div className="absolute bottom-0 right-0 w-[24px] h-[24px] pointer-events-none">
+                        <div className="absolute bottom-0 right-0 w-full h-full bg-primary/20" style={{ clipPath: "polygon(100% 0, 0 100%, 100% 100%)" }} />
+                        <div className="absolute bottom-1 right-1 w-1.5 h-1.5 bg-primary/60" />
+                    </div>
                 )}
             </div>
         </MotionDiv>

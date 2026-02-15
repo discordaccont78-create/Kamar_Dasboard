@@ -1,7 +1,7 @@
 
 import React, { useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { GripVertical, Hash, CornerRightDown, Activity, Cpu, Layers, Columns, LayoutGrid, Square, RectangleHorizontal } from 'lucide-react';
+import { GripVertical, Layers, Columns, LayoutGrid, RectangleHorizontal, CornerRightDown, Cpu } from 'lucide-react';
 import { SegmentCard } from '../Segment/SegmentCard';
 import { CustomSegment } from '../Segment/CustomSegment';
 import { WeatherSegment } from '../Segment/WeatherSegment';
@@ -29,12 +29,10 @@ interface Props {
 
 const MotionDiv = motion.div as any;
 
-// Define a Display Item which can be a single segment or a Sub-Group
-// Added 'ghost' type to handle transient slots inside the main list
 type DisplayItem = 
   | { type: 'single'; id: string; segment: Segment }
   | { type: 'register_group'; id: string; segments: Segment[] }
-  | { type: 'ghost'; id: string; index: number }; // index is relative to ghosts 0,1,2
+  | { type: 'ghost'; id: string; index: number }; 
 
 export type ItemPosition = 
   | 'solo' 
@@ -89,14 +87,12 @@ const DraggableDisplayItem = React.memo(({
     const dragX = info.point.x;
     const dragY = info.point.y;
     
-    // Query ALL segment areas including ghosts (since ghosts are now draggable items)
     const items = Array.from(containerRef.current.querySelectorAll('.segment_area')) as HTMLElement[];
     
     let targetIndex = -1;
 
-    // Check overlap
     items.forEach((element, idx) => {
-      if (idx === index) return; // Don't check against self
+      if (idx === index) return; 
 
       const rect = element.getBoundingClientRect();
       const isOver = 
@@ -112,11 +108,10 @@ const DraggableDisplayItem = React.memo(({
 
     if (targetIndex !== -1 && targetIndex !== index) {
       moveItem(index, targetIndex);
-      lastReorderTime.current = Date.now(); // Update timestamp
+      lastReorderTime.current = Date.now(); 
     }
   };
 
-  // Shared Drag Handle Props
   const dragHandleProps = {
     className: "cursor-grab active:cursor-grabbing p-2 hover:bg-primary/10 rounded-none transition-colors text-muted-foreground hover:text-primary border-r border-border/50 h-full flex items-center justify-center",
     onPointerDown: (e: any) => controls.start(e),
@@ -125,7 +120,6 @@ const DraggableDisplayItem = React.memo(({
 
   const DragIcon = <GripVertical size={14} />;
 
-  // Render logic based on type
   let content = null;
 
   if (item.type === 'register_group') {
@@ -139,7 +133,6 @@ const DraggableDisplayItem = React.memo(({
           />
       );
   } else if (item.type === 'ghost') {
-      // GHOST RENDER: Now wrapped in Draggable Logic
       content = (
         <SegmentCard 
             gpio={0} 
@@ -147,7 +140,7 @@ const DraggableDisplayItem = React.memo(({
             position={position}
             isLast={isLast}
             segmentId={item.id}
-            dragHandle={<div {...dragHandleProps}>{DragIcon}</div>} // ENABLE DRAG HANDLE FOR GHOSTS
+            dragHandle={<div {...dragHandleProps}>{DragIcon}</div>} 
             variant="ghost"
             onClick={onClick}
         />
@@ -208,7 +201,6 @@ const DraggableDisplayItem = React.memo(({
      } else if (item.type === 'register_group') {
          item.segments.forEach(s => onRemove(s.num_of_node));
      }
-     // Ghosts cannot be 'removed' via drag out, they just reset
   };
 
   const itemVariants = {
@@ -266,16 +258,15 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
   onToggle, 
   onPWMChange, 
   onDragStart, 
-  onDragEnd,
+  onDragEnd, 
   onAddSegment,
   dragHandle
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { settings } = useSettingsStore();
-  const { groups, updateGroup, addGroup, addSegment, removeSegment } = useSegments(); 
+  const { groups, updateGroup, addGroup, addSegment } = useSegments(); 
   const lastReorderTime = useRef<number>(0);
 
-  // Find current group config to get column count
   const groupConfig = groups.find(g => g.id === name) || { id: name, name: name, order: 0, columnCount: 2 };
   const cols = groupConfig.columnCount || 2;
 
@@ -304,13 +295,42 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
     return items;
   }, [segments]);
 
-  // 2. Calculate Total Items (Real + Ghosts)
+  // 2. Filter Trailing Spacers Logic
+  const filteredItems = useMemo(() => {
+      let lastContentIndex = -1;
+      
+      for (let i = realItems.length - 1; i >= 0; i--) {
+          const item = realItems[i];
+          const isSpacer = item.type === 'single' && item.segment.segType === 'Empty';
+          if (!isSpacer) {
+              lastContentIndex = i;
+              break;
+          }
+      }
+
+      // If group is completely empty or has no real content, show what we have
+      if (lastContentIndex === -1) return realItems;
+
+      // Calculate the row of the last real content item
+      const maxRow = Math.floor(lastContentIndex / cols);
+
+      return realItems.filter((item, index) => {
+          const isSpacer = item.type === 'single' && item.segment.segType === 'Empty';
+          if (!isSpacer) return true;
+          
+          // Keep spacer if it is on the same row or a previous row relative to content
+          const itemRow = Math.floor(index / cols);
+          return itemRow <= maxRow;
+      });
+  }, [realItems, cols]);
+
+  // 3. Fill Remainder with Ghosts
   const fullDisplayList = useMemo(() => {
-      const items = [...realItems];
+      const items = [...filteredItems];
       if (cols === 1) return items;
       
       const remainder = items.length % cols;
-      if (remainder === 0) return items; // Perfectly full rows
+      if (remainder === 0) return items; 
       
       const ghostCount = cols - remainder;
       for (let i = 0; i < ghostCount; i++) {
@@ -321,14 +341,11 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
           });
       }
       return items;
-  }, [realItems, cols]);
+  }, [filteredItems, cols]);
 
   const totalGridItems = fullDisplayList.length;
 
-  // --- ACTIONS ---
-
   const handleGhostClick = (ghostRelativeIndex: number) => {
-      // 1. Materialize spacers for any gaps BEFORE the clicked one
       for (let i = 0; i < ghostRelativeIndex; i++) {
           addSegment({
               num_of_node: `spacer-${Date.now()}-${i}`,
@@ -342,7 +359,6 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
           });
       }
       
-      // 2. Materialize the clicked one itself
       const clickedSpacerId = `spacer-${Date.now()}-clicked`;
       addSegment({
           num_of_node: clickedSpacerId,
@@ -355,23 +371,18 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
           val_of_slide: 0
       });
 
-      // 3. Open Menu specifically to REPLACE this newly created spacer
       if (onAddSegment) onAddSegment(name, clickedSpacerId);
   };
 
   const handleSpacerReplace = (spacerId: string) => {
-      // Don't remove it yet! Pass it to the add menu.
       if (onAddSegment) onAddSegment(name, spacerId);
   };
 
-  // --- KEY LOGIC: MOVE ITEM WITH GHOST MATERIALIZATION ---
   const moveItem = useCallback((fromIndex: number, toIndex: number) => {
     let currentList: any[] = [...fullDisplayList];
 
     if (fromIndex >= currentList.length || toIndex >= currentList.length) return;
 
-    // Helper: Materialize a ghost at a specific index into a Real Spacer
-    // Returns the new Segment object
     const materializeGhost = (idx: number): Segment => {
         return {
             num_of_node: `auto-spacer-${Date.now()}-${Math.random()}`,
@@ -385,22 +396,14 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
         };
     };
 
-    // 1. If Source is Ghost -> It must become real to be moved
     if (currentList[fromIndex].type === 'ghost') {
         const spacer = materializeGhost(fromIndex);
         currentList[fromIndex] = { type: 'single', id: spacer.num_of_node, segment: spacer };
     }
 
-    // 2. Perform Swap/Move
     const [movedItem] = currentList.splice(fromIndex, 1);
     currentList.splice(toIndex, 0, movedItem);
 
-    // 3. Post-Process: Convert remaining Ghosts involved in the layout into Real Spacers
-    // We iterate from start. Any ghost encountered BEFORE the last Real item must be materialized
-    // to maintain the gap.
-    // Optimization: Just filter out trailing ghosts. Any ghost NOT at the end is a gap.
-    
-    // Find index of last REAL item
     let lastRealIndex = -1;
     for (let i = currentList.length - 1; i >= 0; i--) {
         if (currentList[i].type !== 'ghost') {
@@ -409,7 +412,6 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
         }
     }
 
-    // Materialize any ghosts that are before the last real item
     for (let i = 0; i < lastRealIndex; i++) {
         if (currentList[i].type === 'ghost') {
             const spacer = materializeGhost(i);
@@ -417,7 +419,6 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
         }
     }
 
-    // 4. Extract Final Segment List (Filtering out remaining trailing ghosts)
     const finalSegments: Segment[] = [];
     currentList.forEach(item => {
         if (item.type === 'single') {
@@ -425,18 +426,18 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
         } else if (item.type === 'register_group') {
             finalSegments.push(...item.segments);
         }
-        // Ghosts are dropped (they will be regenerated by grid logic if needed)
     });
 
     onReorder(finalSegments);
   }, [fullDisplayList, onReorder, name]);
 
-  // --- DYNAMIC GRID STYLING ---
   const gridClass = useMemo(() => {
       if (cols === 1) return "grid-cols-1 gap-1.5";
-      if (cols === 2) return "grid-cols-1 lg:grid-cols-2 gap-1.5";
-      if (cols === 3) return "grid-cols-1 lg:grid-cols-3 gap-1.5";
-      return "grid-cols-1 lg:grid-cols-2 gap-1.5"; 
+      // Update: Use md: for 2 columns to show multi-column on tablets
+      if (cols === 2) return "grid-cols-1 md:grid-cols-2 gap-1.5";
+      // Update: Use md: for 3 columns to ensure 3-column layout activates earlier
+      if (cols === 3) return "grid-cols-1 md:grid-cols-3 gap-1.5";
+      return "grid-cols-1 md:grid-cols-2 gap-1.5"; 
   }, [cols]);
     
   const zoneFontClass = isPersian(name) ? "font-persian" : getFontClass(settings.dashboardFont);
@@ -493,7 +494,6 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
 
   return (
     <div className="flex flex-col gap-3 h-full group/panel">
-      {/* HEADER */}
       <div className="relative shrink-0 filter drop-shadow-md group/header">
           <div 
             className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-md transition-all duration-300 group-hover/header:bg-primary/40" 
@@ -580,14 +580,10 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
               <div className="p-4 md:p-5 relative z-10 h-full">
                 <div ref={containerRef} className={cn("grid relative min-h-[50px]", gridClass)}>
                     <AnimatePresence mode="popLayout">
-                    {/* Render ALL items (Real + Ghosts) via DraggableDisplayItem */}
                     {fullDisplayList.map((item, index) => {
                         const position = getGridPosition(index, totalGridItems, cols);
                         const isLast = index === totalGridItems - 1;
 
-                        // Click Logic: 
-                        // If Single Spacer -> Replace
-                        // If Ghost -> Auto Fill Logic
                         const handleClick = () => {
                             if (item.type === 'single' && item.segment.segType === 'Empty') {
                                 handleSpacerReplace(item.id);

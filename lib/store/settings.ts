@@ -22,6 +22,7 @@ interface ExtendedAppSettings extends AppSettings {
   gridLineStyle?: 'solid' | 'dashed' | 'dotted';
   showHeaderWaves?: boolean;
   floatingIslands?: boolean;
+  groupColumnCount?: 1 | 2 | 3;
 }
 
 interface SettingsStore {
@@ -81,7 +82,10 @@ export const useSettingsStore = create<SettingsStore>()(
         // Grid Defaults
         gridStrokeWidth: 1,
         gridLineStyle: 'solid',
-        gridSize: 32
+        gridSize: 32,
+        
+        // Layout Defaults
+        groupColumnCount: 2 // Default to 2 columns for groups
       },
       updateSettings: (updates) => set((state) => ({
         settings: { ...state.settings, ...updates }

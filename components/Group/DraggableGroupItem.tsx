@@ -3,6 +3,7 @@ import React, { useCallback, useRef } from 'react';
 import { motion, useDragControls } from 'framer-motion';
 import { GripVertical } from 'lucide-react';
 import { SegmentGroup } from './SegmentGroup';
+import { EmptyGroupSlot } from './EmptyGroupSlot'; // Import Empty Slot
 import { Segment, CMD } from '../../types/index';
 import { cn } from '../../lib/utils';
 import { useSegments } from '../../lib/store/segments';
@@ -26,7 +27,7 @@ export const DraggableGroupItem = React.memo(({
   onDragEnd,
   onSegmentDragStart,
   onSegmentDragEnd,
-  onAddSegment // New Prop
+  onAddSegment
 }: {
   groupName: string,
   groupNodes: Segment[],
@@ -47,6 +48,10 @@ export const DraggableGroupItem = React.memo(({
 }) => {
   const controls = useDragControls();
   const { sendCommand } = useWebSocket();
+  
+  // Get Group Config to check type
+  const groupConfig = useSegments(state => state.groups.find(g => g.id === groupName));
+  const isSpacer = groupConfig?.type === 'spacer';
 
   const handleDrag = (event: any, info: any) => {
     if (!containerRef.current) return;
@@ -116,15 +121,13 @@ export const DraggableGroupItem = React.memo(({
   // Animation Variants for "Group" Logic
   const groupVariants = {
     idle: { scale: 1, opacity: 1, y: 0, filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.1))" },
-    // On Pick Up: Lift up, shadow deepens
     dragging: { 
         scale: 1.02, 
         zIndex: 100, 
         opacity: 0.95,
-        filter: "drop-shadow(0 20px 30px rgba(0,0,0,0.4))", // Use filter for shadow with clip-path
+        filter: "drop-shadow(0 20px 30px rgba(0,0,0,0.4))", 
         cursor: "grabbing"
     },
-    // On Delete: Shrink and Fade into void
     exit: { 
         scale: 0.8, 
         opacity: 0, 
@@ -132,6 +135,23 @@ export const DraggableGroupItem = React.memo(({
         transition: { duration: 0.3, ease: "backIn" } 
     }
   };
+
+  // Drag Handle Render
+  const dragHandleContent = (
+      <div 
+         className="w-full h-full flex flex-col items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-primary transition-all duration-300"
+         onPointerDown={(e) => controls.start(e)}
+         style={{ touchAction: 'none' }}
+         title="Drag to Reorder"
+      >
+         <div className="flex flex-col gap-0.5">
+            <div className="w-1 h-1 rounded-full bg-current opacity-60" />
+            <div className="w-1 h-1 rounded-full bg-current opacity-80" />
+            <div className="w-1 h-1 rounded-full bg-current opacity-60" />
+            <div className="w-1 h-1 rounded-full bg-current opacity-40" />
+         </div>
+      </div>
+  );
 
   return (
     <MotionDiv
@@ -147,7 +167,6 @@ export const DraggableGroupItem = React.memo(({
       animate="idle"
       exit="exit"
       whileDrag="dragging"
-      // Mechanical Snap Physics
       transition={{ 
         type: "spring", 
         stiffness: 500, 
@@ -166,33 +185,28 @@ export const DraggableGroupItem = React.memo(({
       }}
       className={cn("group_area z-0 hover:z-10 relative h-full", className)}
     >
-      <SegmentGroup 
-        name={groupName}
-        segments={groupNodes}
-        dragHandle={
-          <div 
-             className="w-full h-full flex flex-col items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-primary transition-all duration-300"
-             onPointerDown={(e) => controls.start(e)}
-             style={{ touchAction: 'none' }}
-             title="Drag to Reorder"
-          >
-             <div className="flex flex-col gap-0.5">
-                <div className="w-1 h-1 rounded-full bg-current opacity-60" />
-                <div className="w-1 h-1 rounded-full bg-current opacity-80" />
-                <div className="w-1 h-1 rounded-full bg-current opacity-60" />
-                <div className="w-1 h-1 rounded-full bg-current opacity-40" />
-             </div>
-          </div>
-        }
-        onReorder={handleInternalReorder}
-        onRemove={removeSegment}
-        onToggle={handleToggle}
-        onPWMChange={setPWM}
-        onToggleBit={() => {}} 
-        onDragStart={onSegmentDragStart}
-        onDragEnd={onSegmentDragEnd}
-        onAddSegment={onAddSegment}
-      />
+      {isSpacer ? (
+          <EmptyGroupSlot 
+              id={groupName}
+              onRemove={removeGroup}
+              dragHandle={dragHandleContent}
+              onClick={() => onAddSegment(groupName)} // Optional: Click to add segment to this spacer
+          />
+      ) : (
+          <SegmentGroup 
+            name={groupName}
+            segments={groupNodes}
+            dragHandle={dragHandleContent}
+            onReorder={handleInternalReorder}
+            onRemove={removeSegment}
+            onToggle={handleToggle}
+            onPWMChange={setPWM}
+            onToggleBit={() => {}} 
+            onDragStart={onSegmentDragStart}
+            onDragEnd={onSegmentDragEnd}
+            onAddSegment={onAddSegment}
+          />
+      )}
     </MotionDiv>
   );
 });

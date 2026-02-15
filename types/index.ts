@@ -36,6 +36,7 @@ export interface GroupConfig {
   order: number; // For manual reordering
   collapsed?: boolean;
   columnCount?: 1 | 2 | 3; // New: User preference for grid columns
+  type?: 'normal' | 'spacer'; // New: Distinguish between real groups and empty placeholders
 }
 
 export interface Segment {
@@ -123,6 +124,7 @@ export interface AppSettings {
   textPatternOpacity?: number;
   gridStrokeWidth?: number;
   gridLineStyle?: 'solid' | 'dashed' | 'dotted';
+  groupColumnCount?: 1 | 2 | 3; // Global column count for groups
 }
 
 export interface LogEntry {
