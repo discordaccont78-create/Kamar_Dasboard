@@ -8,6 +8,7 @@ import { useSegments } from '../lib/store/segments';
 import { useSettingsStore } from '../lib/store/settings';
 import { useSchedulerStore } from '../lib/store/scheduler';
 import { useAudioStore } from '../lib/store/audioStore'; // Import Audio Store
+import { useUIStore } from '../lib/store/uiState'; // Import UI Store for Form manipulation
 import { useSchedulerEngine } from '../hooks/useSchedulerEngine';
 import { Zap, Trash2, Cpu, Laptop, Smartphone, Tablet, Activity } from 'lucide-react';
 import { cn, getFontClass } from '../lib/utils';
@@ -61,7 +62,9 @@ export default function DashboardPage(): React.JSX.Element {
   const { segments, removeSegment, removeGroup, toggleSegment, setPWM } = useSegments();
   const { removeSchedulesByTarget } = useSchedulerStore(); 
   const { settings } = useSettingsStore();
-  const { setAudioState, seekRequest, clearSeekRequest } = useAudioStore(); // Use Audio Store Actions
+  const { setAudioState, seekRequest, clearSeekRequest } = useAudioStore(); 
+  const { setOutputForm, setActiveSection } = useUIStore(); // UI Actions
+  
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   
   // NEW: Track drag type to show specific message
@@ -86,6 +89,13 @@ export default function DashboardPage(): React.JSX.Element {
   const handleGroupDragStart = useCallback(() => setDragType('group'), []);
   const handleSegmentDragStart = useCallback(() => setDragType('segment'), []);
   const handleDragEnd = useCallback(() => setDragType('none'), []);
+
+  // Quick Add Handler from Ghost Slots
+  const handleQuickAdd = useCallback((groupName: string) => {
+      setOutputForm({ group: groupName });
+      setActiveSection('output');
+      setIsMenuOpen(true);
+  }, [setOutputForm, setActiveSection]);
 
   // Logic: Handle Segment/Group Deletion
   const handleRemoveSegment = useCallback((id: string) => {
@@ -450,6 +460,7 @@ export default function DashboardPage(): React.JSX.Element {
                        onDragEnd={handleDragEnd}
                        onSegmentDragStart={handleSegmentDragStart}
                        onSegmentDragEnd={handleDragEnd}
+                       onAddSegment={handleQuickAdd}
                      />
                    );
                 })}

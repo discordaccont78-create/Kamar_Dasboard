@@ -24,7 +24,7 @@ export enum CMD {
   ERROR = 0xFF,
 }
 
-export type SegmentType = 'All' | 'PWM' | 'Digital' | 'Code' | 'Input-0-1' | 'OLED' | 'CharLCD' | 'DHT';
+export type SegmentType = 'All' | 'PWM' | 'Digital' | 'Code' | 'Input-0-1' | 'OLED' | 'CharLCD' | 'DHT' | 'Empty';
 export type GroupType = 'custom' | 'register' | 'weather' | 'input' | 'display';
 export type ButtonTrigger = 0 | 1 | 2 | 3; 
 
@@ -35,6 +35,7 @@ export interface GroupConfig {
   icon?: string; // Lucide icon name string
   order: number; // For manual reordering
   collapsed?: boolean;
+  columnCount?: 1 | 2 | 3; // New: User preference for grid columns
 }
 
 export interface Segment {

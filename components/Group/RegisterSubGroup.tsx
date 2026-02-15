@@ -6,11 +6,14 @@ import { SegmentCard } from '../Segment/SegmentCard';
 import { Segment } from '../../types/index';
 import { cn } from '../../lib/utils';
 import { useSettingsStore } from '../../lib/store/settings';
+import { ItemPosition } from './SegmentGroup';
 
 interface Props {
   segments: Segment[];
   onToggle: (id: string) => void;
   dragHandle?: React.ReactNode;
+  position?: ItemPosition;
+  isLast?: boolean;
 }
 
 /**
@@ -83,7 +86,7 @@ const RegisterBitButton = React.memo(({
     );
 });
 
-export const RegisterSubGroup: React.FC<Props> = ({ segments, onToggle, dragHandle }) => {
+export const RegisterSubGroup: React.FC<Props> = ({ segments, onToggle, dragHandle, position, isLast }) => {
   // Sort bits by index
   const sortedSegments = [...segments].sort((a, b) => (a.regBitIndex || 0) - (b.regBitIndex || 0));
   const masterSegment = sortedSegments[0]; // Used for Labeling the Container
@@ -93,6 +96,9 @@ export const RegisterSubGroup: React.FC<Props> = ({ segments, onToggle, dragHand
         gpio={masterSegment.gpio || 0} 
         label="74HC595 MODULE" // Static label for the container
         dragHandle={dragHandle}
+        position={position}
+        isLast={isLast}
+        segmentId={`reg-group-${masterSegment.gpio}`}
     >
         <div className="flex flex-col gap-3 -mt-2 h-full">
             {/* Header Info */}

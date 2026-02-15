@@ -25,7 +25,8 @@ export const DraggableGroupItem = React.memo(({
   onDragStart,
   onDragEnd,
   onSegmentDragStart,
-  onSegmentDragEnd
+  onSegmentDragEnd,
+  onAddSegment // New Prop
 }: {
   groupName: string,
   groupNodes: Segment[],
@@ -41,7 +42,8 @@ export const DraggableGroupItem = React.memo(({
   onDragStart: () => void,
   onDragEnd: () => void,
   onSegmentDragStart?: () => void,
-  onSegmentDragEnd?: () => void
+  onSegmentDragEnd?: () => void,
+  onAddSegment: (groupName: string) => void
 }) => {
   const controls = useDragControls();
   const { sendCommand } = useWebSocket();
@@ -189,6 +191,7 @@ export const DraggableGroupItem = React.memo(({
         onToggleBit={() => {}} 
         onDragStart={onSegmentDragStart}
         onDragEnd={onSegmentDragEnd}
+        onAddSegment={onAddSegment}
       />
     </MotionDiv>
   );
