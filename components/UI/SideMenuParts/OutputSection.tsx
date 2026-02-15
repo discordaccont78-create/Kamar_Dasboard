@@ -12,7 +12,7 @@ import { useSoundFx } from '../../../hooks/useSoundFx';
 import { SegmentType } from '../../../types/index';
 
 export const OutputSection = ({ activeId, onToggle, t }: any) => {
-    const { addSegment, segments } = useSegments();
+    const { addSegment, replaceSegment, segments } = useSegments();
     const { addToast } = useConnection();
     const { outputForm, setOutputForm } = useUIStore();
     const { playClick } = useSoundFx();
@@ -37,22 +37,32 @@ export const OutputSection = ({ activeId, onToggle, t }: any) => {
             return;
         }
     
-        addSegment({
+        const newSegment = {
           num_of_node: Math.random().toString(36).substr(2, 9),
           name: outputForm.name.trim(),
-          // Fix: Using groupId instead of group as per Segment type definition
           groupId: groupName,
-          groupType: 'custom',
+          groupType: 'custom' as const,
           segType: outputForm.type,
           gpio: pin,
-          is_led_on: 'off',
+          is_led_on: 'off' as const,
           val_of_slide: 0,
           onOffMode: outputForm.onOffMode,
           onLabel: outputForm.onLabel.trim(),
           offLabel: outputForm.offLabel.trim()
-        });
-        setOutputForm({ gpio: '', name: '', type: 'Digital', group: '', onOffMode: 'toggle', onLabel: '', offLabel: '' });
-        addToast("Output segment added successfully", "success");
+        };
+
+        if (outputForm.replaceId) {
+            // Replacement Logic (Swap Spacer with New Device)
+            replaceSegment(outputForm.replaceId, newSegment);
+            addToast("Segment replaced successfully", "success");
+        } else {
+            // Standard Append Logic
+            addSegment(newSegment);
+            addToast("Output segment added successfully", "success");
+        }
+        
+        // Reset form including replaceId
+        setOutputForm({ gpio: '', name: '', type: 'Digital', group: '', onOffMode: 'toggle', onLabel: '', offLabel: '', replaceId: null });
     };
 
     return (
@@ -105,7 +115,7 @@ export const OutputSection = ({ activeId, onToggle, t }: any) => {
                 </div>
                 
                 <TechButton onClick={handleAddOutput} icon={Plus}>
-                {t.add} Output Device
+                {outputForm.replaceId ? "Replace & Initialize" : `${t.add} Output Device`}
                 </TechButton>
             </CardContent>
             </Card>

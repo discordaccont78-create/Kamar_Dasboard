@@ -23,16 +23,18 @@ interface Props {
   onToggleBit: (id: string, bit: number) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
-  onAddSegment?: (groupName: string) => void; 
+  onAddSegment?: (groupName: string, replaceId?: string) => void; 
   dragHandle?: React.ReactNode; 
 }
 
 const MotionDiv = motion.div as any;
 
 // Define a Display Item which can be a single segment or a Sub-Group
+// Added 'ghost' type to handle transient slots inside the main list
 type DisplayItem = 
   | { type: 'single'; id: string; segment: Segment }
-  | { type: 'register_group'; id: string; segments: Segment[] };
+  | { type: 'register_group'; id: string; segments: Segment[] }
+  | { type: 'ghost'; id: string; index: number }; // index is relative to ghosts 0,1,2
 
 export type ItemPosition = 
   | 'solo' 
@@ -57,7 +59,7 @@ const DraggableDisplayItem = React.memo(({
   lastReorderTime,
   className,
   segmentId,
-  onClick // for Spacers
+  onClick 
 }: {
   item: DisplayItem,
   index: number,
@@ -87,9 +89,8 @@ const DraggableDisplayItem = React.memo(({
     const dragX = info.point.x;
     const dragY = info.point.y;
     
-    // Get all items freshly from DOM
-    // CRITICAL FIX: Query BOTH real segments AND ghost areas to allow dragging into empty slots
-    const items = Array.from(containerRef.current.querySelectorAll('.segment_area, .ghost_area')) as HTMLElement[];
+    // Query ALL segment areas including ghosts (since ghosts are now draggable items)
+    const items = Array.from(containerRef.current.querySelectorAll('.segment_area')) as HTMLElement[];
     
     let targetIndex = -1;
 
@@ -98,8 +99,6 @@ const DraggableDisplayItem = React.memo(({
       if (idx === index) return; // Don't check against self
 
       const rect = element.getBoundingClientRect();
-      
-      // Strict boundary check: Mouse must be strictly inside the target box
       const isOver = 
         dragX > rect.left && 
         dragX < rect.right && 
@@ -139,27 +138,39 @@ const DraggableDisplayItem = React.memo(({
               dragHandle={<div {...dragHandleProps}>{DragIcon}</div>}
           />
       );
+  } else if (item.type === 'ghost') {
+      // GHOST RENDER: Now wrapped in Draggable Logic
+      content = (
+        <SegmentCard 
+            gpio={0} 
+            label="EMPTY SLOT"
+            position={position}
+            isLast={isLast}
+            segmentId={item.id}
+            dragHandle={<div {...dragHandleProps}>{DragIcon}</div>} // ENABLE DRAG HANDLE FOR GHOSTS
+            variant="ghost"
+            onClick={onClick}
+        />
+      );
   } else if (item.type === 'single') {
       const seg = item.segment;
       const isSpacer = seg.segType === 'Empty';
 
       if (isSpacer) {
-          // Spacer Logic: Render as Empty Slot but Draggable
           content = (
             <SegmentCard 
                 gpio={0} 
-                label="SPACER"
+                label="EMPTY SLOT"
                 position={position}
                 isLast={isLast}
                 segmentId={seg.num_of_node}
                 dragHandle={<div {...dragHandleProps}>{DragIcon}</div>}
                 variant="spacer"
                 onRemove={() => onRemove(seg.num_of_node)}
-                onClick={onClick} // Allow replacing spacer
+                onClick={onClick} 
             />
           );
       } else {
-          // Real Segment Logic
           let ComponentToRender = (
              <CustomSegment 
                 segment={seg} 
@@ -194,9 +205,10 @@ const DraggableDisplayItem = React.memo(({
   const handleRemove = () => {
      if (item.type === 'single') {
          onRemove(item.id);
-     } else {
+     } else if (item.type === 'register_group') {
          item.segments.forEach(s => onRemove(s.num_of_node));
      }
+     // Ghosts cannot be 'removed' via drag out, they just reset
   };
 
   const itemVariants = {
@@ -238,7 +250,7 @@ const DraggableDisplayItem = React.memo(({
           handleRemove();
         }
       }}
-      className={cn("segment_area relative h-full", className)} // Used for drag targets
+      className={cn("segment_area relative h-full", className)}
       style={{ touchAction: 'none' }}
     >
       {content}
@@ -267,7 +279,8 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
   const groupConfig = groups.find(g => g.id === name) || { id: name, name: name, order: 0, columnCount: 2 };
   const cols = groupConfig.columnCount || 2;
 
-  const displayItems = useMemo(() => {
+  // 1. Build Real Items List
+  const realItems = useMemo(() => {
     const items: DisplayItem[] = [];
     const processedIds = new Set<string>();
 
@@ -288,24 +301,34 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
             items.push({ type: 'single', id: seg.num_of_node, segment: seg });
         }
     });
-
     return items;
   }, [segments]);
 
-  // --- GHOST SLOT CALCULATION ---
-  // If cols > 1, we fill the empty space in the grid row with ghost slots.
-  const ghostSlots = useMemo(() => {
-      if (cols === 1) return 0;
-      const remainder = displayItems.length % cols;
-      if (remainder === 0) return 0; // Perfectly full rows
-      return cols - remainder; // Needed slots to fill row
-  }, [displayItems.length, cols]);
+  // 2. Calculate Total Items (Real + Ghosts)
+  const fullDisplayList = useMemo(() => {
+      const items = [...realItems];
+      if (cols === 1) return items;
+      
+      const remainder = items.length % cols;
+      if (remainder === 0) return items; // Perfectly full rows
+      
+      const ghostCount = cols - remainder;
+      for (let i = 0; i < ghostCount; i++) {
+          items.push({
+              type: 'ghost',
+              id: `ghost-${i}`,
+              index: i
+          });
+      }
+      return items;
+  }, [realItems, cols]);
 
-  const totalGridItems = displayItems.length + ghostSlots;
+  const totalGridItems = fullDisplayList.length;
 
-  // --- SMART GAP FILLER LOGIC ---
+  // --- ACTIONS ---
+
   const handleGhostClick = (ghostRelativeIndex: number) => {
-      // 1. Create Spacers for any gaps BEFORE the clicked one (if applicable)
+      // 1. Materialize spacers for any gaps BEFORE the clicked one
       for (let i = 0; i < ghostRelativeIndex; i++) {
           addSegment({
               num_of_node: `spacer-${Date.now()}-${i}`,
@@ -319,10 +342,10 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
           });
       }
       
-      // 2. Create a Spacer for the clicked slot itself immediately
-      // This ensures the grid structure is preserved if they close the menu
+      // 2. Materialize the clicked one itself
+      const clickedSpacerId = `spacer-${Date.now()}-clicked`;
       addSegment({
-          num_of_node: `spacer-${Date.now()}-clicked`,
+          num_of_node: clickedSpacerId,
           name: 'Empty Slot',
           groupId: name,
           groupType: 'custom',
@@ -332,33 +355,26 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
           val_of_slide: 0
       });
 
-      // 3. Open the menu (user can replace the spacer by adding a real device, or just keep it)
-      if (onAddSegment) onAddSegment(name);
+      // 3. Open Menu specifically to REPLACE this newly created spacer
+      if (onAddSegment) onAddSegment(name, clickedSpacerId);
   };
 
-  // Replacement logic for existing spacers
   const handleSpacerReplace = (spacerId: string) => {
-      removeSegment(spacerId);
-      if (onAddSegment) onAddSegment(name);
+      // Don't remove it yet! Pass it to the add menu.
+      if (onAddSegment) onAddSegment(name, spacerId);
   };
 
+  // --- KEY LOGIC: MOVE ITEM WITH GHOST MATERIALIZATION ---
   const moveItem = useCallback((fromIndex: number, toIndex: number) => {
-    let currentList: any[] = [...displayItems];
+    let currentList: any[] = [...fullDisplayList];
 
-    // Scenario: Moving a real item INTO a Ghost slot.
-    // e.g. [Real_A] [Ghost] -> Drag A to Ghost -> [Spacer] [Real_A]
-    // The previous spot of Real_A effectively becomes empty (Spacer).
-    if (toIndex >= currentList.length) {
-        const itemToMove = currentList[fromIndex];
-        
-        // 1. Insert Spacers to pad up to the destination
-        // Note: The destination index is relative to the total grid including ghosts.
-        const neededSpacers = (toIndex - currentList.length) + 1;
-        
-        // Before we move, we need to leave a spacer behind at the Source Index
-        // This ensures the grid maintains structure (like moving a piece on a board)
-        const spacerLeftBehind: Segment = {
-            num_of_node: `left-behind-${Date.now()}`,
+    if (fromIndex >= currentList.length || toIndex >= currentList.length) return;
+
+    // Helper: Materialize a ghost at a specific index into a Real Spacer
+    // Returns the new Segment object
+    const materializeGhost = (idx: number): Segment => {
+        return {
+            num_of_node: `auto-spacer-${Date.now()}-${Math.random()}`,
             name: 'Empty Slot',
             groupId: name,
             groupType: 'custom',
@@ -367,45 +383,53 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
             is_led_on: 'off',
             val_of_slide: 0
         };
-        
-        // Convert item at source to spacer
-        currentList[fromIndex] = { type: 'single', id: spacerLeftBehind.num_of_node, segment: spacerLeftBehind };
-        
-        // 2. Fill intermediate gaps if any (jumping over ghosts)
-        for(let i = 0; i < neededSpacers - 1; i++) {
-             const intermediateSpacer: Segment = {
-                num_of_node: `gap-fill-${Date.now()}-${i}`,
-                name: 'Empty Slot',
-                groupId: name,
-                groupType: 'custom',
-                segType: 'Empty',
-                gpio: 0,
-                is_led_on: 'off',
-                val_of_slide: 0
-            };
-            currentList.push({ type: 'single', id: intermediateSpacer.num_of_node, segment: intermediateSpacer });
-        }
+    };
 
-        // 3. Place the moved item at the END (Target)
-        currentList.push(itemToMove);
-    } 
-    else {
-        // Standard Swap (Drag Real to Real)
-        const [movedItem] = currentList.splice(fromIndex, 1);
-        currentList.splice(toIndex, 0, movedItem);
+    // 1. If Source is Ghost -> It must become real to be moved
+    if (currentList[fromIndex].type === 'ghost') {
+        const spacer = materializeGhost(fromIndex);
+        currentList[fromIndex] = { type: 'single', id: spacer.num_of_node, segment: spacer };
     }
 
-    const flattenedSegments: Segment[] = [];
+    // 2. Perform Swap/Move
+    const [movedItem] = currentList.splice(fromIndex, 1);
+    currentList.splice(toIndex, 0, movedItem);
+
+    // 3. Post-Process: Convert remaining Ghosts involved in the layout into Real Spacers
+    // We iterate from start. Any ghost encountered BEFORE the last Real item must be materialized
+    // to maintain the gap.
+    // Optimization: Just filter out trailing ghosts. Any ghost NOT at the end is a gap.
+    
+    // Find index of last REAL item
+    let lastRealIndex = -1;
+    for (let i = currentList.length - 1; i >= 0; i--) {
+        if (currentList[i].type !== 'ghost') {
+            lastRealIndex = i;
+            break;
+        }
+    }
+
+    // Materialize any ghosts that are before the last real item
+    for (let i = 0; i < lastRealIndex; i++) {
+        if (currentList[i].type === 'ghost') {
+            const spacer = materializeGhost(i);
+            currentList[i] = { type: 'single', id: spacer.num_of_node, segment: spacer };
+        }
+    }
+
+    // 4. Extract Final Segment List (Filtering out remaining trailing ghosts)
+    const finalSegments: Segment[] = [];
     currentList.forEach(item => {
         if (item.type === 'single') {
-            flattenedSegments.push(item.segment);
-        } else {
-            flattenedSegments.push(...item.segments);
+            finalSegments.push(item.segment);
+        } else if (item.type === 'register_group') {
+            finalSegments.push(...item.segments);
         }
+        // Ghosts are dropped (they will be regenerated by grid logic if needed)
     });
 
-    onReorder(flattenedSegments);
-  }, [displayItems, onReorder, name]);
+    onReorder(finalSegments);
+  }, [fullDisplayList, onReorder, name]);
 
   // --- DYNAMIC GRID STYLING ---
   const gridClass = useMemo(() => {
@@ -421,7 +445,6 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
   const CLIP_HEADER = "polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)";
   const CLIP_BODY = "polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px))";
 
-  // --- POSITION CALCULATOR V6 (Grid + Ghosts) ---
   const getGridPosition = (index: number, total: number, columns: number): ItemPosition => {
       if (total === 1) return 'solo';
 
@@ -507,7 +530,6 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
              </div>
 
              <div className="flex items-center h-full pr-5 relative z-10">
-                 {/* COLUMN CONTROLS */}
                  <div className="hidden lg:flex items-center gap-1 mr-4 bg-black/10 dark:bg-white/5 p-1 rounded-md border border-white/5">
                     <button onClick={() => handleUpdateCols(1)} className={cn("p-1 rounded hover:bg-white/10 transition-colors", cols === 1 ? "text-primary bg-white/10" : "text-muted-foreground")} title="1 Column"><RectangleHorizontal size={14} /></button>
                     <button onClick={() => handleUpdateCols(2)} className={cn("p-1 rounded hover:bg-white/10 transition-colors", cols === 2 ? "text-primary bg-white/10" : "text-muted-foreground")} title="2 Columns"><Columns size={14} /></button>
@@ -524,11 +546,11 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
                      </span>
                      <div className="flex items-center gap-2">
                         <span className="text-xl font-black font-mono text-foreground tracking-tight leading-none">
-                            {displayItems.length.toString().padStart(2, '0')}
+                            {realItems.length.toString().padStart(2, '0')}
                         </span>
                         <div className={cn(
                             "h-1.5 w-1.5 rounded-none transition-colors duration-500",
-                            displayItems.length > 0 ? "bg-primary animate-pulse shadow-[0_0_8px_var(--primary)]" : "bg-muted"
+                            realItems.length > 0 ? "bg-primary animate-pulse shadow-[0_0_8px_var(--primary)]" : "bg-muted"
                         )} />
                      </div>
                  </div>
@@ -548,7 +570,6 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
           </div>
       </div>
 
-      {/* BODY */}
       <div className="relative flex-1 filter drop-shadow-lg">
           <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-md transition-colors duration-300 group-hover/panel:bg-primary/20" style={{ clipPath: CLIP_BODY }} />
           <div className="relative h-full bg-background/95 dark:bg-[#0c0c0e]/95 backdrop-blur-xl p-[1px] overflow-hidden" style={{ clipPath: CLIP_BODY, margin: '1px' }}>
@@ -559,10 +580,21 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
               <div className="p-4 md:p-5 relative z-10 h-full">
                 <div ref={containerRef} className={cn("grid relative min-h-[50px]", gridClass)}>
                     <AnimatePresence mode="popLayout">
-                    {/* Render Real Items */}
-                    {displayItems.map((item, index) => {
+                    {/* Render ALL items (Real + Ghosts) via DraggableDisplayItem */}
+                    {fullDisplayList.map((item, index) => {
                         const position = getGridPosition(index, totalGridItems, cols);
-                        const isLast = index === totalGridItems - 1; 
+                        const isLast = index === totalGridItems - 1;
+
+                        // Click Logic: 
+                        // If Single Spacer -> Replace
+                        // If Ghost -> Auto Fill Logic
+                        const handleClick = () => {
+                            if (item.type === 'single' && item.segment.segType === 'Empty') {
+                                handleSpacerReplace(item.id);
+                            } else if (item.type === 'ghost') {
+                                handleGhostClick(item.index);
+                            }
+                        };
 
                         return (
                         <DraggableDisplayItem 
@@ -580,35 +612,8 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
                             onDragStart={onDragStart}
                             onDragEnd={onDragEnd}
                             lastReorderTime={lastReorderTime}
-                            onClick={item.type === 'single' && item.segment.segType === 'Empty' ? () => handleSpacerReplace(item.id) : undefined}
+                            onClick={handleClick}
                         />
-                        );
-                    })}
-                    
-                    {/* Render Ghost Items (Now visually identical to Spacers) */}
-                    {Array.from({ length: ghostSlots }).map((_, i) => {
-                        const globalIndex = displayItems.length + i;
-                        const position = getGridPosition(globalIndex, totalGridItems, cols);
-                        const isLast = globalIndex === totalGridItems - 1;
-
-                        return (
-                            <motion.div
-                                key={`ghost-${i}`}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                // CRITICAL FIX: Include 'ghost_area' class so handleDrag detects it as a valid drop target
-                                className="ghost_area hidden lg:block" 
-                            >
-                                <SegmentCard 
-                                    gpio={0}
-                                    label="EMPTY SLOT" // Unified Label
-                                    segmentId={`ghost-${i}`}
-                                    position={position}
-                                    isLast={isLast}
-                                    variant="ghost"
-                                    onClick={() => handleGhostClick(i)} 
-                                />
-                            </motion.div>
                         );
                     })}
                     </AnimatePresence>

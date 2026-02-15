@@ -16,6 +16,7 @@ interface SegmentsStore {
   
   // Segment Actions
   addSegment: (segment: Segment) => void;
+  replaceSegment: (oldId: string, newSegment: Segment) => void; // NEW ACTION
   removeSegment: (id: string) => void;
   updateSegment: (id: string, data: Partial<Segment>) => void;
   toggleSegment: (id: string) => void;
@@ -67,6 +68,10 @@ export const useSegments = create<SegmentsStore>()(
 
       addSegment: (segment) => set((state) => ({
         segments: [...state.segments, segment]
+      })),
+
+      replaceSegment: (oldId, newSegment) => set((state) => ({
+        segments: state.segments.map(s => s.num_of_node === oldId ? newSegment : s)
       })),
       
       removeSegment: (id) => set((state) => ({

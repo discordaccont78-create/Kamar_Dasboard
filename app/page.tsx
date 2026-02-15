@@ -91,8 +91,9 @@ export default function DashboardPage(): React.JSX.Element {
   const handleDragEnd = useCallback(() => setDragType('none'), []);
 
   // Quick Add Handler from Ghost Slots
-  const handleQuickAdd = useCallback((groupName: string) => {
-      setOutputForm({ group: groupName });
+  const handleQuickAdd = useCallback((groupName: string, replaceId?: string) => {
+      // If replaceId is present, we are replacing a specific spacer
+      setOutputForm({ group: groupName, replaceId: replaceId });
       setActiveSection('output');
       setIsMenuOpen(true);
   }, [setOutputForm, setActiveSection]);

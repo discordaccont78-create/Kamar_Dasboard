@@ -17,6 +17,7 @@ interface UIState {
     onOffMode: 'toggle' | 'momentary';
     onLabel: string;
     offLabel: string;
+    replaceId?: string | null; // NEW: ID of the spacer to replace
   };
   setOutputForm: (data: Partial<UIState['outputForm']>) => void;
 
@@ -55,7 +56,7 @@ export const useUIStore = create<UIState>()(
       activeSection: null,
       setActiveSection: (section) => set({ activeSection: section }),
 
-      outputForm: { gpio: '', name: '', type: 'Digital', group: '', onOffMode: 'toggle', onLabel: '', offLabel: '' },
+      outputForm: { gpio: '', name: '', type: 'Digital', group: '', onOffMode: 'toggle', onLabel: '', offLabel: '', replaceId: null },
       setOutputForm: (data) => set((state) => ({ outputForm: { ...state.outputForm, ...data } })),
 
       inputForm: { gpio: '', name: '', group: '', trigger: '1' },

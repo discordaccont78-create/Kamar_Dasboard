@@ -88,7 +88,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
           break;
       case 'top-center':
           desktopClip = SHAPE.SQUARE; 
-          desktopConn = { top: '50%', bottom: '-10px' };
+          desktopConn = { top: '-10px', bottom: '-10px' };
           break;
       case 'bottom-left':
           desktopClip = SHAPE.CUT_BL;
@@ -172,24 +172,25 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                 {isEmptySlot ? (
                     // --- UNIFIED EMPTY SLOT CONTENT (For both Ghost & Spacer) ---
                     <div className="flex-1 flex flex-col items-center justify-center gap-2 min-h-[120px] text-muted-foreground/40 group-hover:text-primary/80 transition-colors relative">
-                        {/* Only show delete/drag controls if it's a real Spacer (variant='spacer') */}
-                        {variant === 'spacer' && (
-                            <>
-                                {dragHandle && (
-                                    <div className="absolute top-2 left-2 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab text-foreground">
-                                        {dragHandle}
-                                    </div>
-                                )}
-                                {onRemove && (
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); onRemove(); }}
-                                        className="absolute top-2 right-2 p-1 hover:bg-destructive hover:text-white rounded transition-colors opacity-0 group-hover:opacity-100"
-                                        title="Remove Empty Slot"
-                                    >
-                                        <X size={14} />
-                                    </button>
-                                )}
-                            </>
+                        {/* 
+                           Unified Controls: 
+                           Show drag handle if provided (even for ghosts).
+                           Show Remove button only for real Spacers.
+                        */}
+                        {dragHandle && (
+                            <div className="absolute top-2 left-2 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab text-foreground z-20">
+                                {dragHandle}
+                            </div>
+                        )}
+                        
+                        {variant === 'spacer' && onRemove && (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                                className="absolute top-2 right-2 p-1 hover:bg-destructive hover:text-white rounded transition-colors opacity-0 group-hover:opacity-100 z-20"
+                                title="Remove Empty Slot"
+                            >
+                                <X size={14} />
+                            </button>
                         )}
                         
                         <div className="relative">
