@@ -1,17 +1,12 @@
 
 import React, { useRef, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { GripVertical, Layers, Columns, LayoutGrid, RectangleHorizontal, CornerRightDown, Cpu } from 'lucide-react';
-import { SegmentCard } from '../Segment/SegmentCard';
-import { CustomSegment } from '../Segment/CustomSegment';
-import { WeatherSegment } from '../Segment/WeatherSegment';
-import { InputSegment } from '../Segment/InputSegment';
-import { DisplaySegment } from '../Segment/DisplaySegment';
-import { RegisterSubGroup } from './RegisterSubGroup';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Layers, Columns, LayoutGrid, RectangleHorizontal, CornerRightDown, Cpu } from 'lucide-react';
 import { Segment } from '../../types/index';
 import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { useSettingsStore } from '../../lib/store/settings';
 import { useSegments } from '../../lib/store/segments'; 
+import { DraggableDisplayItem, DisplayItem, ItemPosition } from './DraggableDisplayItem';
 
 interface Props {
   name: string;
@@ -27,228 +22,8 @@ interface Props {
   dragHandle?: React.ReactNode; 
 }
 
-const MotionDiv = motion.div as any;
-
-type DisplayItem = 
-  | { type: 'single'; id: string; segment: Segment }
-  | { type: 'register_group'; id: string; segments: Segment[] }
-  | { type: 'ghost'; id: string; index: number }; 
-
-export type ItemPosition = 
-  | 'solo' 
-  | 'top-left' | 'top-center' | 'top-right' 
-  | 'middle-left' | 'middle-center' | 'middle-right' | 'middle'
-  | 'bottom-left' | 'bottom-center' | 'bottom-right' 
-  | 'bottom-solo';
-
-// Wrapper component to handle individual drag controls - Memoized
-const DraggableDisplayItem = React.memo(({ 
-  item, 
-  index, 
-  position,
-  isLast, 
-  containerRef, 
-  moveItem, 
-  onRemove, 
-  onToggle, 
-  onPWMChange, 
-  onDragStart, 
-  onDragEnd, 
-  lastReorderTime,
-  className,
-  segmentId,
-  onClick 
-}: {
-  item: DisplayItem,
-  index: number,
-  position: ItemPosition,
-  isLast: boolean,
-  containerRef: React.RefObject<HTMLDivElement>,
-  moveItem: (fromIndex: number, toIndex: number) => void,
-  onRemove: (id: string) => void,
-  onToggle: (id: string) => void,
-  onPWMChange: (id: string, val: number) => void,
-  onDragStart?: () => void,
-  onDragEnd?: () => void,
-  lastReorderTime: React.MutableRefObject<number>,
-  className?: string,
-  segmentId: string,
-  onClick?: () => void
-}) => {
-  const controls = useDragControls();
-
-  const handleDrag = (event: any, info: any) => {
-    if (!containerRef.current) return;
-    
-    // THROTTLE: Only allow 1 swap check every 400ms to prevent crash
-    const now = Date.now();
-    if (now - lastReorderTime.current < 400) return;
-
-    const dragX = info.point.x;
-    const dragY = info.point.y;
-    
-    const items = Array.from(containerRef.current.querySelectorAll('.segment_area')) as HTMLElement[];
-    
-    let targetIndex = -1;
-
-    items.forEach((element, idx) => {
-      if (idx === index) return; 
-
-      const rect = element.getBoundingClientRect();
-      const isOver = 
-        dragX > rect.left && 
-        dragX < rect.right && 
-        dragY > rect.top && 
-        dragY < rect.bottom;
-
-      if (isOver) {
-        targetIndex = idx;
-      }
-    });
-
-    if (targetIndex !== -1 && targetIndex !== index) {
-      moveItem(index, targetIndex);
-      lastReorderTime.current = Date.now(); 
-    }
-  };
-
-  const dragHandleProps = {
-    className: "cursor-grab active:cursor-grabbing p-2 hover:bg-primary/10 rounded-none transition-colors text-muted-foreground hover:text-primary border-r border-border/50 h-full flex items-center justify-center",
-    onPointerDown: (e: any) => controls.start(e),
-    style: { touchAction: 'none' } as React.CSSProperties
-  };
-
-  const DragIcon = <GripVertical size={14} />;
-
-  let content = null;
-
-  if (item.type === 'register_group') {
-      content = (
-          <RegisterSubGroup 
-              segments={item.segments} 
-              onToggle={onToggle}
-              position={position}
-              isLast={isLast}
-              dragHandle={<div {...dragHandleProps}>{DragIcon}</div>}
-          />
-      );
-  } else if (item.type === 'ghost') {
-      content = (
-        <SegmentCard 
-            gpio={0} 
-            label="EMPTY SLOT"
-            position={position}
-            isLast={isLast}
-            segmentId={item.id}
-            dragHandle={<div {...dragHandleProps}>{DragIcon}</div>} 
-            variant="ghost"
-            onClick={onClick}
-        />
-      );
-  } else if (item.type === 'single') {
-      const seg = item.segment;
-      const isSpacer = seg.segType === 'Empty';
-
-      if (isSpacer) {
-          content = (
-            <SegmentCard 
-                gpio={0} 
-                label="EMPTY SLOT"
-                position={position}
-                isLast={isLast}
-                segmentId={seg.num_of_node}
-                dragHandle={<div {...dragHandleProps}>{DragIcon}</div>}
-                variant="spacer"
-                onRemove={() => onRemove(seg.num_of_node)}
-                onClick={onClick} 
-            />
-          );
-      } else {
-          let ComponentToRender = (
-             <CustomSegment 
-                segment={seg} 
-                onToggle={() => onToggle(seg.num_of_node)} 
-                onPWMChange={(val) => onPWMChange(seg.num_of_node, val)} 
-             />
-          );
-
-          if (seg.segType === 'DHT') {
-             ComponentToRender = <WeatherSegment segment={seg} />;
-          } else if (seg.segType === 'OLED' || seg.segType === 'CharLCD') {
-             ComponentToRender = <DisplaySegment segment={seg} />;
-          } else if (seg.segType === 'Input-0-1' || seg.groupType === 'input') {
-             ComponentToRender = <InputSegment segment={seg} />;
-          }
-
-          content = (
-            <SegmentCard 
-                gpio={seg.gpio || 0} 
-                label={seg.name}
-                position={position}
-                isLast={isLast}
-                segmentId={seg.num_of_node}
-                dragHandle={<div {...dragHandleProps}>{DragIcon}</div>}
-            >
-                {ComponentToRender}
-            </SegmentCard>
-          );
-      }
-  }
-
-  const handleRemove = () => {
-     if (item.type === 'single') {
-         onRemove(item.id);
-     } else if (item.type === 'register_group') {
-         item.segments.forEach(s => onRemove(s.num_of_node));
-     }
-  };
-
-  const itemVariants = {
-    idle: { scale: 1, opacity: 1, zIndex: 1 },
-    dragging: { 
-        scale: 1.02, 
-        zIndex: 50, 
-        opacity: 0.9,
-        cursor: "grabbing" 
-    },
-    exit: { 
-        scale: 0, 
-        opacity: 0, 
-        transition: { duration: 0.2 } 
-    }
-  };
-
-  return (
-    <MotionDiv 
-      key={segmentId}
-      layout="position" 
-      drag
-      dragListener={false} 
-      dragControls={controls} 
-      dragSnapToOrigin
-      dragElastic={0.1}
-      variants={itemVariants}
-      initial="idle"
-      animate="idle"
-      exit="exit"
-      whileDrag="dragging"
-      transition={{ type: "spring", stiffness: 450, damping: 35 }}
-      onDragStart={onDragStart}
-      onDrag={handleDrag}
-      onDragEnd={(event: any, info: any) => {
-        onDragEnd?.();
-        const thresholdY = window.innerHeight - 110;
-        if (info.point.y > thresholdY) {
-          handleRemove();
-        }
-      }}
-      className={cn("segment_area relative h-full", className)}
-      style={{ touchAction: 'none' }}
-    >
-      {content}
-    </MotionDiv>
-  );
-});
+const CLIP_HEADER = "polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)";
+const CLIP_BODY = "polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px))";
 
 export const SegmentGroup: React.FC<Props> = React.memo(({ 
   name,
@@ -308,17 +83,12 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
           }
       }
 
-      // If group is completely empty or has no real content, show what we have
       if (lastContentIndex === -1) return realItems;
-
-      // Calculate the row of the last real content item
       const maxRow = Math.floor(lastContentIndex / cols);
 
       return realItems.filter((item, index) => {
           const isSpacer = item.type === 'single' && item.segment.segType === 'Empty';
           if (!isSpacer) return true;
-          
-          // Keep spacer if it is on the same row or a previous row relative to content
           const itemRow = Math.floor(index / cols);
           return itemRow <= maxRow;
       });
@@ -334,11 +104,7 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
       
       const ghostCount = cols - remainder;
       for (let i = 0; i < ghostCount; i++) {
-          items.push({
-              type: 'ghost',
-              id: `ghost-${i}`,
-              index: i
-          });
+          items.push({ type: 'ghost', id: `ghost-${i}`, index: i });
       }
       return items;
   }, [filteredItems, cols]);
@@ -433,18 +199,13 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
 
   const gridClass = useMemo(() => {
       if (cols === 1) return "grid-cols-1 gap-1.5";
-      // Update: Use md: for 2 columns to show multi-column on tablets
       if (cols === 2) return "grid-cols-1 md:grid-cols-2 gap-1.5";
-      // Update: Use md: for 3 columns to ensure 3-column layout activates earlier
       if (cols === 3) return "grid-cols-1 md:grid-cols-3 gap-1.5";
       return "grid-cols-1 md:grid-cols-2 gap-1.5"; 
   }, [cols]);
     
   const zoneFontClass = isPersian(name) ? "font-persian" : getFontClass(settings.dashboardFont);
   const accentColor = settings.cursorColor || '#daa520';
-
-  const CLIP_HEADER = "polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)";
-  const CLIP_BODY = "polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px))";
 
   const getGridPosition = (index: number, total: number, columns: number): ItemPosition => {
       if (total === 1) return 'solo';
@@ -482,27 +243,15 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
       if (existingGroup) {
           updateGroup(name, { columnCount: c });
       } else {
-          addGroup({
-              id: name,
-              name: name,
-              order: groups.length, 
-              columnCount: c,
-              collapsed: false
-          });
+          addGroup({ id: name, name: name, order: groups.length, columnCount: c, collapsed: false });
       }
   };
 
   return (
     <div className="flex flex-col gap-3 h-full group/panel">
       <div className="relative shrink-0 filter drop-shadow-md group/header">
-          <div 
-            className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-md transition-all duration-300 group-hover/header:bg-primary/40" 
-            style={{ clipPath: CLIP_HEADER }} 
-          />
-          <div 
-            className="relative h-14 bg-secondary/90 dark:bg-[#121214]/95 backdrop-blur-xl flex items-stretch justify-between overflow-hidden" 
-            style={{ clipPath: CLIP_HEADER, margin: '1px' }}
-          >
+          <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-md transition-all duration-300 group-hover/header:bg-primary/40" style={{ clipPath: CLIP_HEADER }} />
+          <div className="relative h-14 bg-secondary/90 dark:bg-[#121214]/95 backdrop-blur-xl flex items-stretch justify-between overflow-hidden" style={{ clipPath: CLIP_HEADER, margin: '1px' }}>
              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary/50 group-hover/header:bg-primary transition-colors shadow-[0_0_10px_var(--primary)] z-20" />
              <div className="absolute inset-0 opacity-[0.04] bg-[repeating-linear-gradient(45deg,transparent,transparent_5px,currentColor_5px,currentColor_6px)] pointer-events-none" />
 
@@ -512,18 +261,13 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
                       {dragHandle}
                    </div>
                 )}
-                
                 <div className="flex flex-col justify-center h-full py-1.5 gap-0.5 pl-2">
                     <div className="flex items-center gap-1.5 text-[7px] font-mono font-bold uppercase tracking-widest text-primary/80">
                         <Layers size={8} />
                         <span>ZONE_ID</span>
                         <span className="w-8 h-px bg-primary/30" />
                     </div>
-
-                    <span className={cn(
-                        "text-base md:text-lg font-black uppercase tracking-[0.1em] text-foreground flex items-center gap-2 drop-shadow-sm leading-none",
-                        zoneFontClass
-                    )}>
+                    <span className={cn("text-base md:text-lg font-black uppercase tracking-[0.1em] text-foreground flex items-center gap-2 drop-shadow-sm leading-none", zoneFontClass)}>
                        {name}
                     </span>
                 </div>
@@ -531,49 +275,29 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
 
              <div className="flex items-center h-full pr-5 relative z-10">
                  <div className="hidden lg:flex items-center gap-1 mr-4 bg-black/10 dark:bg-white/5 p-1 rounded-md border border-white/5">
-                    <button onClick={() => handleUpdateCols(1)} className={cn("p-1 rounded hover:bg-white/10 transition-colors", cols === 1 ? "text-primary bg-white/10" : "text-muted-foreground")} title="1 Column"><RectangleHorizontal size={14} /></button>
-                    <button onClick={() => handleUpdateCols(2)} className={cn("p-1 rounded hover:bg-white/10 transition-colors", cols === 2 ? "text-primary bg-white/10" : "text-muted-foreground")} title="2 Columns"><Columns size={14} /></button>
-                    <button onClick={() => handleUpdateCols(3)} className={cn("p-1 rounded hover:bg-white/10 transition-colors", cols === 3 ? "text-primary bg-white/10" : "text-muted-foreground")} title="3 Columns"><LayoutGrid size={14} /></button>
+                    <button onClick={() => handleUpdateCols(1)} className={cn("p-1 rounded hover:bg-white/10 transition-colors", cols === 1 ? "text-primary bg-white/10" : "text-muted-foreground")}><RectangleHorizontal size={14} /></button>
+                    <button onClick={() => handleUpdateCols(2)} className={cn("p-1 rounded hover:bg-white/10 transition-colors", cols === 2 ? "text-primary bg-white/10" : "text-muted-foreground")}><Columns size={14} /></button>
+                    <button onClick={() => handleUpdateCols(3)} className={cn("p-1 rounded hover:bg-white/10 transition-colors", cols === 3 ? "text-primary bg-white/10" : "text-muted-foreground")}><LayoutGrid size={14} /></button>
                  </div>
-
-                 <div className="h-full w-8 relative flex items-center justify-center opacity-20">
-                    <div className="h-8 w-px bg-foreground rotate-12" />
-                 </div>
-
+                 <div className="h-full w-8 relative flex items-center justify-center opacity-20"><div className="h-8 w-px bg-foreground rotate-12" /></div>
                  <div className="flex flex-col items-end justify-center mr-3">
-                     <span className="text-[7px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mb-0.5">
-                        MODULES
-                     </span>
+                     <span className="text-[7px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mb-0.5">MODULES</span>
                      <div className="flex items-center gap-2">
-                        <span className="text-xl font-black font-mono text-foreground tracking-tight leading-none">
-                            {realItems.length.toString().padStart(2, '0')}
-                        </span>
-                        <div className={cn(
-                            "h-1.5 w-1.5 rounded-none transition-colors duration-500",
-                            realItems.length > 0 ? "bg-primary animate-pulse shadow-[0_0_8px_var(--primary)]" : "bg-muted"
-                        )} />
+                        <span className="text-xl font-black font-mono text-foreground tracking-tight leading-none">{realItems.length.toString().padStart(2, '0')}</span>
+                        <div className={cn("h-1.5 w-1.5 rounded-none transition-colors duration-500", realItems.length > 0 ? "bg-primary animate-pulse shadow-[0_0_8px_var(--primary)]" : "bg-muted")} />
                      </div>
                  </div>
-
-                 <div 
-                    className="h-9 w-9 bg-black/5 dark:bg-white/5 flex items-center justify-center text-muted-foreground group-hover/header:text-primary group-hover/header:bg-primary/10 transition-all relative"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%)" }}
-                 >
+                 <div className="h-9 w-9 bg-black/5 dark:bg-white/5 flex items-center justify-center text-muted-foreground group-hover/header:text-primary group-hover/header:bg-primary/10 transition-all relative" style={{ clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%)" }}>
                     <Cpu size={16} strokeWidth={2} />
                  </div>
              </div>
-             
-             <div 
-                className="absolute bottom-0 right-0 w-8 h-8 flex items-end justify-end p-[6px] pointer-events-none opacity-30"
-                style={{ backgroundImage: `linear-gradient(135deg, transparent 50%, ${accentColor} 50%)` }}
-             />
+             <div className="absolute bottom-0 right-0 w-8 h-8 flex items-end justify-end p-[6px] pointer-events-none opacity-30" style={{ backgroundImage: `linear-gradient(135deg, transparent 50%, ${accentColor} 50%)` }} />
           </div>
       </div>
 
       <div className="relative flex-1 filter drop-shadow-lg">
           <div className="absolute inset-0 bg-border/60 dark:bg-white/10 backdrop-blur-md transition-colors duration-300 group-hover/panel:bg-primary/20" style={{ clipPath: CLIP_BODY }} />
           <div className="relative h-full bg-background/95 dark:bg-[#0c0c0e]/95 backdrop-blur-xl p-[1px] overflow-hidden" style={{ clipPath: CLIP_BODY, margin: '1px' }}>
-              
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/40 group-hover/panel:bg-primary/60 transition-colors shadow-[0_0_15px_var(--primary)] z-20 opacity-80" />
               <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-white/5 to-transparent opacity-50 pointer-events-none" />
 
@@ -583,43 +307,25 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
                     {fullDisplayList.map((item, index) => {
                         const position = getGridPosition(index, totalGridItems, cols);
                         const isLast = index === totalGridItems - 1;
-
                         const handleClick = () => {
-                            if (item.type === 'single' && item.segment.segType === 'Empty') {
-                                handleSpacerReplace(item.id);
-                            } else if (item.type === 'ghost') {
-                                handleGhostClick(item.index);
-                            }
+                            if (item.type === 'single' && item.segment.segType === 'Empty') handleSpacerReplace(item.id);
+                            else if (item.type === 'ghost') handleGhostClick(item.index);
                         };
 
                         return (
                         <DraggableDisplayItem 
-                            key={item.id}
-                            item={item}
-                            index={index}
-                            position={position}
-                            isLast={isLast}
-                            segmentId={item.id}
-                            containerRef={containerRef}
-                            moveItem={moveItem}
-                            onRemove={onRemove}
-                            onToggle={onToggle}
-                            onPWMChange={onPWMChange}
-                            onDragStart={onDragStart}
-                            onDragEnd={onDragEnd}
-                            lastReorderTime={lastReorderTime}
-                            onClick={handleClick}
+                            key={item.id} item={item} index={index} position={position} isLast={isLast} segmentId={item.id}
+                            containerRef={containerRef} moveItem={moveItem} onRemove={onRemove} onToggle={onToggle}
+                            onPWMChange={onPWMChange} onDragStart={onDragStart} onDragEnd={onDragEnd}
+                            lastReorderTime={lastReorderTime} onClick={handleClick}
                         />
                         );
                     })}
                     </AnimatePresence>
                 </div>
               </div>
-
               <div className="absolute bottom-0 right-0 w-10 h-10 pointer-events-none opacity-40" style={{ backgroundImage: `linear-gradient(135deg, transparent 60%, ${accentColor} 60%)` }} />
-              <div className="absolute bottom-1 right-1 p-1 opacity-80 pointer-events-none text-primary/80">
-                    <CornerRightDown size={12} />
-              </div>
+              <div className="absolute bottom-1 right-1 p-1 opacity-80 pointer-events-none text-primary/80"><CornerRightDown size={12} /></div>
           </div>
       </div>
     </div>

@@ -6,7 +6,7 @@ import { SegmentCard } from '../Segment/SegmentCard';
 import { Segment } from '../../types/index';
 import { cn } from '../../lib/utils';
 import { useSettingsStore } from '../../lib/store/settings';
-import { ItemPosition } from './SegmentGroup';
+import { ItemPosition } from './DraggableDisplayItem';
 
 interface Props {
   segments: Segment[];
@@ -57,10 +57,7 @@ const RegisterBitButton = React.memo(({
             {/* Content: Icon and Name */}
             <div className="flex items-end justify-between w-full relative z-10 mt-1 gap-2">
                 <div className="flex flex-col min-w-0 flex-1">
-                    <span className={cn(
-                        "text-[9px] font-black uppercase tracking-wider text-left truncate w-full leading-tight transition-colors",
-                        isOn ? "text-foreground" : "text-muted-foreground"
-                    )}>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-left truncate w-full leading-tight transition-colors">
                         {segment.name}
                     </span>
                     <span className={cn(

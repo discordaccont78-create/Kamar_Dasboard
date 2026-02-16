@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { useSettingsStore } from '../../lib/store/settings';
 import { getIconForName } from '../../lib/iconMapper';
-import { ItemPosition } from '../Group/SegmentGroup';
+import { ItemPosition } from '../Group/DraggableDisplayItem';
 import { Plus, X, GripHorizontal } from 'lucide-react';
 
 interface SegmentCardProps {
