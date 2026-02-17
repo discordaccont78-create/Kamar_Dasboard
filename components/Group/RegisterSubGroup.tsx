@@ -8,6 +8,9 @@ import { cn } from '../../lib/utils';
 import { useSettingsStore } from '../../lib/store/settings';
 import { ItemPosition } from './DraggableDisplayItem';
 
+// Workaround for Framer Motion type compatibility
+const MotionDiv = motion.div as any;
+
 interface Props {
   segments: Segment[];
   onToggle: (id: string) => void;
@@ -27,26 +30,34 @@ const RegisterBitButton = React.memo(({
   segment: Segment; 
   onToggle: () => void; 
 }) => {
+    const { settings } = useSettingsStore();
     const isOn = segment.is_led_on === 'on';
 
     return (
         <button 
             onClick={onToggle}
-            className={cn(
-                "relative flex flex-col justify-between p-2 md:p-3 rounded-lg border transition-all duration-300 active:scale-[0.96] overflow-hidden group outline-none min-h-[4.5rem] flex-1",
-                isOn 
-                    ? "bg-primary/20 border-primary shadow-[0_0_15px_-5px_rgba(var(--primary),0.4)]" 
-                    : "bg-black/5 dark:bg-white/5 border-transparent hover:bg-black/10 dark:hover:bg-white/10 hover:border-white/10"
-            )}
+            className="relative flex flex-col justify-between p-2 md:p-3 transition-all duration-300 active:scale-[0.96] overflow-hidden group outline-none min-h-[4.5rem] flex-1 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-transparent hover:border-white/5"
         >
-            {/* Background Noise Texture for ON state */}
+            {/* Striped Pattern Overlay */}
+            <div className="absolute inset-0 opacity-[0.03] bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,currentColor_2px,currentColor_3px)] pointer-events-none" />
+
+            {/* Left Status Strip */}
             <div className={cn(
-                 "absolute inset-0 opacity-20 transition-opacity duration-500 pointer-events-none",
-                 isOn ? "bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-30" : "opacity-0"
-            )} />
+                "absolute left-0 top-0 bottom-0 transition-all duration-500 ease-out z-20",
+                isOn ? "w-1 bg-primary shadow-[0_0_10px_var(--primary)]" : "w-[2px] bg-primary/20"
+            )}>
+                {/* Inner flowing energy when ON and Animations Enabled */}
+                {isOn && settings.animations && (
+                    <MotionDiv 
+                        className="absolute left-0 right-0 h-[40%] bg-white/60 blur-[1px]"
+                        animate={{ top: ["0%", "100%"] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                    />
+                )}
+            </div>
 
             {/* Header: Bit Index and Indicator */}
-            <div className="flex justify-between w-full relative z-10 items-start">
+            <div className="flex justify-between w-full relative z-10 items-start pl-1.5">
                  <span className="text-[7px] font-mono font-bold opacity-40 uppercase tracking-widest">Bit #{segment.regBitIndex}</span>
                  <div className={cn(
                     "w-1.5 h-1.5 rounded-full transition-all duration-300",
@@ -55,9 +66,12 @@ const RegisterBitButton = React.memo(({
             </div>
 
             {/* Content: Icon and Name */}
-            <div className="flex items-end justify-between w-full relative z-10 mt-1 gap-2">
+            <div className="flex items-end justify-between w-full relative z-10 mt-1 gap-2 pl-1.5">
                 <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-left truncate w-full leading-tight transition-colors">
+                    <span className={cn(
+                        "text-[9px] font-black uppercase tracking-wider text-left truncate w-full leading-tight transition-colors",
+                        isOn ? "text-foreground" : "text-muted-foreground"
+                    )}>
                         {segment.name}
                     </span>
                     <span className={cn(
@@ -74,9 +88,13 @@ const RegisterBitButton = React.memo(({
                 )} />
             </div>
 
+            {/* Tech Corner Accents (Subtle) */}
+            <div className="absolute top-0 right-0 w-1.5 h-1.5 border-t border-r border-primary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute bottom-0 right-0 w-1.5 h-1.5 border-b border-r border-primary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+            
             {/* Bottom Active Line */}
             <div className={cn(
-                 "absolute bottom-0 left-0 h-0.5 transition-all duration-500 ease-out",
+                 "absolute bottom-0 left-0 h-[1px] transition-all duration-500 ease-out",
                  isOn ? "w-full bg-primary" : "w-0 bg-transparent"
             )} />
         </button>
@@ -110,8 +128,8 @@ export const RegisterSubGroup: React.FC<Props> = ({ segments, onToggle, dragHand
             
             {/* 
                 Responsive Grid System:
-                - h-full: Ensures the grid fills the parent card height (fixing the empty space issue).
-                - grid-cols-2: On mobile, show 2 columns to prevent squashing.
+                - h-full: Ensures the grid fills the parent card height.
+                - grid-cols-2: On mobile, show 2 columns.
                 - sm:grid-cols-4: On desktop, show 4 columns.
             */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
