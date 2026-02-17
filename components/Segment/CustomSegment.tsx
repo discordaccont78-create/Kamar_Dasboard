@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Cable, Timer } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Power, Send, Trash2, Clock, Hourglass, Settings2, MousePointerClick, Fingerprint, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Cable, Timer, CornerDownRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Slider } from '../../components/ui/slider';
@@ -21,6 +21,10 @@ interface Props {
 
 // Workaround for Framer Motion type compatibility
 const MotionDiv = motion.div as any;
+const MotionSpan = motion.span as any;
+
+// Tech Shape Definition (Chamfered Corners)
+const TECH_CLIP = "polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)";
 
 const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => {
   const { data: deviceState } = useDeviceState(initialSegment.num_of_node);
@@ -189,64 +193,63 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   const hasPulse = safeSegment.pulseDuration && safeSegment.pulseDuration > 0;
 
   return (
-    <MotionDiv initial={false} className="flex flex-col gap-4 md:gap-6">
+    <MotionDiv initial={false} className="flex flex-col gap-4">
       
       {showToggle && (
         <div className="relative">
-           <div className="flex justify-between items-center mb-1.5 md:mb-2 px-1 gap-2">
-              <label className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1 shrink-0">
+           {/* Info Bar / Header */}
+           <div className="flex justify-between items-center mb-2 px-0.5 gap-2">
+              <label 
+                className="text-[8px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 shrink-0 bg-secondary/10 px-1.5 py-0.5 rounded cursor-pointer hover:bg-secondary/20 transition-colors"
+                onClick={cycleMode}
+                title="Switch Input Mode"
+              >
                  {mode === 'toggle' ? <MousePointerClick size={10} /> : <Fingerprint size={10} />}
-                 <span className="hidden xs:inline">{mode === 'toggle' ? "Feshari (Toggle)" : "Push Mode"}</span>
+                 <span className="hidden xs:inline">{mode === 'toggle' ? "LATCH" : "MOMENTARY"}</span>
                  <span className="xs:hidden">{mode === 'toggle' ? "TGL" : "PSH"}</span>
               </label>
 
               <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar justify-end px-1">
-                    {sortedSchedules.map(sch => (
-                        <div key={sch.id} className="flex items-center gap-1.5 text-primary animate-in fade-in zoom-in duration-300 bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20 shrink-0 whitespace-nowrap">
-                            {sch.type === 'countdown' ? (
-                               <Hourglass size={8} className="animate-pulse" />
-                            ) : sch.type === 'input' ? (
-                               <Cable size={8} />
-                            ) : (
-                               <Clock size={8} />
-                            )}
-                            <span className="font-mono text-[8px] font-bold leading-none">
-                                {sch.type === 'countdown' ? getCountdownString(sch) : sch.type === 'input' ? `GP${sch.sourceGpio}` : sch.time}
-                            </span>
-                            <div className="pl-1 border-l border-primary/20 flex items-center">
-                                {getActionIndicator(sch)}
-                            </div>
-                        </div>
-                    ))}
+                 {/* Active Schedules Badges */}
+                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar justify-end">
+                    <AnimatePresence>
+                        {sortedSchedules.map(sch => (
+                            <MotionDiv 
+                                key={sch.id} 
+                                initial={{ scale: 0, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0, opacity: 0 }}
+                                className="flex items-center gap-1 text-primary bg-primary/5 px-1.5 py-0.5 rounded border border-primary/20 shrink-0 whitespace-nowrap"
+                            >
+                                {sch.type === 'countdown' ? <Hourglass size={8} className="animate-pulse" /> : <Clock size={8} />}
+                                <span className="font-mono text-[7px] font-bold leading-none">
+                                    {sch.type === 'countdown' ? getCountdownString(sch) : sch.time}
+                                </span>
+                            </MotionDiv>
+                        ))}
+                    </AnimatePresence>
                  </div>
                  
-                 {/* Auto-Off / Pulse Configuration Button */}
+                 {/* Auto-Off Toggle */}
                  {mode === 'toggle' && (
                     <button 
                         onClick={() => setShowPulseConfig(!showPulseConfig)}
                         className={cn(
-                            "text-[8px] md:text-[9px] uppercase font-bold tracking-wider hover:underline flex items-center gap-1 ml-1 shrink-0 transition-colors",
-                            (hasPulse || showPulseConfig) ? "text-primary opacity-100" : "text-muted-foreground opacity-50 hover:opacity-100"
+                            "flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded transition-all",
+                            (hasPulse || showPulseConfig) 
+                                ? "bg-primary/20 text-primary hover:bg-primary/30" 
+                                : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-secondary/20"
                         )}
-                        title="Auto-Off Timer (Pulse)"
+                        title="Pulse / Auto-Off Timer"
                     >
-                        <Timer size={10} /> <span className="hidden sm:inline">Pulse</span>
-                        {hasPulse && !showPulseConfig && <span className="font-mono text-[7px] bg-primary/20 px-1 rounded">{safeSegment.pulseDuration}s</span>}
+                        <Timer size={10} />
+                        {hasPulse && !showPulseConfig && <span className="font-mono">{safeSegment.pulseDuration}s</span>}
                     </button>
                  )}
-
-                 <button 
-                    onClick={cycleMode} 
-                    className="text-[8px] md:text-[9px] text-primary opacity-60 hover:opacity-100 uppercase font-bold tracking-wider hover:underline flex items-center gap-1 ml-1 shrink-0"
-                    title="Change Button Mode"
-                 >
-                    <Settings2 size={10} /> <span className="hidden sm:inline">Change</span>
-                 </button>
               </div>
            </div>
 
-           {/* Pulse Configuration Popover/Area */}
+           {/* Pulse Configuration Panel */}
            <PulseConfig 
                 segmentId={safeSegment.num_of_node}
                 pulseDuration={safeSegment.pulseDuration || 0}
@@ -254,68 +257,109 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
                 onClose={() => setShowPulseConfig(false)}
            />
 
-           <button
-             onPointerDown={mode === 'momentary' ? handlePressStart : undefined}
-             onPointerUp={mode === 'momentary' ? handlePressEnd : undefined}
-             onPointerLeave={mode === 'momentary' ? handlePressEnd : undefined}
-             onClick={mode === 'toggle' ? handleToggle : undefined}
-             className={cn(
-                "w-full h-12 md:h-16 rounded-lg md:rounded-xl border-2 transition-all duration-300 relative overflow-hidden group active:scale-[0.98] outline-none",
-                isOn 
-                  ? "border-primary bg-primary/20 shadow-[0_0_30px_rgba(var(--primary),0.25)]" 
-                  : "border-white/10 bg-black/5 dark:bg-white/5 hover:border-white/20 hover:bg-white/10"
-             )}
-           >
-              <div className={cn(
-                 "absolute inset-0 opacity-20 transition-opacity duration-500",
-                 isOn ? "bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-40" : ""
-              )} />
-              
-              <div className="flex items-center justify-center gap-3 relative z-10">
-                 <Power 
-                    className={cn(
-                        "w-5 h-5 md:w-6 md:h-6 transition-all duration-300", 
-                        isOn ? "text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.8)]" : "text-muted-foreground opacity-50"
-                    )} 
-                 />
-                 <span className={cn(
-                    "text-base md:text-xl font-black uppercase tracking-[0.2em] transition-colors duration-300",
-                    isOn ? "text-foreground" : "text-muted-foreground opacity-50"
-                 )}>
-                    {isOn ? (safeSegment.onLabel || "ON") : (safeSegment.offLabel || "OFF")}
-                 </span>
-                 
-                 {/* Small Pulse Indicator on the button itself if active and running */}
-                 {isOn && hasPulse && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-60">
-                         <Timer size={10} className="animate-pulse text-primary" />
-                         <span className="text-[8px] font-mono font-bold text-primary">AUTO-OFF</span>
+           {/* THE NEW TECH BUTTON (Version 3: Strip Mode) */}
+           <div className="relative group filter drop-shadow-sm">
+                {/* Connection Lines (Industrial Decoration) */}
+                <div className="absolute -top-1 left-4 w-px h-2 bg-border/50 z-0 opacity-50 transition-opacity group-hover:opacity-100" />
+                <div className="absolute -bottom-1 right-4 w-px h-2 bg-border/50 z-0 opacity-50 transition-opacity group-hover:opacity-100" />
+
+                <button
+                    onPointerDown={mode === 'momentary' ? handlePressStart : undefined}
+                    onPointerUp={mode === 'momentary' ? handlePressEnd : undefined}
+                    onPointerLeave={mode === 'momentary' ? handlePressEnd : undefined}
+                    onClick={mode === 'toggle' ? handleToggle : undefined}
+                    className="relative w-full h-14 md:h-16 outline-none block active:scale-[0.98] transition-transform duration-100 overflow-hidden"
+                    style={{ clipPath: TECH_CLIP }}
+                >
+                    {/* Layer 1: Base Background */}
+                    <div className={cn(
+                        "absolute inset-0 transition-colors duration-300",
+                        isOn ? "bg-primary/10" : "bg-black/10 dark:bg-white/5"
+                    )} />
+
+                    {/* Striped Pattern Overlay */}
+                    <div className="absolute inset-0 opacity-[0.03] bg-[repeating-linear-gradient(45deg,transparent,transparent_5px,currentColor_5px,currentColor_6px)] pointer-events-none" />
+
+                    {/* NEW: Left Status Strip */}
+                    <div className={cn(
+                        "absolute left-0 top-0 bottom-0 transition-all duration-500 ease-out z-20",
+                        isOn ? "w-1.5 bg-primary shadow-[0_0_15px_var(--primary)]" : "w-[3px] bg-primary/20"
+                    )}>
+                        {/* Inner flowing energy when ON */}
+                        {isOn && (
+                            <MotionDiv 
+                                className="absolute left-0 right-0 h-[20%] bg-white/50 blur-[2px]"
+                                animate={{ top: ["0%", "100%"] }}
+                                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                            />
+                        )}
                     </div>
-                 )}
-              </div>
-              
-              <div className={cn(
-                 "absolute bottom-0 left-0 h-1 transition-all duration-500 ease-out",
-                 isOn ? "w-full bg-primary shadow-[0_-2px_10px_rgba(var(--primary),0.5)]" : "w-0 bg-transparent"
-              )} />
-           </button>
+
+                    {/* Layer 3: Tech Borders */}
+                    <div className={cn(
+                        "absolute inset-0 pointer-events-none transition-all duration-300 border-[2px]",
+                        isOn ? "border-primary/30" : "border-transparent group-hover:border-white/10"
+                    )} style={{ clipPath: TECH_CLIP }} />
+                    
+                    {/* Layer 4: Corner Accents */}
+                    <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-primary/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-primary/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                    {/* Content */}
+                    <div className="relative z-20 flex items-center justify-between px-6 h-full pl-8">
+                        {/* Left Side: Label & Status Text */}
+                        <div className="flex flex-col items-start gap-0.5">
+                            <span className={cn(
+                                "text-[10px] font-black uppercase tracking-[0.15em] transition-colors duration-300",
+                                isOn ? "text-primary" : "text-muted-foreground"
+                            )}>
+                                {isOn ? "ACTIVE" : "STANDBY"}
+                            </span>
+                            <span className={cn(
+                                "text-sm md:text-base font-black uppercase tracking-[0.1em] transition-colors duration-300 leading-none",
+                                isOn ? "text-foreground drop-shadow-sm" : "text-muted-foreground/60"
+                            )}>
+                                {isOn ? (safeSegment.onLabel || "ON") : (safeSegment.offLabel || "OFF")}
+                            </span>
+                        </div>
+
+                        {/* Right Side: Icon & Indicator */}
+                        <div className="flex items-center gap-3">
+                            <Power 
+                                className={cn(
+                                    "w-5 h-5 md:w-6 md:h-6 transition-all duration-300", 
+                                    isOn ? "text-primary drop-shadow-[0_0_5px_rgba(var(--primary),0.8)]" : "text-muted-foreground opacity-40"
+                                )} 
+                                strokeWidth={2.5}
+                            />
+                        </div>
+                    </div>
+                </button>
+           </div>
         </div>
       )}
 
       {showSlider && (
-        <div className="bg-secondary/5 p-3 md:p-4 rounded-lg md:rounded-xl border border-border-light dark:border-border-dark flex flex-col gap-3 md:gap-4">
-          <div className="flex justify-between items-center">
-             <label className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">PWM Intensity</label>
-             <span className="font-mono text-[10px] md:text-xs font-bold text-primary">{localPwm}</span>
+        <div className="bg-secondary/5 p-3 md:p-4 rounded-none border-l-2 border-primary/20 hover:border-primary/50 transition-colors flex flex-col gap-3 md:gap-4 relative overflow-hidden group">
+          {/* Subtle Grid Background */}
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[linear-gradient(90deg,currentColor_1px,transparent_1px),linear-gradient(currentColor_1px,transparent_1px)] bg-[length:10px_10px]" />
+          
+          <div className="flex justify-between items-center relative z-10">
+             <label className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                <CornerDownRight size={10} /> PWM Intensity
+             </label>
+             <span className="font-mono text-[10px] md:text-xs font-bold text-primary bg-primary/10 px-1.5 rounded-sm">{localPwm}</span>
           </div>
-          <Slider
-            value={[localPwm]}
-            onValueChange={handleSliderChange}
-            onValueCommit={handleSliderCommit}
-            max={255}
-            step={1}
-            className="w-full"
-          />
+          <div className="relative z-10 px-1">
+            <Slider
+                value={[localPwm]}
+                onValueChange={handleSliderChange}
+                onValueCommit={handleSliderCommit}
+                max={255}
+                step={1}
+                className="w-full"
+            />
+          </div>
         </div>
       )}
 
@@ -328,16 +372,16 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
                 placeholder="HEX..."
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="h-9 text-xs"
+                className="h-9 text-xs rounded-none border-l-2 border-primary/30 focus:border-primary"
             />
-            <Button size="sm" className="h-9 px-3">
+            <Button size="sm" className="h-9 px-3 rounded-sm">
                 <Send size={14} />
             </Button>
             <Button 
                 size="sm" 
                 variant="ghost" 
                 onClick={() => setCode("")}
-                className="h-9 px-3 text-muted-foreground hover:text-destructive"
+                className="h-9 px-3 text-muted-foreground hover:text-destructive rounded-sm"
             >
                 <Trash2 size={14} />
             </Button>
