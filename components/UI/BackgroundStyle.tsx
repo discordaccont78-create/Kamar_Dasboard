@@ -39,11 +39,13 @@ export const BackgroundStyle: React.FC = () => {
 
   // 2. Define Accent Color
   const accentColor = hexToRgba(settings.cursorColor || '#daa520', secOpacity);
+  
+  // 3. Primary Color for Scrollbars
+  const primaryHex = settings.primaryColor || '#daa520';
 
   // --- SHAPE GENERATION LOGIC ---
 
   const createShapeSvg = (type: 'dots' | 'squares' | 'triangles', color: string) => {
-    // FIX: Do not double encode the color. The outer encodeURIComponent handles it.
     const safeColor = color; 
     let shape = '';
     
@@ -72,7 +74,6 @@ export const BackgroundStyle: React.FC = () => {
   };
 
   const createGridSvg = (color: string, strokeWidth: number = 1, style: 'solid' | 'dashed' | 'dotted' = 'solid', size: number = 24) => {
-    // FIX: Do not double encode the color.
     const safeColor = color;
     let dashArray = '';
     let strokeLinecap = '';
@@ -85,9 +86,6 @@ export const BackgroundStyle: React.FC = () => {
         strokeLinecap = `stroke-linecap='round'`;
     }
 
-    // Path draws Top line and Left line for the cell: ┌
-    // The previous bug was mainly due to double-encoding the 'color' string (which contains commas in rgba).
-    // Removing the inner encodeURIComponent fixes the visibility issue.
     const svg = `
       <svg width='${size}' height='${size}' viewBox='0 0 ${size} ${size}' xmlns='http://www.w3.org/2000/svg'>
         <path d='M ${size} 0 L 0 0 L 0 ${size}' fill='none' stroke='${safeColor}' stroke-width='${strokeWidth}' ${dashArray} ${strokeLinecap} />
@@ -96,10 +94,6 @@ export const BackgroundStyle: React.FC = () => {
     return `data:image/svg+xml,${encodeURIComponent(svg.trim())}`;
   };
 
-  /**
-   * Generates a sparse Text SVG Overlay.
-   * ViewBox is 384x384.
-   */
   const createTextSvg = (text: string) => {
       const sanitizedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
       
@@ -107,12 +101,11 @@ export const BackgroundStyle: React.FC = () => {
       const textOpacityVal = (settings.textPatternOpacity ?? 10) / 100;
       
       const textColorRgba = hexToRgba(textColorHex, textOpacityVal);
-      const textOutlineColor = hexToRgba(textColorHex, Math.min(textOpacityVal + 0.1, 1)); // Slightly stronger outline
+      const textOutlineColor = hexToRgba(textColorHex, Math.min(textOpacityVal + 0.1, 1)); 
 
       let style = '';
 
       if (isHollow) {
-          // Hollow: Empty Inside, Colored Outline
           style = `
             font-size: 42px; 
             fill: transparent; 
@@ -120,7 +113,6 @@ export const BackgroundStyle: React.FC = () => {
             stroke-width: 1px;
           `;
       } else {
-          // Solid: Small Font, Colored Fill, No Outline
           style = `
             font-size: 16px; 
             fill: ${textColorRgba}; 
@@ -159,18 +151,14 @@ export const BackgroundStyle: React.FC = () => {
   const TEXT_MOVE_X = '384px';
   const TEXT_MOVE_Y = '384px';
   
-  // Standard shape size
-  const SHAPE_SIZE = 24;
-  const SHAPE_MOVE_X = '1920px'; // 24 * 80
+  const SHAPE_MOVE_X = '1920px'; 
   const SHAPE_MOVE_Y = '1920px';
 
-  // Dynamic Grid size
   const gridSize = settings.gridSize || 32;
-  const GRID_MOVE_X = `${gridSize * 80}px`; // ensure loop is smooth
+  const GRID_MOVE_X = `${gridSize * 80}px`;
   const GRID_MOVE_Y = `${gridSize * 80}px`;
 
   if (settings.backgroundEffect === 'none') {
-      // Just plain background color
       cssRule = `
         .graph-paper, .pattern-bg {
             background-color: hsl(var(--background));
@@ -180,7 +168,6 @@ export const BackgroundStyle: React.FC = () => {
   } else if (settings.backgroundEffect === 'grid') {
       const gridSvg = createGridSvg(baseColor, settings.gridStrokeWidth, settings.gridLineStyle, gridSize);
       
-      // Grid uses dynamic generated SVG now
       const gridCss = `
           background-image: 
               ${textOverlayUrl}
@@ -227,16 +214,66 @@ export const BackgroundStyle: React.FC = () => {
       `;
   }
 
+  // --- CUSTOM SCROLLBAR CSS (AGGRESSIVE & THEMED) ---
+  const scrollbarCss = `
+    /* Force Smooth Scrolling Globally */
+    html, body {
+        scroll-behavior: smooth !important;
+    }
+
+    /* Firefox */
+    * {
+        scrollbar-width: thin !important;
+        scrollbar-color: ${hexToRgba(primaryHex, 0.5)} transparent !important;
+    }
+
+    /* Webkit (Chrome, Edge, Safari) - Targeting ALL elements */
+    ::-webkit-scrollbar {
+        width: 10px !important;
+        height: 10px !important;
+        background: transparent !important;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: ${isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)'} !important;
+        border-left: 1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} !important;
+    }
+
+    /* Idle State: Sharp, Tech-looking bar */
+    ::-webkit-scrollbar-thumb {
+        background-color: ${hexToRgba(primaryHex, 0.15)} !important;
+        border: 1px solid ${hexToRgba(primaryHex, 0.4)} !important;
+        border-radius: 0px !important; /* SHARP EDGES */
+        box-shadow: inset 0 0 6px ${hexToRgba(primaryHex, 0.05)} !important;
+        backdrop-filter: blur(2px);
+    }
+
+    /* Hover State: High intensity, Glow */
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: ${hexToRgba(primaryHex, 0.8)} !important;
+        border: 1px solid ${primaryHex} !important;
+        box-shadow: 0 0 15px ${hexToRgba(primaryHex, 0.5)}, inset 0 0 0 1px rgba(255,255,255,0.2) !important;
+    }
+
+    /* Active/Click State */
+    ::-webkit-scrollbar-thumb:active {
+        background-color: ${primaryHex} !important;
+        box-shadow: 0 0 20px ${primaryHex} !important;
+    }
+
+    ::-webkit-scrollbar-corner {
+        background: transparent !important;
+    }
+  `;
+
   // --- KEYFRAME GENERATION ---
   
   const getToPositions = () => {
       const textPos = `${TEXT_MOVE_X} ${TEXT_MOVE_Y}`;
       
       if (settings.backgroundEffect === 'grid') {
-          // Grid only has 1 layer (plus text) currently
           return `${hasText ? textPos + ', ' : ''} ${GRID_MOVE_X} ${GRID_MOVE_Y}`;
       } else {
-          // Standard Shapes
           if (isDual) {
               return `${hasText ? textPos + ', ' : ''} ${SHAPE_MOVE_X} ${SHAPE_MOVE_Y}, calc(12px + ${SHAPE_MOVE_X}) calc(12px + ${SHAPE_MOVE_Y})`;
           } else {
@@ -246,12 +283,9 @@ export const BackgroundStyle: React.FC = () => {
   };
 
   const getFromPositions = () => {
-      // Must match initial background-positions exactly to prevent jumping
       if (settings.backgroundEffect === 'grid') {
-          // Grid
           return `${hasText ? 'center center, ' : ''} center top`;
       } else {
-          // Standard Shapes
           if (isDual) return `${hasText ? 'center center, ' : ''} 0 0, 12px 12px`;
           return `${hasText ? 'center center, ' : ''} center top`;
       }
@@ -265,6 +299,9 @@ export const BackgroundStyle: React.FC = () => {
         <style dangerouslySetInnerHTML={{ __html: `
         /* Generated Background CSS */
         ${cssRule}
+
+        /* Generated Scrollbar CSS */
+        ${scrollbarCss}
 
         /* Animation Logic */
         @keyframes bgScroll {

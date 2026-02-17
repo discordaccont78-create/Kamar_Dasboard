@@ -221,9 +221,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMenu }) => {
            
            <div className="relative h-full flex items-center pl-4 pr-10 md:pl-8 md:pr-14">
               <div className="flex items-center gap-2 md:gap-5 z-10 relative">
-                  <div ref={logoRef} className="relative z-30 group flex items-center justify-center shrink-0">
+                  <div ref={logoRef} className="relative z-30 group flex items-center justify-center shrink-0 cursor-core">
                     <MotionDiv 
-                        className="relative w-8 h-8 md:w-11 md:h-11 flex items-center justify-center cursor-pointer"
+                        className="relative w-8 h-8 md:w-11 md:h-11 flex items-center justify-center cursor-core"
                         animate={sparkState === 'impact' ? 'impact' : (isLogoCharged ? 'charged' : 'idle')}
                         variants={logoVariants}
                     >

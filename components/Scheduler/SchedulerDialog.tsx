@@ -51,7 +51,8 @@ export const SchedulerDialog: React.FC<SchedulerDialogProps> = ({ isOpen, onClos
             </DialogClose>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
+          {/* FIX: Removed 'no-scrollbar' */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-8">
              {/* Extracted Builder Logic */}
              <SchedulerBuilder />
 

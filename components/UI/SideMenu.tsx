@@ -114,7 +114,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose }) => {
             {uniqueNames.map(n => <option key={n} value={n} />)}
           </datalist>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 no-scrollbar">
+          {/* FIX: Removed 'no-scrollbar' class to allow custom scrollbar to be seen */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20">
             
             {/* Quick Actions (Moved from Mobile Header) */}
             <div className="grid grid-cols-3 gap-2 mb-2 md:hidden">

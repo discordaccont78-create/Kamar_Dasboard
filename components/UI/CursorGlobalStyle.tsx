@@ -7,16 +7,26 @@ export const CursorGlobalStyle: React.FC = () => {
   const { settings } = useSettingsStore();
   const { isCharged } = useCursorStore();
   
-  // Normal Color
+  const isDark = settings.theme === 'dark';
+
+  // Normal Color (Accent)
   const baseColor = encodeURIComponent(settings.cursorColor || '#daa520'); 
   
-  // Charged Color (Electric White/Blue)
+  // Charged Colors (Electric White/Blue)
   const chargedFill = encodeURIComponent('#ffffff');
   const chargedStroke = encodeURIComponent('#00bfff'); // Deep Sky Blue glow
 
-  // Dynamic Color Selection
+  // Theme-Aware Stroke Colors
+  // Dark Mode: White stroke for contrast against dark bg
+  // Light Mode: Black stroke for contrast against light bg
+  const themeStroke = encodeURIComponent(isDark ? '#ffffff' : '#1a1c1e');
+
+  // Dynamic Color Selection Logic
   const fillColor = isCharged ? chargedFill : baseColor;
-  const strokeColor = isCharged ? chargedStroke : 'white';
+  
+  // If charged, use electric blue stroke. If not, use theme-contrasting stroke.
+  const strokeColor = isCharged ? chargedStroke : themeStroke;
+  
   const strokeWidth = isCharged ? '2' : '1.5';
 
   // --- SVG DEFINITIONS (Tech/Industrial Style) ---
@@ -63,8 +73,12 @@ export const CursorGlobalStyle: React.FC = () => {
   // 14. Zoom
   const zoomCursor = `data:image/svg+xml;utf8,<svg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='10' cy='10' r='6' stroke='${fillColor}' stroke-width='2'/><path d='M15 15L20 20' stroke='${fillColor}' stroke-width='2'/><path d='M10 7V13 M7 10H13' stroke='${fillColor}' stroke-width='1'/></svg>`;
 
+  // 15. Help
   const helpCursor = `data:image/svg+xml;utf8,<svg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='8' stroke='${fillColor}' stroke-width='1.5'/><text x='12' y='16' font-size='12' font-family='monospace' fill='${fillColor}' text-anchor='middle' font-weight='bold'>?</text></svg>`;
 
+  // 16. New: Core (Logo) Cursor - Diamond Target Lock
+  // Matches the Core Emblem shape (Diamond)
+  const coreCursor = `data:image/svg+xml;utf8,<svg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M16 2 L30 16 L16 30 L2 16 Z' stroke='${strokeColor}' stroke-width='2' fill='none'/><circle cx='16' cy='16' r='3' fill='${fillColor}'/><path d='M16 6 L16 10 M16 26 L16 22 M6 16 L10 16 M26 16 L22 16' stroke='${fillColor}' stroke-width='1.5'/></svg>`;
 
   return (
     <style dangerouslySetInnerHTML={{ __html: `
@@ -76,6 +90,11 @@ export const CursorGlobalStyle: React.FC = () => {
       /* Pointers & Links */
       a, button, [role="button"], .pointer, .context-menu, select, input[type="checkbox"], input[type="radio"] {
         cursor: url("${pointerCursor}") 12 12, pointer !important;
+      }
+
+      /* Logo / Core Interaction */
+      .cursor-core {
+        cursor: url("${coreCursor}") 16 16, pointer !important;
       }
 
       /* Text Input */

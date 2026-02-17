@@ -97,13 +97,29 @@ export const DraggableDisplayItem = React.memo(({
     }
   };
 
+  // --- NEW TECH GRIP STYLE ---
   const dragHandleProps = {
-    className: "cursor-grab active:cursor-grabbing p-2 hover:bg-primary/10 rounded-none transition-colors text-muted-foreground hover:text-primary border-r border-border/50 h-full flex items-center justify-center",
+    className: "group/handle cursor-grab active:cursor-grabbing w-9 h-full flex flex-col items-center justify-center bg-black/5 dark:bg-white/5 hover:bg-primary/10 transition-all duration-300 border-r border-border/40 relative overflow-hidden",
     onPointerDown: (e: any) => controls.start(e),
     style: { touchAction: 'none' } as React.CSSProperties
   };
 
-  const DragIcon = <GripVertical size={14} />;
+  const DragIcon = (
+      <>
+        {/* Subtle diagonal texture overlay */}
+        <div className="absolute inset-0 opacity-[0.04] bg-[linear-gradient(45deg,currentColor_25%,transparent_25%,transparent_50%,currentColor_50%,currentColor_75%,transparent_75%,transparent)] bg-[length:4px_4px] pointer-events-none" />
+        
+        {/* The 3-Dot Grip */}
+        <div className="flex flex-col gap-1.5 opacity-40 group-hover/handle:opacity-100 group-hover/handle:text-primary transition-all duration-300 z-10">
+            <div className="w-1 h-1 rounded-full bg-current shadow-[0_0_2px_currentColor]" />
+            <div className="w-1 h-1 rounded-full bg-current shadow-[0_0_2px_currentColor]" />
+            <div className="w-1 h-1 rounded-full bg-current shadow-[0_0_2px_currentColor]" />
+        </div>
+        
+        {/* Active Side Glow (Left Edge) */}
+        <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-primary/0 group-hover/handle:bg-primary/60 transition-colors rounded-r-full shadow-[0_0_5px_var(--primary)]" />
+      </>
+  );
 
   let content = null;
 

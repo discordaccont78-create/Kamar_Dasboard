@@ -206,9 +206,11 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                     <>
                         {/* Header */}
                         <div className="h-10 flex items-stretch border-b border-border/40 bg-secondary/5">
-                            <div className="flex items-center px-1 border-r border-border/40 bg-black/5 dark:bg-white/5">
+                            {/* Drag Handle Container - Unstyled to let dragHandle control it */}
+                            <div className="flex items-stretch shrink-0">
                                 {dragHandle}
                             </div>
+                            
                             <div className="flex-1 flex items-center gap-2.5 px-3 min-w-0">
                                 <div className="text-primary opacity-80 shrink-0">
                                     <SegmentIcon size={14} strokeWidth={2.5} />

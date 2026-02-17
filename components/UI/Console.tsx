@@ -41,7 +41,8 @@ export const Console: React.FC<ConsoleProps> = ({ onClose }) => {
           )}
         </div>
       </div>
-      <div className="h-64 overflow-y-auto p-4 font-mono text-[10px] space-y-2 no-scrollbar bg-black/5 dark:bg-black/20">
+      {/* FIX: Removed 'no-scrollbar' */}
+      <div className="h-64 overflow-y-auto p-4 font-mono text-[10px] space-y-2 bg-black/5 dark:bg-black/20">
         {logs.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 gap-2">
                 <Activity size={24} className="opacity-20" />
