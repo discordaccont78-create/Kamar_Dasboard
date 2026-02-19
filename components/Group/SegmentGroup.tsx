@@ -24,7 +24,6 @@ interface Props {
 
 const CLIP_HEADER = "polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)";
 // Updated CLIP_BODY: Added a notch in the vertical center of the right side
-// Logic: Top-Right Chamfer -> Right Edge Top -> Notch Start -> Notch Tip -> Notch End -> Right Edge Bottom -> Bottom-Right Square -> Bottom-Left Chamfer
 const CLIP_BODY = "polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% calc(50% - 15px), calc(100% - 15px) 50%, 100% calc(50% + 15px), 100% 100%, 20px 100%, 0 calc(100% - 20px))";
 
 export const SegmentGroup: React.FC<Props> = React.memo(({ 
@@ -209,33 +208,54 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
   const zoneFontClass = isPersian(name) ? "font-persian" : getFontClass(settings.dashboardFont);
   const accentColor = settings.cursorColor || '#daa520';
 
+  // --- UPDATED GRID POSITION LOGIC FOR SPLIT NOTCH ---
   const getGridPosition = (index: number, total: number, columns: number): ItemPosition => {
       if (total === 1) return 'solo';
-
-      if (columns === 1) {
-          if (index === 0) return 'top-right'; 
-          if (index === total - 1) return 'bottom-left'; 
-          return 'middle';
-      }
 
       const row = Math.floor(index / columns);
       const col = index % columns;
       const totalRows = Math.ceil(total / columns);
-      
+      const isLastCol = col === columns - 1;
+
+      // RIGHT COLUMN LOGIC (The Notch)
+      if (isLastCol) {
+          if (totalRows % 2 !== 0) {
+              // Odd Rows: Middle one gets standard Middle-Right notch
+              const mid = Math.floor(totalRows / 2);
+              if (row === mid) return 'middle-right';
+          } else {
+              // Even Rows: Split notch logic
+              const splitLine = totalRows / 2;
+              
+              // Upper Item of the notch
+              if (row === splitLine - 1) {
+                  // If it's the very first row, it combines Top-Right + Split Bottom
+                  if (row === 0) return 'top-right-split';
+                  return 'middle-right-split-top';
+              }
+              // Lower Item of the notch
+              if (row === splitLine) {
+                  // If it's the very last row, it combines Bottom-Right + Split Top
+                  if (row === totalRows - 1) return 'bottom-right-split';
+                  return 'middle-right-split-bottom';
+              }
+          }
+      }
+
+      // STANDARD CORNERS
       const isFirstRow = row === 0;
       const isLastRow = row === totalRows - 1;
       const isFirstCol = col === 0;
-      const isLastCol = col === columns - 1;
 
       if (isLastRow && isFirstCol) return 'bottom-left';
-      if (isFirstRow && isLastCol) return 'top-right';
+      if (isFirstRow && isLastCol) return 'top-right'; // Fallback if not involved in split
       if (isFirstRow && isFirstCol) return 'top-left';
-      if (isLastRow && isLastCol) return 'bottom-right';
+      if (isLastRow && isLastCol) return 'bottom-right'; // Fallback if not involved in split
 
       if (isFirstRow) return 'top-center';
       if (isLastRow) return 'bottom-center';
       if (isFirstCol) return 'middle-left';
-      if (isLastCol) return 'middle-right';
+      if (isLastCol) return 'middle-right'; // Fallback
       
       return 'middle-center';
   };
@@ -327,7 +347,7 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
                 </div>
               </div>
               
-              {/* Right Side Notch Accent (The "Cut" Visual) */}
+              {/* Right Side Notch Accent */}
               <div className="absolute top-1/2 right-0 -translate-y-1/2 flex items-center justify-center pointer-events-none opacity-50 group-hover/panel:opacity-100 transition-opacity">
                   <div className="w-4 h-12 border-l border-primary/20" />
                   <ChevronLeft size={12} className="text-primary absolute right-[1px]" />

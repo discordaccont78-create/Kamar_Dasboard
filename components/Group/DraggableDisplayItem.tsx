@@ -18,7 +18,12 @@ export type ItemPosition =
   | 'top-left' | 'top-center' | 'top-right' 
   | 'middle-left' | 'middle-center' | 'middle-right' | 'middle'
   | 'bottom-left' | 'bottom-center' | 'bottom-right' 
-  | 'bottom-solo';
+  | 'bottom-solo'
+  // New Split Notch Positions
+  | 'top-right-split' 
+  | 'bottom-right-split'
+  | 'middle-right-split-top'
+  | 'middle-right-split-bottom';
 
 export type DisplayItem = 
   | { type: 'single'; id: string; segment: Segment }

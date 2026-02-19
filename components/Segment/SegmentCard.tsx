@@ -29,11 +29,27 @@ const SHAPE = {
     CUT_BL: "polygon(0 0, 100% 0, 100% 100%, 24px 100%, 0 calc(100% - 24px))",
     CUT_DOUBLE: "polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px))",
     
-    // NEW: Right Notch (For Middle-Right items) matching the group clip
+    // Right Notch (Middle-Right items)
     NOTCH_RIGHT: "polygon(0 0, 100% 0, 100% calc(50% - 15px), calc(100% - 15px) 50%, 100% calc(50% + 15px), 100% 100%, 0 100%)",
     
-    // NEW: Solo Notch (Combined with Left strip logic if needed, but primarily right notch for single column items)
+    // Solo Notch (Full item with top/bottom cuts if needed, but primarily right notch)
     SOLO_NOTCH: "polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% calc(50% - 15px), calc(100% - 15px) 50%, 100% calc(50% + 15px), 100% 100%, 24px 100%, 0 calc(100% - 24px))",
+
+    // NEW SPLIT NOTCH SHAPES
+    // 1. Top-Right Split: Chamfered TR + Notch cut at BR
+    TOP_RIGHT_SPLIT: "polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%)",
+    
+    // 2. Bottom-Right Split: Square BR (Standard) + Notch cut at TR
+    BOTTOM_RIGHT_SPLIT: "polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%)",
+    
+    // 3. Middle-Right Split Top: Square TR + Notch cut at BR
+    MIDDLE_RIGHT_SPLIT_TOP: "polygon(0 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%)",
+    
+    // 4. Middle-Right Split Bottom: Square BR + Notch cut at TR
+    MIDDLE_RIGHT_SPLIT_BOTTOM: "polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%)",
+
+    // Mobile specific split: If last item is also the bottom half of a notch, it needs CUT_BL + Notch Top
+    BOTTOM_RIGHT_SPLIT_MOBILE: "polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 24px 100%, 0 calc(100% - 24px))"
 };
 
 export const SegmentCard: React.FC<SegmentCardProps> = ({ 
@@ -61,18 +77,19 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
   let mobileClip = SHAPE.SQUARE;
   let mobileConn = { top: '-10px', bottom: '-10px' }; 
 
+  // Basic Mobile Assignments
   if (position === 'solo') {
-      mobileClip = SHAPE.SOLO_NOTCH; // Updated to include notch on mobile solo
-      mobileConn = { top: '0', bottom: '0' }; 
+      mobileClip = SHAPE.SOLO_NOTCH;
+      mobileConn = { top: '0', bottom: '0' };
   } else if (position === 'top-left' || position === 'top-center' || position === 'top-right') {
       mobileClip = SHAPE.CUT_TR;
-      mobileConn = { top: '50%', bottom: '-10px' }; 
+      mobileConn = { top: '50%', bottom: '-10px' };
   } else if (isLast) {
       mobileClip = SHAPE.CUT_BL;
-      mobileConn = { top: '-10px', bottom: '50%' }; 
+      mobileConn = { top: '-10px', bottom: '50%' };
   } else {
       mobileClip = SHAPE.SQUARE;
-      mobileConn = { top: '-10px', bottom: '-10px' }; 
+      mobileConn = { top: '-10px', bottom: '-10px' };
   }
 
   // --- 2. DESKTOP LOGIC (Grid) ---
@@ -81,7 +98,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
 
   switch (position) {
       case 'solo':
-          desktopClip = SHAPE.SOLO_NOTCH; // Updated
+          desktopClip = SHAPE.SOLO_NOTCH;
           desktopConn = { top: '0', bottom: '0' };
           break;
       case 'top-left':
@@ -113,9 +130,31 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
           desktopConn = { top: '-10px', bottom: '50%' };
           break;
       case 'middle-right':
-          desktopClip = SHAPE.NOTCH_RIGHT; // Applied Notch
+          desktopClip = SHAPE.NOTCH_RIGHT;
           desktopConn = { top: '-10px', bottom: '-10px' };
           break;
+          
+      // --- NEW SPLIT POSITIONS ---
+      case 'top-right-split':
+          desktopClip = SHAPE.TOP_RIGHT_SPLIT;
+          desktopConn = { top: '50%', bottom: '-10px' }; // It's top row
+          // On mobile, if this is the first item, it acts like top-right
+          if (position === 'top-right-split') mobileClip = SHAPE.TOP_RIGHT_SPLIT; 
+          break;
+      case 'bottom-right-split':
+          desktopClip = SHAPE.BOTTOM_RIGHT_SPLIT;
+          desktopConn = { top: '-10px', bottom: '50%' }; // It's bottom row
+          if (isLast) mobileClip = SHAPE.BOTTOM_RIGHT_SPLIT_MOBILE;
+          break;
+      case 'middle-right-split-top':
+          desktopClip = SHAPE.MIDDLE_RIGHT_SPLIT_TOP;
+          desktopConn = { top: '-10px', bottom: '-10px' };
+          break;
+      case 'middle-right-split-bottom':
+          desktopClip = SHAPE.MIDDLE_RIGHT_SPLIT_BOTTOM;
+          desktopConn = { top: '-10px', bottom: '-10px' };
+          break;
+
       default: 
           desktopClip = SHAPE.SQUARE;
           desktopConn = { top: '-10px', bottom: '-10px' };
@@ -269,13 +308,16 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                 {/* --- INDUSTRIAL DETAILS (Responsive Accents) --- */}
                 {isReal && (
                     <>
+                        {/* Top-Right Accent */}
                         <div className={cn(
                             "absolute top-[24px] right-0 w-1 h-4 bg-primary/20 transition-opacity",
                             (position === 'top-left' || position === 'solo' || position === 'middle-right') ? "block lg:hidden" : "", 
                             position === 'top-right' ? "hidden lg:block" : "", 
+                            position === 'top-right-split' ? "hidden lg:block" : "", // Split top has chamfer, so hide accent? Or adapt.
                             position === 'solo' ? "block" : ""
                         )} />
 
+                        {/* Bottom-Left Accent */}
                         <div className={cn(
                             "absolute bottom-[24px] left-0 w-1 h-4 bg-primary/20",
                             (isLast || position === 'solo') ? "block lg:hidden" : "", 
@@ -296,7 +338,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                 )}
 
                 {/* --- CORNER DECORATION --- */}
-                {/* Now available for Empty Slots too if they are last */}
+                {/* Only for specific positions */}
                 {(position === 'solo' || isLast || position === 'bottom-solo') && (
                     <div className="absolute bottom-0 right-0 w-[24px] h-[24px] pointer-events-none">
                         <div className="absolute bottom-0 right-0 w-full h-full bg-primary/20" style={{ clipPath: "polygon(100% 0, 0 100%, 100% 100%)" }} />
