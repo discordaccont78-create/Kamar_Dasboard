@@ -17,10 +17,13 @@ const CLIP_SHAPE = "polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 
 
 export const EmptyGroupSlot: React.FC<EmptyGroupSlotProps> = ({ id, onRemove, dragHandle, onClick }) => {
     return (
-        <div className="h-full min-h-[180px] relative group" onClick={onClick}>
+        <div className="h-full min-h-[180px] relative group pl-4" onClick={onClick}>
+            {/* POWER STRIP (Left Edge) - Matching SegmentGroup style */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-muted-foreground/10 group-hover:bg-primary/40 transition-colors duration-300 z-20 pointer-events-none shadow-sm" />
+
             {/* Visual Border */}
             <div 
-                className="absolute inset-0 bg-transparent border-2 border-dashed border-muted-foreground/20 group-hover:border-primary/40 group-hover:bg-primary/5 transition-all duration-300"
+                className="absolute inset-0 bg-transparent border-2 border-dashed border-muted-foreground/20 group-hover:border-primary/40 group-hover:bg-primary/5 transition-all duration-300 ml-1"
                 style={{ clipPath: CLIP_SHAPE }}
             />
 
@@ -34,7 +37,7 @@ export const EmptyGroupSlot: React.FC<EmptyGroupSlotProps> = ({ id, onRemove, dr
             </button>
 
             {/* Content */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground/30 group-hover:text-primary/70 transition-colors pointer-events-none">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground/30 group-hover:text-primary/70 transition-colors pointer-events-none pl-2">
                 <div className="relative">
                     <Layers size={40} strokeWidth={1} className="group-hover:scale-110 transition-transform duration-300" />
                     <div className="absolute -bottom-2 -right-2 bg-background p-0.5 rounded-full">
@@ -50,7 +53,7 @@ export const EmptyGroupSlot: React.FC<EmptyGroupSlotProps> = ({ id, onRemove, dr
 
             {/* Drag Handle Overlay - Always accessible */}
             {dragHandle && (
-                <div className="absolute top-0 left-0 bottom-0 w-12 flex items-center justify-center cursor-grab active:cursor-grabbing z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-0 left-1.5 bottom-0 w-12 flex items-center justify-center cursor-grab active:cursor-grabbing z-30 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="p-2 bg-background/50 backdrop-blur-sm rounded-r-lg border border-border/50 text-muted-foreground">
                         <GripVertical size={20} />
                     </div>

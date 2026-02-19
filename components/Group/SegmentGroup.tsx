@@ -1,7 +1,7 @@
 
 import React, { useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, Columns, LayoutGrid, RectangleHorizontal, CornerRightDown, Cpu } from 'lucide-react';
+import { Layers, Columns, LayoutGrid, RectangleHorizontal, CornerRightDown, Cpu, ChevronLeft } from 'lucide-react';
 import { Segment } from '../../types/index';
 import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { useSettingsStore } from '../../lib/store/settings';
@@ -23,7 +23,9 @@ interface Props {
 }
 
 const CLIP_HEADER = "polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)";
-const CLIP_BODY = "polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px))";
+// Updated CLIP_BODY: Added a notch in the vertical center of the right side
+// Logic: Top-Right Chamfer -> Right Edge Top -> Notch Start -> Notch Tip -> Notch End -> Right Edge Bottom -> Bottom-Right Square -> Bottom-Left Chamfer
+const CLIP_BODY = "polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% calc(50% - 15px), calc(100% - 15px) 50%, 100% calc(50% + 15px), 100% 100%, 20px 100%, 0 calc(100% - 20px))";
 
 export const SegmentGroup: React.FC<Props> = React.memo(({ 
   name,
@@ -324,6 +326,13 @@ export const SegmentGroup: React.FC<Props> = React.memo(({
                     </AnimatePresence>
                 </div>
               </div>
+              
+              {/* Right Side Notch Accent (The "Cut" Visual) */}
+              <div className="absolute top-1/2 right-0 -translate-y-1/2 flex items-center justify-center pointer-events-none opacity-50 group-hover/panel:opacity-100 transition-opacity">
+                  <div className="w-4 h-12 border-l border-primary/20" />
+                  <ChevronLeft size={12} className="text-primary absolute right-[1px]" />
+              </div>
+
               <div className="absolute bottom-0 right-0 w-10 h-10 pointer-events-none opacity-40" style={{ backgroundImage: `linear-gradient(135deg, transparent 60%, ${accentColor} 60%)` }} />
               <div className="absolute bottom-1 right-1 p-1 opacity-80 pointer-events-none text-primary/80"><CornerRightDown size={12} /></div>
           </div>

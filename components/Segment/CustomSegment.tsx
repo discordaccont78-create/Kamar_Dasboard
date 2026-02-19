@@ -181,6 +181,29 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
   const showCode = safeSegment.segType === 'Code' || safeSegment.segType === 'All';
   const hasPulse = safeSegment.pulseDuration && safeSegment.pulseDuration > 0;
 
+  // --- Animation Variants for Power Icon ---
+  const shouldAnimate = settings.animations;
+  
+  const powerIconVariants = {
+    idle: {
+        scale: 1,
+        rotate: 0,
+        opacity: isOn ? 1 : 0.6, // Simply brighter when ON, dimmer when OFF. No animation.
+    },
+    hover: {
+        // No animation on hover, just ensures opacity is full
+        scale: 1,
+        rotate: 0,
+        opacity: 1,
+    },
+    tap: {
+        // Only animate when clicked
+        scale: shouldAnimate ? 0.9 : 1,
+        rotate: shouldAnimate ? -45 : 0, 
+        transition: { duration: 0.1 }
+    }
+  };
+
   return (
     <MotionDiv initial={false} className="flex flex-col gap-4">
       
@@ -312,15 +335,26 @@ const CustomSegmentInternal: React.FC<Props> = ({ segment: initialSegment }) => 
                             </span>
                         </div>
 
-                        {/* Right Side: Icon & Indicator */}
+                        {/* Right Side: Icon & Indicator - ANIMATED */}
                         <div className="flex items-center gap-3">
-                            <Power 
+                            <MotionDiv
+                                variants={powerIconVariants}
+                                initial="idle"
+                                animate="idle"
+                                whileHover="hover"
+                                whileTap="tap"
                                 className={cn(
-                                    "w-5 h-5 md:w-6 md:h-6 transition-all duration-300", 
-                                    isOn ? "text-primary drop-shadow-[0_0_5px_rgba(var(--primary),0.8)]" : "text-muted-foreground opacity-40"
-                                )} 
-                                strokeWidth={2.5}
-                            />
+                                    "flex items-center justify-center rounded-full p-1",
+                                )}
+                            >
+                                <Power 
+                                    className={cn(
+                                        "w-5 h-5 md:w-6 md:h-6 transition-colors duration-300", 
+                                        isOn ? "text-primary" : "text-muted-foreground"
+                                    )} 
+                                    strokeWidth={2.5}
+                                />
+                            </MotionDiv>
                         </div>
                     </div>
                 </button>

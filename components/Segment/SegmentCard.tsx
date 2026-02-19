@@ -28,6 +28,12 @@ const SHAPE = {
     CUT_TR: "polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 0 100%)", 
     CUT_BL: "polygon(0 0, 100% 0, 100% 100%, 24px 100%, 0 calc(100% - 24px))",
     CUT_DOUBLE: "polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px))",
+    
+    // NEW: Right Notch (For Middle-Right items) matching the group clip
+    NOTCH_RIGHT: "polygon(0 0, 100% 0, 100% calc(50% - 15px), calc(100% - 15px) 50%, 100% calc(50% + 15px), 100% 100%, 0 100%)",
+    
+    // NEW: Solo Notch (Combined with Left strip logic if needed, but primarily right notch for single column items)
+    SOLO_NOTCH: "polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% calc(50% - 15px), calc(100% - 15px) 50%, 100% calc(50% + 15px), 100% 100%, 24px 100%, 0 calc(100% - 24px))",
 };
 
 export const SegmentCard: React.FC<SegmentCardProps> = ({ 
@@ -56,7 +62,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
   let mobileConn = { top: '-10px', bottom: '-10px' }; 
 
   if (position === 'solo') {
-      mobileClip = SHAPE.CUT_DOUBLE;
+      mobileClip = SHAPE.SOLO_NOTCH; // Updated to include notch on mobile solo
       mobileConn = { top: '0', bottom: '0' }; 
   } else if (position === 'top-left' || position === 'top-center' || position === 'top-right') {
       mobileClip = SHAPE.CUT_TR;
@@ -75,7 +81,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
 
   switch (position) {
       case 'solo':
-          desktopClip = SHAPE.CUT_DOUBLE;
+          desktopClip = SHAPE.SOLO_NOTCH; // Updated
           desktopConn = { top: '0', bottom: '0' };
           break;
       case 'top-left':
@@ -106,6 +112,10 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
           desktopClip = SHAPE.CUT_BL;
           desktopConn = { top: '-10px', bottom: '50%' };
           break;
+      case 'middle-right':
+          desktopClip = SHAPE.NOTCH_RIGHT; // Applied Notch
+          desktopConn = { top: '-10px', bottom: '-10px' };
+          break;
       default: 
           desktopClip = SHAPE.SQUARE;
           desktopConn = { top: '-10px', bottom: '-10px' };
@@ -113,6 +123,14 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
   }
 
   const showConn = position !== 'solo' && isReal;
+
+  // --- 3. POWER STRIP LOGIC ---
+  // Updated: Now applies to 'spacer' variants as well if they are in the correct position.
+  const hasPowerStrip = (isReal || variant === 'spacer') && (
+      position === 'solo' || 
+      position === 'bottom-solo' || 
+      position.includes('left')
+  );
 
   const ConnectorLine = () => (
       <div className="absolute left-0 right-0 -top-2 -bottom-2 pointer-events-none z-0">
@@ -169,9 +187,23 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                 )}
                 style={{ margin: isEmptySlot ? '0px' : '1px' }}
             >
+                {/* --- NEW: POWER STRIP (Left Edge) --- */}
+                {hasPowerStrip && (
+                    <div className={cn(
+                        "absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-300 z-20 pointer-events-none",
+                        isEmptySlot ? "bg-muted-foreground/20 group-hover:bg-primary/50" : "bg-primary/50 shadow-[0_0_8px_var(--primary)]"
+                    )}>
+                        {/* Optional internal highlight for detail */}
+                        {!isEmptySlot && <div className="absolute top-0 left-0 w-full h-1/3 bg-white/20 blur-[1px]" />}
+                    </div>
+                )}
+
                 {isEmptySlot ? (
                     // --- UNIFIED EMPTY SLOT CONTENT (For both Ghost & Spacer) ---
-                    <div className="flex-1 flex flex-col items-center justify-center gap-2 min-h-[120px] text-muted-foreground/40 group-hover:text-primary/80 transition-colors relative">
+                    <div className={cn(
+                        "flex-1 flex flex-col items-center justify-center gap-2 min-h-[120px] text-muted-foreground/40 group-hover:text-primary/80 transition-colors relative",
+                        hasPowerStrip ? "pl-3" : "" // Add padding if strip is present to maintain center balance
+                    )}>
                         {/* 
                            Unified Controls: 
                            Show drag handle if provided (even for ghosts).
@@ -205,7 +237,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                     // --- STANDARD CONTENT ---
                     <>
                         {/* Header */}
-                        <div className="h-10 flex items-stretch border-b border-border/40 bg-secondary/5">
+                        <div className={cn("h-10 flex items-stretch border-b border-border/40 bg-secondary/5", hasPowerStrip ? "pl-1" : "")}>
                             {/* Drag Handle Container - Unstyled to let dragHandle control it */}
                             <div className="flex items-stretch shrink-0">
                                 {dragHandle}
@@ -228,7 +260,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                         </div>
                         
                         {/* Body */}
-                        <div className="p-4 relative z-10 flex flex-col gap-4 h-full bg-gradient-to-b from-transparent to-black/[0.02]">
+                        <div className={cn("p-4 relative z-10 flex flex-col gap-4 h-full bg-gradient-to-b from-transparent to-black/[0.02]", hasPowerStrip ? "pl-5" : "")}>
                             {children}
                         </div>
                     </>
@@ -239,7 +271,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                     <>
                         <div className={cn(
                             "absolute top-[24px] right-0 w-1 h-4 bg-primary/20 transition-opacity",
-                            (position === 'top-left' || position === 'solo') ? "block lg:hidden" : "", 
+                            (position === 'top-left' || position === 'solo' || position === 'middle-right') ? "block lg:hidden" : "", 
                             position === 'top-right' ? "hidden lg:block" : "", 
                             position === 'solo' ? "block" : ""
                         )} />
@@ -250,11 +282,14 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                             (position === 'bottom-left' || position === 'bottom-solo' || position === 'solo') ? "hidden lg:block" : "" 
                         )} />
 
-                        <div className={cn(
-                            "absolute bottom-2 left-[12px] w-1 h-4 bg-primary/20",
-                            (isLast || position === 'solo') ? "hidden lg:block" : "block", 
-                            (position === 'bottom-left' || position === 'bottom-solo') ? "block lg:hidden" : ""
-                        )} />
+                        {/* Hide default bottom-left detail if we have the power strip, to avoid clutter */}
+                        {!hasPowerStrip && (
+                            <div className={cn(
+                                "absolute bottom-2 left-[12px] w-1 h-4 bg-primary/20",
+                                (isLast || position === 'solo') ? "hidden lg:block" : "block", 
+                                (position === 'bottom-left' || position === 'bottom-solo') ? "block lg:hidden" : ""
+                            )} />
+                        )}
 
                         <div className="absolute bottom-0 left-0 w-full h-[2px] bg-primary/0 group-hover:bg-primary/50 transition-colors duration-500" />
                     </>
