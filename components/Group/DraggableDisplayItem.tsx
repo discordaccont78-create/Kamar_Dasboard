@@ -46,6 +46,7 @@ interface DraggableDisplayItemProps {
   className?: string;
   segmentId: string;
   onClick?: () => void;
+  hasStrip?: boolean; // New Prop
 }
 
 export const DraggableDisplayItem = React.memo(({ 
@@ -63,7 +64,8 @@ export const DraggableDisplayItem = React.memo(({
   lastReorderTime,
   className,
   segmentId,
-  onClick 
+  onClick,
+  hasStrip
 }: DraggableDisplayItemProps) => {
   const controls = useDragControls();
 
@@ -149,6 +151,7 @@ export const DraggableDisplayItem = React.memo(({
             dragHandle={<div {...dragHandleProps}>{DragIcon}</div>} 
             variant="ghost"
             onClick={onClick}
+            forceStrip={hasStrip}
         />
       );
   } else if (item.type === 'single') {
@@ -167,6 +170,7 @@ export const DraggableDisplayItem = React.memo(({
                 variant="spacer"
                 onRemove={() => onRemove(seg.num_of_node)}
                 onClick={onClick} 
+                forceStrip={hasStrip}
             />
           );
       } else {
@@ -194,6 +198,7 @@ export const DraggableDisplayItem = React.memo(({
                 isLast={isLast}
                 segmentId={seg.num_of_node}
                 dragHandle={<div {...dragHandleProps}>{DragIcon}</div>}
+                forceStrip={hasStrip}
             >
                 {ComponentToRender}
             </SegmentCard>

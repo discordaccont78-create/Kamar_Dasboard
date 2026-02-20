@@ -5,7 +5,7 @@ import { cn, isPersian, getFontClass } from '../../lib/utils';
 import { useSettingsStore } from '../../lib/store/settings';
 import { getIconForName } from '../../lib/iconMapper';
 import { ItemPosition } from '../Group/DraggableDisplayItem';
-import { Plus, X, GripHorizontal } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 
 interface SegmentCardProps {
   gpio: number;
@@ -17,7 +17,8 @@ interface SegmentCardProps {
   isLast?: boolean; 
   segmentId: string;
   variant?: 'default' | 'ghost' | 'spacer';
-  onClick?: () => void; 
+  onClick?: () => void;
+  forceStrip?: boolean; // New prop to enforce strip visibility
 }
 
 const MotionDiv = motion.div as any;
@@ -27,7 +28,6 @@ const SHAPE = {
     SQUARE: "polygon(0 0, 100% 0, 100% 100%, 0 100%)",
     CUT_TR: "polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 0 100%)", 
     CUT_BL: "polygon(0 0, 100% 0, 100% 100%, 24px 100%, 0 calc(100% - 24px))",
-    CUT_DOUBLE: "polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px))",
     
     // Right Notch (Middle-Right items)
     NOTCH_RIGHT: "polygon(0 0, 100% 0, 100% calc(50% - 15px), calc(100% - 15px) 50%, 100% calc(50% + 15px), 100% 100%, 0 100%)",
@@ -36,19 +36,10 @@ const SHAPE = {
     SOLO_NOTCH: "polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% calc(50% - 15px), calc(100% - 15px) 50%, 100% calc(50% + 15px), 100% 100%, 24px 100%, 0 calc(100% - 24px))",
 
     // NEW SPLIT NOTCH SHAPES
-    // 1. Top-Right Split: Chamfered TR + Notch cut at BR
     TOP_RIGHT_SPLIT: "polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%)",
-    
-    // 2. Bottom-Right Split: Square BR (Standard) + Notch cut at TR
     BOTTOM_RIGHT_SPLIT: "polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%)",
-    
-    // 3. Middle-Right Split Top: Square TR + Notch cut at BR
     MIDDLE_RIGHT_SPLIT_TOP: "polygon(0 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%)",
-    
-    // 4. Middle-Right Split Bottom: Square BR + Notch cut at TR
     MIDDLE_RIGHT_SPLIT_BOTTOM: "polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%)",
-
-    // Mobile specific split: If last item is also the bottom half of a notch, it needs CUT_BL + Notch Top
     BOTTOM_RIGHT_SPLIT_MOBILE: "polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 24px 100%, 0 calc(100% - 24px))"
 };
 
@@ -56,20 +47,20 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
   gpio, 
   label, 
   children, 
-  dragHandle,
-  onRemove,
-  position = 'solo',
-  isLast = false,
-  segmentId,
-  variant = 'default',
-  onClick
+  dragHandle, 
+  onRemove, 
+  position = 'solo', 
+  isLast = false, 
+  segmentId, 
+  variant = 'default', 
+  onClick,
+  forceStrip = false
 }) => {
   const { settings } = useSettingsStore();
   const labelFontClass = isPersian(label) ? "font-persian" : getFontClass(settings.dashboardFont);
   const SegmentIcon = getIconForName(label, 'device');
   const safeId = segmentId.replace(/[^a-zA-Z0-9-_]/g, '_');
   
-  // Unified Logic: Ghost and Spacer are visually identical now
   const isEmptySlot = variant === 'ghost' || variant === 'spacer';
   const isReal = !isEmptySlot;
 
@@ -138,7 +129,6 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
       case 'top-right-split':
           desktopClip = SHAPE.TOP_RIGHT_SPLIT;
           desktopConn = { top: '50%', bottom: '-10px' }; // It's top row
-          // On mobile, if this is the first item, it acts like top-right
           if (position === 'top-right-split') mobileClip = SHAPE.TOP_RIGHT_SPLIT; 
           break;
       case 'bottom-right-split':
@@ -164,12 +154,14 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
   const showConn = position !== 'solo' && isReal;
 
   // --- 3. POWER STRIP LOGIC ---
-  // Updated: Now applies to 'spacer' variants as well if they are in the correct position.
-  const hasPowerStrip = (isReal || variant === 'spacer') && (
+  // If forceStrip is true (e.g. 1-column layout), always show it.
+  // Otherwise, ONLY show on actual left-edge items or solo items.
+  // REMOVED: position.includes('center') to fix 3-column middle item bug.
+  const hasPowerStrip = 
+      forceStrip ||
       position === 'solo' || 
       position === 'bottom-solo' || 
-      position.includes('left')
-  );
+      position.includes('left');
 
   const ConnectorLine = () => (
       <div className="absolute left-0 right-0 -top-2 -bottom-2 pointer-events-none z-0">
@@ -183,6 +175,12 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
           </div>
       </div>
   );
+
+  // --- CSS VARIABLE STYLE OBJECT ---
+  const dynamicStyle = {
+      '--clip-path-mobile': mobileClip,
+      '--clip-path-desktop': desktopClip,
+  } as React.CSSProperties;
 
   return (
     <div className="relative h-full" onClick={onClick}>
@@ -202,52 +200,40 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                     isEmptySlot 
                         ? "bg-transparent border-2 border-dashed border-muted-foreground/20 group-hover:border-primary/40 group-hover:bg-primary/5" 
                         : "bg-border/80 dark:bg-white/10 group-hover:bg-primary/40",
-                    `dynamic-clip-${safeId}`
+                    // Use Tailwind arbitrary values to bind to the CSS variables
+                    "[clip-path:var(--clip-path-mobile)] lg:[clip-path:var(--clip-path-desktop)]"
                 )}
+                style={dynamicStyle}
             />
             
-            <style dangerouslySetInnerHTML={{ __html: `
-                .dynamic-clip-${safeId} {
-                    clip-path: ${mobileClip};
-                }
-                @media (min-width: 1024px) {
-                    .dynamic-clip-${safeId} {
-                        clip-path: ${desktopClip};
-                    }
-                }
-            `}} />
-
             {/* CONTENT CONTAINER LAYER */}
             <div 
                 className={cn(
                     "relative h-full flex flex-col overflow-hidden",
                     isEmptySlot ? "bg-transparent" : "bg-card dark:bg-[#151518]",
-                    `dynamic-clip-${safeId}`
+                    "[clip-path:var(--clip-path-mobile)] lg:[clip-path:var(--clip-path-desktop)]"
                 )}
-                style={{ margin: isEmptySlot ? '0px' : '1px' }}
+                style={{ 
+                    ...dynamicStyle,
+                    margin: isEmptySlot ? '0px' : '1px' 
+                }}
             >
-                {/* --- NEW: POWER STRIP (Left Edge) --- */}
+                {/* --- POWER STRIP (Left Edge) --- */}
                 {hasPowerStrip && (
                     <div className={cn(
                         "absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-300 z-20 pointer-events-none",
                         isEmptySlot ? "bg-muted-foreground/20 group-hover:bg-primary/50" : "bg-primary/50 shadow-[0_0_8px_var(--primary)]"
                     )}>
-                        {/* Optional internal highlight for detail */}
                         {!isEmptySlot && <div className="absolute top-0 left-0 w-full h-1/3 bg-white/20 blur-[1px]" />}
                     </div>
                 )}
 
                 {isEmptySlot ? (
-                    // --- UNIFIED EMPTY SLOT CONTENT (For both Ghost & Spacer) ---
+                    // --- EMPTY SLOT CONTENT ---
                     <div className={cn(
                         "flex-1 flex flex-col items-center justify-center gap-2 min-h-[120px] text-muted-foreground/40 group-hover:text-primary/80 transition-colors relative",
-                        hasPowerStrip ? "pl-3" : "" // Add padding if strip is present to maintain center balance
+                        hasPowerStrip ? "pl-3" : "" // Add padding if strip is present to maintain alignment
                     )}>
-                        {/* 
-                           Unified Controls: 
-                           Show drag handle if provided (even for ghosts).
-                           Show Remove button only for real Spacers.
-                        */}
                         {dragHandle && (
                             <div className="absolute top-2 left-2 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab text-foreground z-20">
                                 {dragHandle}
@@ -273,7 +259,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                         <span className="text-[6px] opacity-0 group-hover:opacity-60 uppercase tracking-widest font-mono transition-opacity delay-100">Click to Fill</span>
                     </div>
                 ) : (
-                    // --- STANDARD CONTENT ---
+                    // --- REAL CONTENT ---
                     <>
                         {/* Header */}
                         <div className={cn("h-10 flex items-stretch border-b border-border/40 bg-secondary/5", hasPowerStrip ? "pl-1" : "")}>
@@ -313,23 +299,16 @@ export const SegmentCard: React.FC<SegmentCardProps> = ({
                             "absolute top-[24px] right-0 w-1 h-4 bg-primary/20 transition-opacity",
                             (position === 'top-left' || position === 'solo' || position === 'middle-right') ? "block lg:hidden" : "", 
                             position === 'top-right' ? "hidden lg:block" : "", 
-                            position === 'top-right-split' ? "hidden lg:block" : "", // Split top has chamfer, so hide accent? Or adapt.
+                            position === 'top-right-split' ? "hidden lg:block" : "", 
                             position === 'solo' ? "block" : ""
                         )} />
 
                         {/* Bottom-Left Accent */}
-                        <div className={cn(
-                            "absolute bottom-[24px] left-0 w-1 h-4 bg-primary/20",
-                            (isLast || position === 'solo') ? "block lg:hidden" : "", 
-                            (position === 'bottom-left' || position === 'bottom-solo' || position === 'solo') ? "hidden lg:block" : "" 
-                        )} />
-
                         {/* Hide default bottom-left detail if we have the power strip, to avoid clutter */}
                         {!hasPowerStrip && (
                             <div className={cn(
                                 "absolute bottom-2 left-[12px] w-1 h-4 bg-primary/20",
-                                (isLast || position === 'solo') ? "hidden lg:block" : "block", 
-                                (position === 'bottom-left' || position === 'bottom-solo') ? "block lg:hidden" : ""
+                                isLast ? "hidden lg:block" : "block"
                             )} />
                         )}
 
